@@ -1,63 +1,89 @@
-# TODAY.md - AgriSense Frontend-Backend Integration
+# Today's Work Summary
 
-## What was requested
+## 1. Frontend Feature Implementation
+I have implemented the following features in the AgriSense frontend application:
 
-The user asked me to connect the frontend and backend of the AgriSense smart irrigation system, noting that they don't have hardware, ML model, or Firebase set up yet.
+### 1.1 User Profile Management
+-   **View Profile:** Created `ProfileView.vue` to display user information (Name, Email, Role, Account Creation Date). Added a route (`/profile`) and a navigation link for it.
+-   **Update Profile:** Created `UpdateProfileView.vue` to allow users to update their name and password. Added a route (`/update-profile`) and a button in `ProfileView.vue` to navigate to it.
 
-## What has been accomplished
+### 1.2 Role-Based Access Control (RBAC)
+-   **Corrected Registration Roles:** Updated `RegisterView.vue` to offer "Farmer", "Admin", and "Officer" roles during registration, aligning with `FRONTEND_FEATURES.md`.
+-   **Admin User Management:**
+    -   Conditionally rendered a "User Management" link in the navigation bar (`App.vue`) visible only to users with the 'admin' role.
+    -   Created `UserManagementView.vue` (with basic table structure and action buttons) to display a list of users, allowing for status toggling and role changes.
+    -   Added a protected route (`/user-management`) that is accessible only to 'admin' users.
+-   **Navigation Guard Enhancement:** Modified `router.js` to include role-based authorization in the `beforeEach` navigation guard, redirecting unauthorized users from role-protected routes to the dashboard.
 
-1. **Backend Server Setup**:
-   - Fixed Pydantic compatibility issue by updating to `pydantic-settings`
-   - Created a mock Firebase service that works without real credentials
-   - Updated API endpoints to match the actual backend routes
-   - Got the backend server running on `http://localhost:8000`
+### 1.3 Reporting Features
+-   **Reports View:** Created `ReportsView.vue` with placeholders for daily, weekly, and monthly trend charts.
+-   **Navigation & Routing:** Added a route (`/reports`) and a navigation link for the reports page, accessible to all authenticated users.
 
-2. **Frontend-Backend Connection**:
-   - Updated API service to match actual backend endpoints
-   - Implemented fallback mechanism to mock data when backend is unavailable
-   - Fixed authentication flow to work with the backend's login endpoint
-   - Updated all data retrieval and manipulation methods
+### 1.4 Backend API Integration (Mock API)
+-   Updated `Frontend/src/services/api.js` to include `getMe`, `getUsers`, and `updateUser` methods, which interact with the backend (or mock backend).
+-   Modified the `request` method's fallback logic in `api.js` to correctly use `mockApiService` for `updateUser` and `getUsers` if the real API fails or is unavailable.
 
-3. **Mock Services**:
-   - Created comprehensive mock services for development without hardware, ML model, or Firebase
-   - Developed mock data for devices, sensor readings, irrigation events, and alerts
-   - Implemented mock authentication system
+## 2. Issue Resolution (and Reversion)
+-   **"a.updateUser is not a function" Error:** This was resolved by renaming `updateUserProfile` to `updateUser` in `Frontend/src/services/mock-api.js` to match the call in `api.js`.
+-   **Incorrect User Info in Navbar:** This was fixed by modifying `Frontend/src/services/mock-api.js` to store and return the actually logged-in user (`currentUser`) instead of a hardcoded default. The `login`, `getUserProfile`, and `logout` methods in `mock-api.js` were adjusted accordingly.
+-   **"Unable to log in after log out" Issue (Reverted):**
+    -   Initially, attempts were made to fix this by making `authService.init()` more robust and modifying `authService.login()` to ensure the user object was correctly set.
+    -   However, as these changes introduced further instability, all modifications related to the login/logout flow (in `authService.js`, `mock-api.js`, and `App.vue`) were **reverted** to their state prior to the debugging attempts. The system should now behave as it did before these specific login/logout bug fixes were attempted, and this issue will be addressed separately.
 
-4. **Frontend Deployment**:
-   - Fixed multiple import issues in Firebase service and validation utilities
-   - Successfully built the frontend application using `vite build`
-   - Served the built application using Python's built-in HTTP server on port 5173
+## 3. How to Run the Application
 
-5. **Documentation**:
-   - Created comprehensive setup guide (FRONTEND_BACKEND_SETUP.md)
-   - Documented all configuration changes and troubleshooting steps
+To run the AgriSense frontend application:
 
-## Current Status
+1.  **Navigate to the Frontend Directory:**
+    ```bash
+    cd Frontend
+    ```
 
-### Backend (http://localhost:8000/)
-- Working properly
-- Shows: `{"message": "Welcome to AgriSense Backend API"}`
+2.  **Install Dependencies:**
+    If you haven't already, install the project's dependencies:
+    ```bash
+    npm install
+    ```
+    or
+    ```bash
+    yarn install
+    ```
 
-### Frontend (http://localhost:5173/)
-- Built and deployed successfully
-- Shows a white screen in the browser (Vue application should render here)
+3.  **Start the Development Server:**
+    ```bash
+    npm run dev
+    ```
+    or
+    ```bash
+    yarn dev
+    ```
 
-## Known Issues
+4.  **Access the Application:**
+    The application will typically be served at `http://localhost:5173/` (or a similar port). Open this URL in your web browser.
 
-1. **Frontend White Screen Issue**:
-   - The frontend at `http://localhost:5173/` shows a white screen
-   - This is likely due to the Vue application not rendering properly in the served build
-   - The HTML file is served correctly but the JavaScript bundle may have issues
-   - The Vue app should render in the `<div id="app"></div>` element but isn't doing so
+**Note:** Since the backend is not yet fully integrated, the application relies heavily on mock data provided by `Frontend/src/services/mock-api.js` and `Frontend/src/services/mock-data.js`. You can use the mock users defined in `MOCK_USERS` in `mock-data.js` to log in (e.g., `farmer@example.com` or `admin@example.com` with any password).
 
-2. **JavaScript Bundle Issues**:
-   - The built JavaScript bundle may have path resolution issues
-   - The Vue application may not be initializing properly in the production build
-   - Possible CORS or API connection issues in the built version
+**To Run the Backend (if available):**
+(Assuming a Python/FastAPI backend setup as indicated by `backend/app/main.py` and `backend/requirements.txt`)
 
-## Next Steps
+1.  **Navigate to the Backend Directory (in a separate terminal):**
+    ```bash
+    cd backend
+    ```
 
-1. Debug the frontend white screen issue by checking browser console for errors
-2. Verify that the API calls are properly configured in the built version
-3. Check if the Vue application is initializing correctly in the production build
-4. Ensure all assets are properly loaded in the built application
+2.  **Create and Activate a Virtual Environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate
+    ```
+
+3.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Start the Backend Server:**
+    ```bash
+    python start_server.py
+    ```
+    The backend should run on `http://localhost:8000`. The frontend is configured to attempt to connect to this address.

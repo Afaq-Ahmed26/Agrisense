@@ -39,10 +39,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { authService } from '@/services/auth';
-import { authStore, isAuthenticated, fetchUser } from '@/store/auth';
+import { authStore, isAuthenticated } from '@/store/auth';
 
 const router = useRouter();
 const route = useRoute();
@@ -55,12 +55,6 @@ const userName = computed(() => {
 
 const userRole = computed(() => {
   return authStore.user?.role || '';
-});
-
-onMounted(async () => {
-  if (isAuthenticated.value && !authStore.user) {
-    await fetchUser();
-  }
 });
 
 const logout = async () => {

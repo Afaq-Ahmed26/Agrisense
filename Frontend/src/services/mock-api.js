@@ -7,7 +7,6 @@ class MockApiService {
     constructor() {
         this.baseURL = 'http://localhost:8000'; // This is just for reference
         this.token = localStorage.getItem('accessToken') || null;
-        this.currentUser = null;
     }
 
     // Set authentication token
@@ -35,26 +34,26 @@ class MockApiService {
     async login(email, password) {
         await this.delay();
         
-        const user = MOCK_USERS.find(u => u.email === email);
-
-        if (user && password) { // In a real mock, you might check the password
-            this.currentUser = user;
+        // Simulate login - in a real scenario, this would validate credentials
+        if (email && password) {
+            // Generate a mock JWT token
             const payload = {
                 sub: email,
-                role: user.role,
+                role: 'farmer',
                 exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour from now
             };
             
+            // Simple JWT encoding (not secure, just for demo)
             const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
             const encodedPayload = btoa(JSON.stringify(payload));
-            const signature = btoa('signature');
+            const signature = btoa('signature'); // Not actually signed
             
             const mockToken = `${header}.${encodedPayload}.${signature}`;
             
             return { 
                 access_token: mockToken, 
                 token_type: 'bearer',
-                user: this.currentUser
+                user: { email, role: 'farmer' }
             };
         }
         
@@ -80,7 +79,6 @@ class MockApiService {
     async logout() {
         await this.delay();
         this.removeToken();
-        this.currentUser = null;
         return { message: 'Logged out successfully' };
     }
 
@@ -241,16 +239,13 @@ class MockApiService {
     // User methods
     async getUserProfile() {
         await this.delay();
-        return this.currentUser;
+        // Return the first mock user as the current user
+        return MOCK_USERS[0];
     }
 
-    async updateUser(profileData) {
+    async updateUserProfile(profileData) {
         await this.delay();
-        if (this.currentUser) {
-            this.currentUser = { ...this.currentUser, ...profileData };
-            return this.currentUser;
-        }
-        throw new Error('User not found');
+        return { ...profileData, updated_at: new Date().toISOString() };
     }
 
     async getUsers() {

@@ -21,8 +21,9 @@ class AuthService {
     async login(email, password) {
         try {
             const response = await apiService.login(email, password);
-            if (response.access_token && response.user) {
-                setUser(response.user, response.access_token);
+            if (response.access_token) {
+                setUser(null, response.access_token); // Set token first
+                await fetchUser(); // Then fetch the user profile
                 return { success: true, user: authStore.user, message: 'Login successful' };
             } else {
                 return { success: false, message: 'Invalid response from server' };
