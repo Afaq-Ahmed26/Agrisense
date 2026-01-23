@@ -1,0 +1,305 @@
+/* Dashboard Specific Styles */
+
+/* Main dashboard layout */
+.dashboard-container {
+    padding-top: 20px;
+    padding-bottom: 40px;
+}
+
+/* Sensor cards */
+.sensor-card {
+    transition: var(--transition);
+    height: 100%;
+}
+
+.sensor-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+}
+
+.sensor-icon {
+    font-size: 2rem;
+    opacity: 0.8;
+}
+
+.sensor-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.sensor-label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Alert banner styles */
+.alert-banner {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1050;
+    width: 350px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.alert-item {
+    margin-bottom: 10px;
+    border-radius: 8px;
+    animation: slideInRight 0.3s ease;
+}
+
+.alert-item.critical {
+    border-left: 4px solid #dc3545;
+}
+
+.alert-item.warning {
+    border-left: 4px solid #ffc107;
+}
+
+.alert-item.info {
+    border-left: 4px solid #17a2b8;
+}
+
+/* Control panel */
+.control-panel {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 1.5rem;
+}
+
+.irrigation-mode-selector {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.irrigation-mode-selector .btn {
+    border: none;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+}
+
+.irrigation-mode-selector .btn:first-child {
+    border-radius: 6px 0 0 6px;
+}
+
+.irrigation-mode-selector .btn:last-child {
+    border-radius: 0 6px 6px 0;
+}
+
+.irrigation-mode-selector .btn:not(.active) {
+    background-color: #f8f9fa;
+}
+
+.irrigation-mode-selector .btn.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-active {
+    background-color: var(--success-color);
+    animation: pulse 1.5s infinite;
+}
+
+.status-inactive {
+    background-color: var(--secondary-color);
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Log table */
+.logs-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.logs-table th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+/* Sidebar */
+.sidebar {
+    position: sticky;
+    top: 80px;
+    height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+.sidebar .card {
+    margin-bottom: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .sidebar {
+        position: static;
+        height: auto;
+        margin-bottom: 1.5rem;
+    }
+    
+    .alert-banner {
+        width: calc(100% - 40px);
+        left: 20px;
+        right: 20px;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+    
+    .sensor-value {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding-top: 10px;
+    }
+    
+    .sensor-card {
+        margin-bottom: 1rem;
+    }
+    
+    .chart-container {
+        height: 200px;
+    }
+    
+    .control-panel .row > div {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideInLeft 0.5s ease-out;
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: var(--border-radius);
+}
+
+.spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 0.25rem solid rgba(0, 0, 0, 0.1);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-badge.running {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--success-color);
+}
+
+.status-badge.idle {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: var(--secondary-color);
+}
+
+.status-badge.error {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--danger-color);
+}
+
+/* Button groups */
+.btn-group-full-width {
+    width: 100%;
+}
+
+.btn-group-full-width .btn {
+    flex: 1;
+}
+
+/* Hover effects for interactive elements */
+.interactive-card {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.interactive-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+}
+
+/* Smooth transitions */
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+/* Admin-specific styles */
+.admin-only {
+    display: none;
+}
+
+.middleman-only {
+    display: none;
+}
+
+.farmer-only {
+    display: block;
+}

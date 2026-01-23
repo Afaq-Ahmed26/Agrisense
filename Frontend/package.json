@@ -1,0 +1,41 @@
+{
+  "name": "agrisense-frontend",
+  "version": "1.0.0",
+  "description": "Frontend dashboard for the AgriSense smart irrigation system",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "agriculture",
+    "iot",
+    "irrigation",
+    "dashboard",
+    "smart-farming"
+  ],
+  "author": "AgriSense Team",
+  "license": "MIT",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.1.0",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "axios": "^1.6.0",
+    "bootstrap": "^5.3.0",
+    "chart.js": "^4.4.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "firebase": "^9.22.0",
+    "vue": "^3.5.27",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
