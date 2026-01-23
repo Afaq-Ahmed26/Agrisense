@@ -105,10 +105,12 @@ class ApiService {
                 return mockApiService.getIrrigationLogs('all');
             } else if (endpoint.includes('/users/me')) {
                 return mockApiService.getUserProfile();
+            } else if (endpoint.includes('/users/') && options.method === 'PATCH') {
+                const userId = endpoint.split('/')[2];
+                const userData = JSON.parse(options.body);
+                return mockApiService.updateUser(userId, userData);
             } else if (endpoint.includes('/users/')) {
-                if (endpoint.includes('/users')) {
-                    return mockApiService.getUsers();
-                }
+                return mockApiService.getUsers();
             } else if (endpoint.includes('/ml/predict')) {
                 // For ML predict, we need to handle the POST differently
                 // This will be handled by the calling function
@@ -143,10 +145,9 @@ class ApiService {
     }
 
     async logout() {
-        // Clear local token
-        this.removeToken();
-        // In a real implementation, you might want to call a logout endpoint
-        return Promise.resolve({ message: 'Logged out successfully' });
+        return this.request('/auth/logout', {
+            method: 'POST'
+        });
     }
 
     async verifyToken() {
@@ -238,18 +239,20 @@ class ApiService {
     }
 
     // User methods
-    async getUserProfile() {
+    async getMe() {
         // Use the /users/me endpoint to get current user profile
         return this.request('/users/me');
     }
 
-    async updateUserProfile(profileData) {
-        // The backend doesn't have a direct update profile endpoint, so we'll return a mock response
-        return { ...profileData, updated_at: new Date().toISOString() };
+    async updateUser(userId, userData) {
+        return this.request(`/users/${userId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(userData)
+        });
     }
 
     async getUsers() {
-        return this.request('/users');
+        return this.request('/users/');
     }
 
     async deleteUser(userId) {

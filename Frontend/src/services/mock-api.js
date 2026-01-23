@@ -7,6 +7,7 @@ class MockApiService {
     constructor() {
         this.baseURL = 'http://localhost:8000'; // This is just for reference
         this.token = localStorage.getItem('accessToken') || null;
+        this.currentUser = null;
     }
 
     // Set authentication token
@@ -34,26 +35,26 @@ class MockApiService {
     async login(email, password) {
         await this.delay();
         
-        // Simulate login - in a real scenario, this would validate credentials
-        if (email && password) {
-            // Generate a mock JWT token
+        const user = MOCK_USERS.find(u => u.email === email);
+
+        if (user && password) { // In a real mock, you might check the password
+            this.currentUser = user;
             const payload = {
                 sub: email,
-                role: 'farmer',
+                role: user.role,
                 exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour from now
             };
             
-            // Simple JWT encoding (not secure, just for demo)
             const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
             const encodedPayload = btoa(JSON.stringify(payload));
-            const signature = btoa('signature'); // Not actually signed
+            const signature = btoa('signature');
             
             const mockToken = `${header}.${encodedPayload}.${signature}`;
             
             return { 
                 access_token: mockToken, 
                 token_type: 'bearer',
-                user: { email, role: 'farmer' }
+                user: this.currentUser
             };
         }
         
@@ -63,28 +64,30 @@ class MockApiService {
     async register(userData) {
         await this.delay();
         
-        // Simulate registration
-        return {
+        const newUser = {
             id: `user_${Date.now()}`,
             email: userData.email,
             username: userData.username,
             role: userData.role || 'farmer',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            is_active: true
         };
+        MOCK_USERS.push(newUser);
+        return newUser;
     }
 
     async logout() {
         await this.delay();
         this.removeToken();
+        this.currentUser = null;
         return { message: 'Logged out successfully' };
     }
 
     async verifyToken() {
         await this.delay();
-        // Verify the token (simplified)
-        if (this.token) {
-            return { valid: true, user: { email: 'mock@example.com', role: 'farmer' } };
+        if (this.token && this.currentUser) {
+            return { valid: true, user: this.currentUser };
         }
         return { valid: false };
     }
@@ -92,20 +95,17 @@ class MockApiService {
     // Sensor data methods
     async getLatestSensorData(deviceId) {
         await this.delay();
-        // Find the most recent reading for the device
         const readings = MOCK_SENSOR_READINGS.filter(r => r.device_id === deviceId);
         if (readings.length > 0) {
             return readings.reduce((latest, current) => 
                 new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
             );
         }
-        // If no reading found, generate a mock one
         return generateMockSensorReading(deviceId);
     }
 
     async getSensorHistory(deviceId, startDate, endDate) {
         await this.delay();
-        // Filter readings by device and date range
         let filtered = MOCK_SENSOR_READINGS.filter(r => r.device_id === deviceId);
         
         if (startDate) {
@@ -116,19 +116,16 @@ class MockApiService {
             filtered = filtered.filter(r => new Date(r.timestamp) <= new Date(endDate));
         }
         
-        // Sort by timestamp descending
         return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
 
     async getSensorHealth(deviceId) {
         await this.delay();
-        // Find the device
         const device = MOCK_DEVICES.find(d => d.id === deviceId);
         if (!device) {
             throw new Error('Device not found');
         }
         
-        // Get the latest reading for health status
         const latestReading = await this.getLatestSensorData(deviceId);
         
         return {
@@ -146,13 +143,12 @@ class MockApiService {
             device_id: deviceId, 
             status: 'active', 
             last_updated: new Date().toISOString(),
-            is_running: Math.random() > 0.7 // 30% chance it's running
+            is_running: Math.random() > 0.7
         };
     }
 
     async startIrrigation(deviceId, durationMinutes = 30) {
         await this.delay();
-        // Simulate starting irrigation
         return {
             device_id: deviceId,
             status: 'started',
@@ -181,7 +177,6 @@ class MockApiService {
 
     async getIrrigationPredictions(deviceId, hoursAhead = 48) {
         await this.delay();
-        // Generate mock predictions
         const predictions = [];
         for (let i = 0; i < 5; i++) {
             predictions.push({
@@ -199,7 +194,6 @@ class MockApiService {
     // ML model methods
     async getModelPredictions(data) {
         await this.delay();
-        // Generate mock ML predictions based on input data
         const { soil_moisture, temperature, humidity } = data;
         
         let recommendation = 'no_irrigation_needed';
@@ -225,7 +219,7 @@ class MockApiService {
     }
 
     async retrainModel(datasetStartDate, datasetEndDate) {
-        await this.delay(2000); // Simulate longer processing time
+        await this.delay(2000);
         return { 
             success: true, 
             message: 'Model retraining completed successfully', 
@@ -240,20 +234,23 @@ class MockApiService {
             service: 'ml_service',
             message: 'ML service is ready for predictions',
             model_version: '1.0.0',
-            last_trained: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week ago
+            last_trained: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
         };
     }
 
     // User methods
     async getUserProfile() {
         await this.delay();
-        // Return the first mock user as the current user
-        return MOCK_USERS[0];
+        return this.currentUser;
     }
 
-    async updateUserProfile(profileData) {
+    async updateUser(profileData) {
         await this.delay();
-        return { ...profileData, updated_at: new Date().toISOString() };
+        if (this.currentUser) {
+            this.currentUser = { ...this.currentUser, ...profileData };
+            return this.currentUser;
+        }
+        throw new Error('User not found');
     }
 
     async getUsers() {
@@ -263,7 +260,12 @@ class MockApiService {
 
     async deleteUser(userId) {
         await this.delay();
-        return { message: `User ${userId} deleted successfully` };
+        const index = MOCK_USERS.findIndex(u => u.id === userId);
+        if (index !== -1) {
+            MOCK_USERS.splice(index, 1);
+            return { message: `User ${userId} deleted successfully` };
+        }
+        throw new Error('User not found');
     }
 
     // Alert methods

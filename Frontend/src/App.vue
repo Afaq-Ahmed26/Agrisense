@@ -11,15 +11,21 @@
             <li class="nav-item">
               <router-link class="nav-link" to="/dashboard" :class="{ active: currentRouteName === 'Dashboard' }"><i class="fas fa-home me-1"></i>Dashboard</router-link>
             </li>
+            <li class="nav-item" v-if="userRole === 'admin'">
+              <router-link class="nav-link" to="/user-management" :class="{ active: currentRouteName === 'UserManagement' }"><i class="fas fa-users-cog me-1"></i>User Management</router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/reports" :class="{ active: currentRouteName === 'Reports' }"><i class="fas fa-chart-line me-1"></i>Reports</router-link>
+            </li>
             <!-- Add other nav items here as needed for Analytics, Settings, etc. -->
           </ul>
           <ul class="navbar-nav">
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                <i class="fas fa-user me-1"></i><span id="userName">{{ userName }}</span>
+                <i class="fas fa-user me-1"></i><span>{{ userName }} ({{ userRole }})</span>
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="#"><i class="fas fa-user-circle me-2"></i>Profile</a></li>
+                <li><router-link class="dropdown-item" to="/profile"><i class="fas fa-user-circle me-2"></i>Profile</router-link></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="#" @click.prevent="logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
               </ul>
@@ -33,46 +39,33 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { authService } from '@/services/auth';
+import { authStore, isAuthenticated, fetchUser } from '@/store/auth';
 
 const router = useRouter();
 const route = useRoute();
-const userName = ref('User');
-const isAuthenticated = ref(false);
 
 const currentRouteName = computed(() => route.name);
 
-onMounted(() => {
-  // Initial check for authentication status
-  isAuthenticated.value = authService.isAuthenticated();
-  updateUserName();
-
-  // Listen for changes in authentication status (e.g., after login/logout)
-  authService.onAuthStateChanged(() => {
-    isAuthenticated.value = authService.isAuthenticated();
-    updateUserName();
-  });
+const userName = computed(() => {
+  return authStore.user?.username || authStore.user?.email?.split('@')[0] || 'User';
 });
 
-const updateUserName = () => {
-  const user = authService.getCurrentUser();
-  if (user) {
-    userName.value = user.name || user.email.split('@')[0];
-  } else {
-    userName.value = 'User';
+const userRole = computed(() => {
+  return authStore.user?.role || '';
+});
+
+onMounted(async () => {
+  if (isAuthenticated.value && !authStore.user) {
+    await fetchUser();
   }
-};
+});
 
 const logout = async () => {
-  try {
-    await authService.logout();
-    router.push('/login');
-  } catch (error) {
-    console.error('Logout error:', error);
-    // Optionally, show a toast or alert for logout failure
-  }
+  await authService.logout();
+  router.push('/login');
 };
 </script>
 

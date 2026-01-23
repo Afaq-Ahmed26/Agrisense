@@ -30,7 +30,8 @@
                 <select class="form-select" id="role" v-model="role" required>
                   <option value="">Choose your role...</option>
                   <option value="farmer">Farmer</option>
-                  <option value="middleman">Middleman</option>
+                  <option value="admin">Admin</option>
+                  <option value="officer">Officer</option>
                 </select>
               </div>
               <div class="d-grid">

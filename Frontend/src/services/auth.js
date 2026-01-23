@@ -1,50 +1,29 @@
 import { apiService } from '@/services/api';
 import { ValidationUtils } from '@/utils/validation';
 import { CONFIG } from '@/config';
+import { authStore, fetchUser, setUser, logout as storeLogout, isAuthenticated } from '@/store/auth';
 
 // Authentication Service for AgriSense
 class AuthService {
     constructor() {
-        this.currentUser = null;
+        // Initialize the user from the store on creation
+        this.init();
     }
 
     // Initialize auth service
     async init() {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-            try {
-                const response = await apiService.verifyToken();
-                if (response.valid) {
-                    this.currentUser = response.user;
-                    return true;
-                }
-            } catch (error) {
-                console.warn('Token verification failed:', error);
-                this.clearAuth();
-            }
+        if (isAuthenticated.value) {
+            await fetchUser();
         }
-        return false;
     }
 
     // Login method
     async login(email, password) {
         try {
             const response = await apiService.login(email, password);
-            if (response.access_token) {
-                apiService.setToken(response.access_token);
-
-                // Extract user info from the token or create a basic user object
-                // For now, we'll create a basic user object
-                this.currentUser = {
-                    email,
-                    role: response.role || 'farmer',
-                    id: `user_${Date.now()}` // Generate a temporary ID
-                };
-
-                // Store user role in localStorage for quick access
-                localStorage.setItem('userRole', this.currentUser.role);
-
-                return { success: true, user: this.currentUser, message: 'Login successful' };
+            if (response.access_token && response.user) {
+                setUser(response.user, response.access_token);
+                return { success: true, user: authStore.user, message: 'Login successful' };
             } else {
                 return { success: false, message: 'Invalid response from server' };
             }
@@ -63,7 +42,7 @@ class AuthService {
                 return { success: false, message: passwordError };
             }
 
-            const response = await apiService.register(userData);
+            await apiService.register(userData);
             return { success: true, message: 'Registration successful. Please login.' };
         } catch (error) {
             console.error('Registration error:', error);
@@ -75,31 +54,28 @@ class AuthService {
     async logout() {
         try {
             await apiService.logout();
-            this.clearAuth();
-            return { success: true, message: 'Logged out successfully' };
         } catch (error) {
-            console.error('Logout error:', error);
-            this.clearAuth(); // Clear anyway even if API call fails
-            return { success: true, message: 'Logged out successfully' };
+            console.error('Logout API call failed:', error);
+            // We still proceed with local logout
+        } finally {
+            storeLogout();
         }
-    }
-
-    // Clear authentication data
-    clearAuth() {
-        apiService.removeToken();
-        this.currentUser = null;
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('accessToken');
+        return { success: true, message: 'Logged out successfully' };
     }
 
     // Check if user is authenticated
     isAuthenticated() {
-        return !!this.currentUser;
+        return isAuthenticated.value;
+    }
+
+    // Get current user
+    getCurrentUser() {
+        return authStore.user;
     }
 
     // Get current user role
     getUserRole() {
-        return localStorage.getItem('userRole') || null;
+        return authStore.user?.role || null;
     }
 
     // Check if current user is admin

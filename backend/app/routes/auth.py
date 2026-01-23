@@ -7,10 +7,11 @@ from app.services.auth_service import create_access_token, get_password_hash, ve
 from app.services.firebase_service import firebase_service
 from app.utils.validators import EmailValidator, PasswordValidator
 from app.config import settings
+from app.middleware.auth import JWTBearer
 
 
 router = APIRouter()
-security = HTTPBearer()
+security = JWTBearer()
 
 
 @router.post("/register", response_model=User)
@@ -118,3 +119,11 @@ async def refresh_token(token: str = Depends(security)):
     new_access_token = create_access_token(data=new_token_data)
     
     return {"access_token": new_access_token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+async def logout(token: str = Depends(security)):
+    # In a real implementation with token blacklisting, you would add the token to a blacklist.
+    # For this simplified version, we just return a success message.
+    # The frontend is responsible for clearing the token.
+    return {"message": "Successfully logged out"}
