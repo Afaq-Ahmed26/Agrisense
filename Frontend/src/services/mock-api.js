@@ -243,7 +243,7 @@ class MockApiService {
         return MOCK_USERS[0];
     }
 
-    async updateUserProfile(profileData) {
+    async updateUser(profileData) {
         await this.delay();
         return { ...profileData, updated_at: new Date().toISOString() };
     }

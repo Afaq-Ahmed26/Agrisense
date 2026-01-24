@@ -15,6 +15,10 @@ const app = createApp(App);
 
 app.use(router);
 
+// Fetch user data on application startup
+import { fetchUser } from '@/store/auth';
+fetchUser();
+
 app.mount('#app');
 
 // Expose global utility functions if necessary for older components or debugging

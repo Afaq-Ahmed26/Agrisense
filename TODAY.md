@@ -25,7 +25,9 @@ I have implemented the following features in the AgriSense frontend application:
 
 ## 2. Issue Resolution (and Reversion)
 -   **"a.updateUser is not a function" Error:** This was resolved by renaming `updateUserProfile` to `updateUser` in `Frontend/src/services/mock-api.js` to match the call in `api.js`.
--   **Incorrect User Info in Navbar:** This was fixed by modifying `Frontend/src/services/mock-api.js` to store and return the actually logged-in user (`currentUser`) instead of a hardcoded default. The `login`, `getUserProfile`, and `logout` methods in `mock-api.js` were adjusted accordingly.
+-   **Incorrect User Info in Navbar / Name not updating on Navbar:**
+    -   Initially, `fetchUser()` was not called on application startup. This was fixed by adding a call to `fetchUser()` in `Frontend/src/main.js` to ensure user data is loaded into the `authStore`.
+    -   To ensure the Navbar immediately reflects changes after a profile update, `Frontend/src/views/UpdateProfileView.vue` was modified to optimistically update `authStore.user.username` with the new value from the payload after a successful API call, in addition to calling `fetchUser()` for full synchronization.
 -   **"Unable to log in after log out" Issue (Reverted):**
     -   Initially, attempts were made to fix this by making `authService.init()` more robust and modifying `authService.login()` to ensure the user object was correctly set.
     -   However, as these changes introduced further instability, all modifications related to the login/logout flow (in `authService.js`, `mock-api.js`, and `App.vue`) were **reverted** to their state prior to the debugging attempts. The system should now behave as it did before these specific login/logout bug fixes were attempted, and this issue will be addressed separately.

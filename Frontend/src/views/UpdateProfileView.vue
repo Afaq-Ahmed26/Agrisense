@@ -81,7 +81,10 @@ const handleUpdate = async () => {
 
     await apiService.updateUser(authStore.user.id, payload);
     successMessage.value = 'Profile updated successfully!';
-    // Optionally, refetch user data to update the store
+    // Directly update authStore.user to reflect changes immediately in the UI
+    if (payload.username) {
+      authStore.user.username = payload.username;
+    }
     await fetchUser();
   } catch (error) {
     errorMessage.value = error.message || 'An unexpected error occurred during profile update.';
