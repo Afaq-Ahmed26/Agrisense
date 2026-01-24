@@ -1,6 +1,5 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.services.auth_service import verify_token
 from app.services.firebase_service import firebase_service
 from typing import Optional
 
@@ -39,17 +38,12 @@ class JWTBearer(HTTPBearer):
 
     def verify_jwt(self, jwtoken: str) -> Optional[dict]:
         try:
-            # First try our local JWT verification
-            payload = verify_token(jwtoken)
-            if payload:
-                return payload
-            
-            # If that fails, try Firebase verification
+            # Try Firebase verification first
             decoded_token = firebase_service.verify_token(jwtoken)
             if decoded_token:
                 return decoded_token
                 
         except Exception as e:
-            print(f"Token verification error: {e}")
+            print(f"Firebase Token verification error: {e}")
         
         return None

@@ -85,17 +85,23 @@ const handleRegister = async () => {
     return;
   }
 
-  try {
-    await authService.register(name.value, email.value, password.value, role.value);
+  const userData = {
+    email: email.value,
+    password: password.value,
+    // name: name.value, // Firebase Auth doesn't directly use 'name' during registration
+    // role: role.value, // Firebase Auth doesn't directly use 'role' during registration
+  };
+
+  const result = await authService.register(userData);
+  if (result.success) {
     successMessage.value = 'Registration successful! Redirecting to login...';
     setTimeout(() => {
       router.push('/login');
     }, 2000);
-  } catch (error) {
-    errorMessage.value = error.message || 'An unexpected error occurred during registration.';
-  } finally {
-    isLoading.value = false;
+  } else {
+    errorMessage.value = result.message;
   }
+  isLoading.value = false;
 };
 </script>
 

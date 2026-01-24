@@ -53,14 +53,13 @@ const router = useRouter();
 const handleLogin = async () => {
   isLoading.value = true;
   errorMessage.value = '';
-  try {
-    await authService.login(email.value, password.value);
+  const result = await authService.login(email.value, password.value);
+  if (result.success) {
     router.push('/dashboard');
-  } catch (error) {
-    errorMessage.value = error.message || 'An unexpected error occurred.';
-  } finally {
-    isLoading.value = false;
+  } else {
+    errorMessage.value = result.message;
   }
+  isLoading.value = false;
 };
 </script>
 

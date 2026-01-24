@@ -10,6 +10,9 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 // Import Bootstrap JavaScript (if needed for components like modals, tooltips)
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
+// Import Firebase initialization
+import { auth, db } from './services/firebaseConfig';
+
 
 const app = createApp(App);
 

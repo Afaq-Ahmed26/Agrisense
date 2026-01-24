@@ -1,4 +1,10 @@
-import { apiService } from '@/services/api';
+import { auth } from './firebaseConfig';
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+} from 'firebase/auth';
 import { ValidationUtils } from '@/utils/validation';
 import { CONFIG } from '@/config';
 import { authStore, fetchUser, setUser, logout as storeLogout, isAuthenticated } from '@/store/auth';
@@ -6,31 +12,35 @@ import { authStore, fetchUser, setUser, logout as storeLogout, isAuthenticated }
 // Authentication Service for AgriSense
 class AuthService {
     constructor() {
-        // Initialize the user from the store on creation
-        this.init();
-    }
-
-    // Initialize auth service
-    async init() {
-        if (isAuthenticated.value) {
-            await fetchUser();
-        }
+        // Initialize the user from the store on creation via Firebase auth state
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is signed in.
+                setUser(user, await user.getIdToken()); // Set Firebase user object and token in store
+                await fetchUser(); // Fetch detailed user profile from backend using Firebase ID Token
+            } else {
+                // User is signed out.
+                storeLogout();
+            }
+        });
     }
 
     // Login method
     async login(email, password) {
         try {
-            const response = await apiService.login(email, password);
-            if (response.access_token) {
-                setUser(null, response.access_token); // Set token first
-                await fetchUser(); // Then fetch the user profile
-                return { success: true, user: authStore.user, message: 'Login successful' };
-            } else {
-                return { success: false, message: 'Invalid response from server' };
-            }
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged listener will handle setting the user in authStore
+            return { success: true, user: userCredential.user, message: 'Login successful' };
         } catch (error) {
-            console.error('Login error:', error);
-            return { success: false, message: error.message || 'Login failed. Please try again.' };
+            console.error('Firebase Login error:', error);
+            // Provide more specific error messages for Firebase Auth errors
+            let errorMessage = 'Login failed. Please check your credentials.';
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                errorMessage = 'Invalid email or password.';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many failed login attempts. Please try again later.';
+            }
+            return { success: false, message: errorMessage };
         }
     }
 
@@ -43,25 +53,39 @@ class AuthService {
                 return { success: false, message: passwordError };
             }
 
-            await apiService.register(userData);
-            return { success: true, message: 'Registration successful. Please login.' };
+            const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+            // After successful registration, the user is usually automatically logged in.
+            // The onAuthStateChanged listener will handle setting the user in authStore.
+            // You might want to update the user's profile with display name here:
+            // await updateProfile(userCredential.user, { displayName: userData.name });
+
+            return { success: true, user: userCredential.user, message: 'Registration successful.' };
         } catch (error) {
-            console.error('Registration error:', error);
-            return { success: false, message: error.message || 'Registration failed. Please try again.' };
+            console.error('Firebase Registration error:', error);
+            let errorMessage = 'Registration failed. Please try again.';
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'The email address is already in use by another account.';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'The email address is not valid.';
+            } else if (error.code === 'auth/operation-not-allowed') {
+                errorMessage = 'Email/password accounts are not enabled. Please enable in Firebase console.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'The password is too weak.';
+            }
+            return { success: false, message: errorMessage };
         }
     }
 
     // Logout method
     async logout() {
         try {
-            await apiService.logout();
+            await signOut(auth);
+            // onAuthStateChanged listener will handle calling storeLogout()
+            return { success: true, message: 'Logged out successfully' };
         } catch (error) {
-            console.error('Logout API call failed:', error);
-            // We still proceed with local logout
-        } finally {
-            storeLogout();
+            console.error('Firebase Logout error:', error);
+            return { success: false, message: error.message || 'Logout failed. Please try again.' ;
         }
-        return { success: true, message: 'Logged out successfully' };
     }
 
     // Check if user is authenticated

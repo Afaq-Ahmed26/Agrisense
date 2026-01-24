@@ -61,7 +61,10 @@ const router = createRouter({
   routes,
 });
 
+import { authReady } from '@/services/firebaseConfig'; // ADD THIS LINE
+
 router.beforeEach(async (to, from, next) => {
+  await authReady; // WAIT FOR FIREBASE AUTH STATE TO BE READY
   const requiresAuth = to.meta.requiresAuth;
   const isAuthenticated = authService.isAuthenticated();
 

@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     # Firebase configuration
     FIREBASE_CONFIG_PATH: str = os.getenv("FIREBASE_CONFIG_PATH", "")
     FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
+    FIREBASE_ADMIN_SDK_CONFIG: str = os.getenv("FIREBASE_ADMIN_SDK_CONFIG", "")
 
     # JWT configuration
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")

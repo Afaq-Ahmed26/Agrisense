@@ -112,10 +112,39 @@ class MockFirebaseAuth:
                 return payload_json
             else:
                 # If not a proper JWT, return a default payload
-                return {"sub": "mock_user", "role": "farmer", "exp": datetime.now().timestamp() + 3600}
+                return {"sub": "mock_user", "email": "mock@example.com", "uid": "mock_uid_1", "role": "farmer", "exp": datetime.now().timestamp() + 3600}
         except Exception as e:
             print(f"Error decoding token: {e}")
-            return {"sub": "mock_user", "role": "farmer", "exp": datetime.now().timestamp() + 3600}
+            return {"sub": "mock_user", "email": "mock@example.com", "uid": "mock_uid_1", "role": "farmer", "exp": datetime.now().timestamp() + 3600}
+
+    def get_user(self, uid: str):
+        for user_data in self.users.values():
+            if user_data['uid'] == uid:
+                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'))
+        return None
+
+    def update_user(self, uid: str, **kwargs):
+        for email, user_data in self.users.items():
+            if user_data['uid'] == uid:
+                for key, value in kwargs.items():
+                    user_data[key] = value
+                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'))
+        return None
+
+    def delete_user(self, uid: str):
+        for email, user_data in list(self.users.items()):
+            if user_data['uid'] == uid:
+                del self.users[email]
+                return True
+        return False
+
+    def list_users(self, page_token: Optional[str] = None, max_results: int = 1000):
+        # A very basic mock list users
+        mock_users = []
+        for user_data in list(self.users.values())[:max_results]:
+            mock_users.append(MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name')))
+        return mock_users, None # Return list and no next page token for simplicity
+
 
 
 class MockFirebaseUser:
@@ -139,21 +168,25 @@ class MockUserMetadata:
 class FirebaseService:
     def __init__(self):
         # Check if Firebase credentials are available
-        if settings.FIREBASE_CONFIG_PATH or settings.FIREBASE_PROJECT_ID:
+        if settings.FIREBASE_ADMIN_SDK_CONFIG or settings.FIREBASE_PROJECT_ID: # Updated condition
             try:
                 import firebase_admin
                 from firebase_admin import credentials, firestore, auth
 
                 # Initialize Firebase Admin SDK if not already initialized
                 if not firebase_admin._apps:
-                    if settings.FIREBASE_CONFIG_PATH:
+                    if settings.FIREBASE_ADMIN_SDK_CONFIG: # Check for Admin SDK config
+                        # Parse the JSON string from environment variable
+                        cred_json = json.loads(settings.FIREBASE_ADMIN_SDK_CONFIG)
+                        cred = credentials.Certificate(cred_json)
+                    elif settings.FIREBASE_CONFIG_PATH: # Fallback to file path if available (less secure)
                         cred = credentials.Certificate(settings.FIREBASE_CONFIG_PATH)
                     else:
                         # Use default credentials if available (for Google Cloud environment)
                         cred = credentials.ApplicationDefault()
 
                     firebase_admin.initialize_app(cred, {
-                        'projectId': settings.FIREBASE_PROJECT_ID,
+                        'projectId': settings.FIREBASE_PROJECT_ID if settings.FIREBASE_PROJECT_ID else cred.project_id, # Use project ID from settings or credential
                     })
 
                 self.db = firestore.client()
@@ -211,6 +244,51 @@ class FirebaseService:
         except Exception as e:
             print(f"Error verifying token: {e}")
             return None
+
+    def get_user_by_uid(self, uid: str):
+        try:
+            if self.is_mock:
+                return self.auth.get_user(uid)
+            else:
+                user = self.auth.get_user(uid)
+                return user
+        except Exception as e:
+            print(f"Error getting user by UID: {e}")
+            return None
+
+    def update_firebase_user(self, uid: str, **kwargs):
+        try:
+            if self.is_mock:
+                return self.auth.update_user(uid, **kwargs)
+            else:
+                user = self.auth.update_user(uid, **kwargs)
+                return user
+        except Exception as e:
+            print(f"Error updating Firebase user: {e}")
+            return None
+
+    def delete_firebase_user(self, uid: str):
+        try:
+            if self.is_mock:
+                return self.auth.delete_user(uid)
+            else:
+                self.auth.delete_user(uid)
+                return True
+        except Exception as e:
+            print(f"Error deleting Firebase user: {e}")
+            return False
+
+    def list_firebase_users(self, page_token: Optional[str] = None, max_results: int = 1000):
+        try:
+            if self.is_mock:
+                return self.auth.list_users(page_token, max_results)
+            else:
+                users_page = self.auth.list_users(page_token=page_token, max_results=max_results)
+                return users_page.users, users_page.page_token
+        except Exception as e:
+            print(f"Error listing Firebase users: {e}")
+            return [], None
+
 
 
 # Global instance
