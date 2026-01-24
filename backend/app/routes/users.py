@@ -104,15 +104,17 @@ async def delete_user(user_id: str, request: Request, token: str = Depends(secur
 async def get_current_user(request: Request, token: str = Depends(security)):
     # Get the current authenticated user's information
     user_payload = request.state.user
-    email = user_payload.get("sub") or user_payload.get("email") # Firebase token uses 'email', local uses 'sub'
+    print(f"DEBUG /users/me: user_payload = {user_payload}") # ADD THIS
+    uid = user_payload.get("uid") # Extract UID from the decoded Firebase token
+    print(f"DEBUG /users/me: uid = {uid}") # ADD THIS
 
-    if not email:
-        raise HTTPException(status_code=403, detail="Could not validate user credentials.")
+    if not uid:
+        raise HTTPException(status_code=403, detail="Could not validate user credentials (missing UID).")
 
-    # Fetch the complete user profile from Firebase
-    firebase_user = firebase_service.get_user_by_email(email)
+    # Fetch the complete user profile from Firebase using UID
+    firebase_user = firebase_service.get_user_by_uid(uid)
     if not firebase_user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        raise HTTPException(status_code=404, detail="User not found in Firebase.")
 
     # Assuming role is stored in custom claims or a separate DB.
     # For now, we'll use the role from the token, or default.
@@ -123,8 +125,8 @@ async def get_current_user(request: Request, token: str = Depends(security)):
     return User(
         id=firebase_user.uid,
         email=firebase_user.email,
-        username=firebase_user.display_name or "N/A",
+        username=firebase_user.display_name or firebase_user.email.split('@')[0], # Fallback to email prefix
         role=role,
-        created_at=firebase_user.user_metadata.creation_timestamp,
-        updated_at=firebase_user.user_metadata.last_sign_in_timestamp or firebase_user.user_metadata.creation_timestamp,
+        created_at=datetime.fromtimestamp(firebase_user.user_metadata.creation_timestamp / 1000) if firebase_user.user_metadata.creation_timestamp else datetime.now(),
+        updated_at=datetime.fromtimestamp(firebase_user.user_metadata.last_sign_in_timestamp / 1000) if firebase_user.user_metadata.last_sign_in_timestamp else datetime.now(),
     )

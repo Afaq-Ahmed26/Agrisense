@@ -3,7 +3,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    updateProfile
 } from 'firebase/auth';
 import { ValidationUtils } from '@/utils/validation';
 import { CONFIG } from '@/config';
@@ -54,10 +55,12 @@ class AuthService {
             }
 
             const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
-            // After successful registration, the user is usually automatically logged in.
+            // Update the user's display name immediately after registration
+            if (userData.name && userCredential.user) {
+                await updateProfile(userCredential.user, { displayName: userData.name });
+            }
             // The onAuthStateChanged listener will handle setting the user in authStore.
-            // You might want to update the user's profile with display name here:
-            // await updateProfile(userCredential.user, { displayName: userData.name });
+            // fetchUser() will then fetch the full profile from backend.
 
             return { success: true, user: userCredential.user, message: 'Registration successful.' };
         } catch (error) {
@@ -84,7 +87,7 @@ class AuthService {
             return { success: true, message: 'Logged out successfully' };
         } catch (error) {
             console.error('Firebase Logout error:', error);
-            return { success: false, message: error.message || 'Logout failed. Please try again.' ;
+            return { success: false, message: error.message || 'Logout failed. Please try again.' };
         }
     }
 

@@ -176,6 +176,7 @@ class FirebaseService:
                 # Initialize Firebase Admin SDK if not already initialized
                 if not firebase_admin._apps:
                     if settings.FIREBASE_ADMIN_SDK_CONFIG: # Check for Admin SDK config
+                        print(f"DEBUG: FIREBASE_ADMIN_SDK_CONFIG received: {settings.FIREBASE_ADMIN_SDK_CONFIG[:500]}...") # Print first 500 chars to avoid overwhelming output but still see enough
                         # Parse the JSON string from environment variable
                         cred_json = json.loads(settings.FIREBASE_ADMIN_SDK_CONFIG)
                         cred = credentials.Certificate(cred_json)
@@ -193,7 +194,9 @@ class FirebaseService:
                 self.auth = auth
                 self.is_mock = False
             except Exception as e:
-                print(f"Firebase initialization failed: {e}. Using mock service.")
+                import traceback
+                print(f"Firebase initialization FAILED: {e}. Using mock service.")
+                traceback.print_exc() # Print full traceback
                 self.setup_mock_service()
         else:
             print("Firebase credentials not configured. Using mock service.")

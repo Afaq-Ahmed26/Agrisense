@@ -88,8 +88,8 @@ const handleRegister = async () => {
   const userData = {
     email: email.value,
     password: password.value,
-    // name: name.value, // Firebase Auth doesn't directly use 'name' during registration
-    // role: role.value, // Firebase Auth doesn't directly use 'role' during registration
+    name: name.value, // Re-enabled for Firebase displayName update
+    // role: role.value, // Firebase Auth doesn't directly use 'role' during registration, will need separate handling if needed
   };
 
   const result = await authService.register(userData);

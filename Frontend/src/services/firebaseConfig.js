@@ -1,6 +1,5 @@
-// Frontend/src/services/firebaseConfig.js
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth'; // Remove onAuthStateChanged
 import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
@@ -18,23 +17,12 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp(); // Initialize only if no app exists
 
 // Initialize Firebase services
 const auth = getAuth(app);
 const db = getFirestore(app); // Assuming Firestore will be used for user profiles
 
-let authReadyResolver;
-const authReady = new Promise(resolve => {
-  authReadyResolver = resolve;
-});
+// Removed authReady promise and onAuthStateChanged from here
 
-// Resolve the promise once Firebase Auth is initialized and its state is known
-onAuthStateChanged(auth, (user) => {
-  if (authReadyResolver) {
-    authReadyResolver(user);
-    authReadyResolver = null; // Ensure it resolves only once
-  }
-});
-
-export { auth, db, authReady };
+export { auth, db }; // Remove authReady from export
