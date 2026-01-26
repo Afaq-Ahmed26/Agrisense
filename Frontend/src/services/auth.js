@@ -1,23 +1,34 @@
-import { auth } from './firebaseConfig';
 import {
-    createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
-    updateProfile
+    updateProfile,
+    sendEmailVerification // Add sendEmailVerification
 } from 'firebase/auth';
 import { ValidationUtils } from '@/utils/validation';
 import { CONFIG } from '@/config';
 import { authStore, fetchUser, setUser, logout as storeLogout, isAuthenticated } from '@/store/auth';
+import { firebaseService } from './firebase'; // Import firebaseService
+import { apiService } from './api'; // Import apiService
 
 // Authentication Service for AgriSense
 class AuthService {
     constructor() {
-        // Initialize the user from the store on creation via Firebase auth state
-        onAuthStateChanged(auth, async (user) => {
+        // Constructor no longer sets up onAuthStateChanged directly.
+        // It will be called externally after Firebase is initialized.
+    }
+
+    // New method to set up the Firebase Auth state change listener
+    listenForAuthStateChanges() {
+        if (!firebaseService.auth) {
+            console.error("Firebase Auth not initialized when attempting to set auth state listener.");
+            return;
+        }
+        firebaseService.auth.onAuthStateChanged(async (user) => {
             if (user) {
                 // User is signed in.
-                setUser(user, await user.getIdToken()); // Set Firebase user object and token in store
+                // It's crucial to await getIdToken() before setting the user to ensure token is available
+                setUser(user, await user.getIdToken());
                 await fetchUser(); // Fetch detailed user profile from backend using Firebase ID Token
             } else {
                 // User is signed out.
@@ -29,7 +40,8 @@ class AuthService {
     // Login method
     async login(email, password) {
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            // Use firebaseService.auth here
+            const userCredential = await signInWithEmailAndPassword(firebaseService.auth, email, password);
             // onAuthStateChanged listener will handle setting the user in authStore
             return { success: true, user: userCredential.user, message: 'Login successful' };
         } catch (error) {
@@ -54,26 +66,22 @@ class AuthService {
                 return { success: false, message: passwordError };
             }
 
-            const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
-            // Update the user's display name immediately after registration
-            if (userData.name && userCredential.user) {
-                await updateProfile(userCredential.user, { displayName: userData.name });
-            }
-            // The onAuthStateChanged listener will handle setting the user in authStore.
-            // fetchUser() will then fetch the full profile from backend.
+            // Call backend /register endpoint
+            const response = await apiService.register(userData);
 
-            return { success: true, user: userCredential.user, message: 'Registration successful.' };
+            if (response.success) {
+                // Assuming the backend handles Firebase user creation and returns sufficient data
+                // For now, we'll return the response from the backend
+                return { success: true, message: response.message || 'Registration successful.' };
+            } else {
+                return { success: false, message: response.message || 'Registration failed. Please try again.' };
+            }
+
         } catch (error) {
-            console.error('Firebase Registration error:', error);
+            console.error('Registration error:', error);
             let errorMessage = 'Registration failed. Please try again.';
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'The email address is already in use by another account.';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'The email address is not valid.';
-            } else if (error.code === 'auth/operation-not-allowed') {
-                errorMessage = 'Email/password accounts are not enabled. Please enable in Firebase console.';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'The password is too weak.';
+            if (error.response && error.response.data && error.response.data.detail) {
+                errorMessage = error.response.data.detail;
             }
             return { success: false, message: errorMessage };
         }
@@ -82,12 +90,41 @@ class AuthService {
     // Logout method
     async logout() {
         try {
-            await signOut(auth);
+            // Use firebaseService.auth here
+            await signOut(firebaseService.auth);
             // onAuthStateChanged listener will handle calling storeLogout()
             return { success: true, message: 'Logged out successfully' };
         } catch (error) {
             console.error('Firebase Logout error:', error);
             return { success: false, message: error.message || 'Logout failed. Please try again.' };
+        }
+    }
+
+    // Send email verification for account deletion
+    async sendDeleteAccountVerificationEmail() {
+        try {
+            const currentUser = firebaseService.auth.currentUser;
+            if (!currentUser) {
+                return { success: false, message: 'No user is currently logged in.' };
+            }
+
+            // Construct the actionCodeSettings for the verification email
+            // This URL will be used to redirect the user after they click the verification link in their email
+            // The Firebase console template for email verification needs to be configured to handle this action
+            const actionCodeSettings = {
+                url: `${window.location.origin}/delete-account-confirm`, // Redirect to a specific page in our app
+                handleCodeInApp: true, // This must be true for sendEmailVerification to redirect
+            };
+
+            await sendEmailVerification(currentUser, actionCodeSettings);
+            return { success: true, message: 'Verification email sent.' };
+        } catch (error) {
+            console.error('Error sending delete account verification email:', error);
+            let errorMessage = error.message || 'Failed to send verification email.';
+            if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many requests. Please try again later.';
+            }
+            return { success: false, message: errorMessage };
         }
     }
 

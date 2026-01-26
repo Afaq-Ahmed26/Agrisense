@@ -51,6 +51,16 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/ForgotPasswordView.vue'), // Lazy load for efficiency
+  },
+  {
+    path: '/delete-account-confirm',
+    name: 'DeleteAccountConfirm',
+    component: () => import('@/views/DeleteAccountConfirmView.vue'), // Lazy load
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },

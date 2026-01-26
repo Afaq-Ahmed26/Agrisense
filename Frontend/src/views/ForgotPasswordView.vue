@@ -5,35 +5,32 @@
         <div class="card shadow-lg border-0 rounded-3">
           <div class="card-header text-center bg-primary text-white py-4 rounded-top-3">
             <h2 class="mb-0"><i class="fas fa-seedling me-2"></i>AgriSense</h2>
-            <small class="opacity-75">Smart Irrigation Management</small>
+            <small class="opacity-75">Password Reset</small>
           </div>
           <div class="card-body p-4">
-            <form @submit.prevent="handleLogin">
+            <p class="text-center text-muted mb-4">Enter your email address to receive a password reset link.</p>
+            <form @submit.prevent="handlePasswordReset">
               <div class="mb-3">
                 <label for="email" class="form-label">Email Address</label>
                 <input type="email" class="form-control" id="email" v-model="email" placeholder="Enter your email" required>
               </div>
-              <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" v-model="password" placeholder="Enter your password" required>
-              </div>
               <div class="d-grid">
                 <button type="submit" class="btn btn-primary btn-lg" :disabled="isLoading">
                   <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                  Login
+                  Send Reset Link
                 </button>
               </div>
             </form>
             
-            <div class="text-center mt-3">
-              <router-link to="/register" class="text-decoration-none">Don't have an account? Register here</router-link>
+            <div v-if="successMessage" class="alert alert-success mt-3" role="alert">
+              {{ successMessage }}
             </div>
-            <div class="text-center mt-2">
-              <router-link to="/forgot-password" class="text-decoration-none">Forgot Password?</router-link>
-            </div>
-            
             <div v-if="errorMessage" class="alert alert-danger mt-3" role="alert">
               {{ errorMessage }}
+            </div>
+
+            <div class="text-center mt-3">
+              <router-link to="/login" class="text-decoration-none">Back to Login</router-link>
             </div>
           </div>
         </div>
@@ -45,27 +42,36 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { authService } from '@/services/auth';
+import { firebaseService } from '@/services/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 const email = ref('');
-const password = ref('');
 const errorMessage = ref('');
+const successMessage = ref('');
 const isLoading = ref(false);
 const router = useRouter();
 
-const handleLogin = async () => {
+const handlePasswordReset = async () => {
   isLoading.value = true;
   errorMessage.value = '';
-  const result = await authService.login(email.value, password.value);
-  if (result.success) {
-    router.push('/dashboard');
-  } else {
-    errorMessage.value = result.message;
+  successMessage.value = '';
+
+  try {
+    if (!firebaseService.auth) {
+      throw new Error("Firebase Auth is not initialized.");
+    }
+    await sendPasswordResetEmail(firebaseService.auth, email.value);
+    successMessage.value = 'If an account with that email exists, a password reset link has been sent to your email address.';
+    email.value = ''; // Clear email field
+  } catch (error) {
+    console.error('Password reset error:', error);
+    errorMessage.value = error.message || 'Failed to send password reset email. Please try again.';
+  } finally {
+    isLoading.value = false;
   }
-  isLoading.value = false;
 };
 </script>
 
 <style scoped>
-/* Scoped styles for LoginView */
+/* Scoped styles for ForgotPasswordView */
 </style>

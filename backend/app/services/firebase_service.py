@@ -23,7 +23,7 @@ class MockCollection:
 
     def __init__(self, name):
         self.name = name
-        self.documents = {}
+        self.documents = {}  # Stores doc_id -> MockDocumentReference
 
     def document(self, doc_id):
         if doc_id not in self.documents:
@@ -33,8 +33,9 @@ class MockCollection:
     def add(self, data):
         # Generate a mock document ID
         doc_id = f"mock_doc_{len(self.documents) + 1}"
-        self.document(doc_id).set(data)
-        return self.document(doc_id), doc_id
+        doc_ref = self.document(doc_id)
+        doc_ref.set(data)
+        return doc_ref, doc_id
 
 
 class MockDocumentReference:
@@ -43,13 +44,21 @@ class MockDocumentReference:
     def __init__(self, collection, doc_id):
         self.collection = collection
         self.doc_id = doc_id
-        self.data = None
+        self.data = {}  # Initialize to empty dict
 
     def set(self, data):
+        print(f"DEBUG: MockDocumentReference.set called for {self.doc_id} with data: {data}")
         self.data = data
+        self.collection.documents[self.doc_id] = self # Ensure collection keeps reference to this instance
+
+    def update(self, update_data: dict):
+        print(f"DEBUG: MockDocumentReference.update called for {self.doc_id} with data: {update_data}")
+        self.data.update(update_data)
+        self.collection.documents[self.doc_id] = self
 
     def get(self):
-        return MockDocumentSnapshot(self.doc_id, self.data if self.data is not None else {})
+        print(f"DEBUG: MockDocumentReference.get called for {self.doc_id}, returning snapshot with data: {self.data}")
+        return MockDocumentSnapshot(self.doc_id, self.data) # Pass self.data directly
 
 
 class MockDocumentSnapshot:
@@ -58,13 +67,15 @@ class MockDocumentSnapshot:
     def __init__(self, id, data):
         self.id = id
         self._data = data
+        print(f"DEBUG: MockDocumentSnapshot.__init__ for {self.id} with data: {self._data}")
 
     def to_dict(self):
+        print(f"DEBUG: MockDocumentSnapshot.to_dict called for {self.id}, returning: {self._data}")
         return self._data
 
     @property
     def exists(self):
-        return self._data is not None
+        return self._data is not None and bool(self._data)
 
 
 class MockFirebaseAuth:
@@ -77,7 +88,7 @@ class MockFirebaseAuth:
         # Return a mock user object
         if email in self.users:
             user_data = self.users[email]
-            return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'))
+            return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'), user_data.get('disabled', False))
         return None
 
     def create_user(self, email: str, password: str, display_name: str = None):
@@ -88,10 +99,11 @@ class MockFirebaseAuth:
             'email': email,
             'display_name': display_name,
             'password': password,  # In a real implementation, this would be hashed
-            'user_metadata': MockUserMetadata()
+            'user_metadata': MockUserMetadata(),
+            'disabled': False # New: user is active by default
         }
         self.users[email] = user_data
-        return MockFirebaseUser(uid, email, display_name)
+        return MockFirebaseUser(uid, email, display_name, disabled=False)
 
     def verify_id_token(self, token: str):
         # Decode and verify the token (simplified for mock)
@@ -120,7 +132,7 @@ class MockFirebaseAuth:
     def get_user(self, uid: str):
         for user_data in self.users.values():
             if user_data['uid'] == uid:
-                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'))
+                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'), user_data.get('disabled', False))
         return None
 
     def update_user(self, uid: str, **kwargs):
@@ -128,7 +140,7 @@ class MockFirebaseAuth:
             if user_data['uid'] == uid:
                 for key, value in kwargs.items():
                     user_data[key] = value
-                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'))
+                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'), user_data.get('disabled', False))
         return None
 
     def delete_user(self, uid: str):
@@ -137,12 +149,26 @@ class MockFirebaseAuth:
                 del self.users[email]
                 return True
         return False
+    
+    def disable_user(self, uid: str):
+        for email, user_data in self.users.items():
+            if user_data['uid'] == uid:
+                user_data['disabled'] = True
+                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'), disabled=True)
+        return None
+    
+    def enable_user(self, uid: str):
+        for email, user_data in self.users.items():
+            if user_data['uid'] == uid:
+                user_data['disabled'] = False
+                return MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'), disabled=False)
+        return None
 
     def list_users(self, page_token: Optional[str] = None, max_results: int = 1000):
         # A very basic mock list users
         mock_users = []
         for user_data in list(self.users.values())[:max_results]:
-            mock_users.append(MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name')))
+            mock_users.append(MockFirebaseUser(user_data['uid'], user_data['email'], user_data.get('display_name'), user_data.get('disabled', False)))
         return mock_users, None # Return list and no next page token for simplicity
 
 
@@ -150,11 +176,12 @@ class MockFirebaseAuth:
 class MockFirebaseUser:
     """Mock Firebase user object"""
 
-    def __init__(self, uid, email, display_name=None):
+    def __init__(self, uid, email, display_name=None, disabled: bool = False):
         self.uid = uid
         self.email = email
         self.display_name = display_name
         self.user_metadata = MockUserMetadata()
+        self.disabled = disabled
 
 
 class MockUserMetadata:
@@ -279,6 +306,28 @@ class FirebaseService:
                 return True
         except Exception as e:
             print(f"Error deleting Firebase user: {e}")
+            return False
+            
+    def disable_firebase_user(self, uid: str):
+        try:
+            if self.is_mock:
+                return self.auth.disable_user(uid)
+            else:
+                self.auth.update_user(uid, disabled=True)
+                return True
+        except Exception as e:
+            print(f"Error disabling Firebase user: {e}")
+            return False
+
+    def enable_firebase_user(self, uid: str):
+        try:
+            if self.is_mock:
+                return self.auth.enable_user(uid)
+            else:
+                self.auth.update_user(uid, disabled=False)
+                return True
+        except Exception as e:
+            print(f"Error enabling Firebase user: {e}")
             return False
 
     def list_firebase_users(self, page_token: Optional[str] = None, max_results: int = 1000):

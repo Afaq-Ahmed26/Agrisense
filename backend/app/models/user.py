@@ -23,7 +23,8 @@ class User(UserBase):
     id: str
     created_at: datetime
     updated_at: datetime
-    is_active: bool = True
+    is_deleted: bool = False # Added for soft deletion
+    deleted_at: Optional[datetime] = None # Added for soft deletion
 
     class Config:
         from_attributes = True

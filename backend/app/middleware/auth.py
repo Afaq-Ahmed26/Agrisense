@@ -21,6 +21,8 @@ class JWTBearer(HTTPBearer):
             token = credentials.credentials
             user = self.verify_jwt(token)
             
+            print(f"DEBUG: JWTBearer - verified user payload: {user}")
+            
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

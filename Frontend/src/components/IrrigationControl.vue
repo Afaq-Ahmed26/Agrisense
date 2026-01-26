@@ -115,8 +115,7 @@ onMounted(async () => {
   // The listener should be initialized in a higher-level component or service if possible
   // to avoid multiple initializations. For now, we do it here.
   await firebaseService.initialize();
-  firebaseService.subscribeToIrrigationStatus(deviceId.value, (status) => {
-    updateStatus(status);
+        firebaseService.subscribeToDeviceStatus(deviceId.value, (status) => {    updateStatus(status);
   });
 
   // Get modal instance
