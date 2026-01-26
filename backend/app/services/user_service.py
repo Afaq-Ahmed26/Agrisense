@@ -6,14 +6,29 @@ from app.services.firebase_service import firebase_service
 
 
 def get_user_from_firestore(uid: str, include_deleted: bool = False) -> Optional[User]:
+    print(f"DEBUG: get_user_from_firestore - trying to fetch user with UID: {uid}")
     user_ref = firebase_service.db.collection('users').document(uid)
     doc = user_ref.get()
     if doc.exists:
+        print(f"DEBUG: get_user_from_firestore - document found for UID: {uid}")
         user_data = doc.to_dict()
+        print(f"DEBUG: get_user_from_firestore - user_data from DB: {user_data}")
         if not include_deleted and user_data.get('is_deleted', False):
+            print(f"DEBUG: get_user_from_firestore - user {uid} is deleted and include_deleted is False.")
             return None
-        return User(**user_data)
-    return None
+        
+        try:
+            user_data['id'] = doc.id # Add the document ID to the data
+            user = User(**user_data)
+            print(f"DEBUG: get_user_from_firestore - successfully parsed user data for UID: {uid}")
+            return user
+        except Exception as e:
+            print(f"ERROR: get_user_from_firestore - Pydantic validation error for UID {uid}: {e}")
+            return None
+
+    else:
+        print(f"DEBUG: get_user_from_firestore - document NOT found for UID: {uid}")
+        return None
 
 def create_user_in_firestore(user: User):
     user_ref = firebase_service.db.collection('users').document(user.id)

@@ -22,6 +22,34 @@ async def get_users(skip: int = 0, limit: int = 100, include_deleted: bool = Fal
     return all_users
 
 
+@router.get("/me", response_model=User)
+async def get_current_user(request: Request, token: str = Depends(security)):
+    # Get the current authenticated user's information
+    user_payload = request.state.user
+    print(f"DEBUG: /me - user_payload from token: {user_payload}")
+    uid = user_payload.get("uid") # Extract UID from the decoded Firebase token
+    print(f"DEBUG: /me - extracted UID: {uid}")
+
+    if not uid:
+        print("DEBUG: /me - UID is missing from token payload")
+        raise HTTPException(status_code=403, detail="Could not validate user credentials (missing UID).")
+
+    # Fetch the complete user profile from Firestore
+    print(f"DEBUG: /me - calling get_user_from_firestore with UID: {uid}")
+    user_from_firestore = get_user_from_firestore(uid)
+    
+    if not user_from_firestore:
+        print(f"DEBUG: /me - get_user_from_firestore returned None for UID: {uid}")
+        raise HTTPException(status_code=404, detail="User not found in Firestore.")
+    
+    if user_from_firestore.is_deleted:
+        print(f"DEBUG: /me - user with UID {uid} is marked as deleted.")
+        raise HTTPException(status_code=404, detail="User account is deleted.")
+
+    print(f"DEBUG: /me - successfully found user: {user_from_firestore.username}")
+    return user_from_firestore
+
+
 @router.get("/{user_id}", response_model=User)
 async def get_user(user_id: str, include_deleted: bool = False, token: str = Depends(security)): # Added include_deleted
     user_from_firestore = get_user_from_firestore(user_id, include_deleted=include_deleted)
@@ -104,24 +132,3 @@ async def delete_user(user_id: str, request: Request, token: str = Depends(secur
         return {"message": "User deleted permanently from Firebase Auth and marked as deleted in Firestore."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete user: {e}")
-
-
-@router.get("/me", response_model=User)
-async def get_current_user(request: Request, token: str = Depends(security)):
-    # Get the current authenticated user's information
-    user_payload = request.state.user
-    uid = user_payload.get("uid") # Extract UID from the decoded Firebase token
-
-    if not uid:
-        raise HTTPException(status_code=403, detail="Could not validate user credentials (missing UID).")
-
-    # Fetch the complete user profile from Firestore
-    user_from_firestore = get_user_from_firestore(uid)
-    
-    if not user_from_firestore:
-        raise HTTPException(status_code=404, detail="User not found in Firestore.")
-    
-    if user_from_firestore.is_deleted:
-        raise HTTPException(status_code=404, detail="User account is deleted.")
-
-    return user_from_firestore
