@@ -63,11 +63,22 @@ async def get_user(user_id: str, include_deleted: bool = False, token: str = Dep
     return user_from_firestore
 
 
-@router.put("/{user_id}", response_model=User)
+@router.patch("/{user_id}", response_model=User)
 async def update_user(user_id: str, user_update: UserUpdate, request: Request, token: str = Depends(security)):
     user_payload = request.state.user
-    print(f"DEBUG: update_user - user_payload: {user_payload}")
-    if user_payload['uid'] != user_id and user_payload.get('role') != 'admin': # Only admin or self can update
+    acting_user_uid = user_payload.get('uid')
+
+    if not acting_user_uid:
+        raise HTTPException(status_code=403, detail="Could not validate user credentials.")
+
+    # Fetch the full profile of the user performing the action to check their role
+    acting_user = get_user_from_firestore(acting_user_uid)
+    if not acting_user:
+        raise HTTPException(status_code=404, detail="Acting user not found.")
+
+    print(f"DEBUG: update_user - acting_user: {acting_user.username}, role: {acting_user.role}")
+
+    if acting_user.role != 'admin' and acting_user_uid != user_id: # Only admin or self can update
         raise HTTPException(status_code=403, detail="Not authorized to update this user.")
 
     # Prepare updates for Firebase Auth
@@ -87,10 +98,11 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         firestore_updates['email'] = user_update.email
     
     # Handle role update (only if admin is making the request)
-    if user_update.role and user_payload.get('role') == 'admin':
-        firestore_updates['role'] = user_update.role
-    elif user_update.role and user_payload.get('role') != 'admin':
-        raise HTTPException(status_code=403, detail="Only admins can change user roles.")
+    if user_update.role is not None:
+        if acting_user.role == 'admin':
+            firestore_updates['role'] = user_update.role
+        else:
+            raise HTTPException(status_code=403, detail="Only admins can change user roles.")
 
     try:
         # Update Firebase Auth if there are changes
