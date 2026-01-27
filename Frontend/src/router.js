@@ -6,6 +6,7 @@ import ProfileView from '@/views/ProfileView.vue';
 import UpdateProfileView from '@/views/UpdateProfileView.vue';
 import UserManagementView from '@/views/UserManagementView.vue';
 import ReportsView from '@/views/ReportsView.vue';
+import NotificationsView from '@/views/NotificationsView.vue';
 import { authService } from '@/services/auth';
 import { authStore } from '@/store/auth';
 
@@ -48,6 +49,12 @@ const routes = [
     path: '/reports',
     name: 'Reports',
     component: ReportsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: NotificationsView,
     meta: { requiresAuth: true },
   },
   {

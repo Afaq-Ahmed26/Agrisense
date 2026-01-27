@@ -17,6 +17,9 @@
             <li class="nav-item">
               <router-link class="nav-link" to="/reports" :class="{ active: currentRouteName === 'Reports' }"><i class="fas fa-chart-line me-1"></i>Reports</router-link>
             </li>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/notifications" :class="{ active: currentRouteName === 'Notifications' }"><i class="fas fa-bell me-1"></i>Notifications</router-link>
+            </li>
             <!-- Add other nav items here as needed for Analytics, Settings, etc. -->
           </ul>
           <ul class="navbar-nav">

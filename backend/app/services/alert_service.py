@@ -2,7 +2,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel
+from google.cloud.firestore_v1.base_query import FieldFilter
 from app.services.firebase_service import firebase_service
+from app.models.notification import NotificationCreate
+from app.services import notification_service
 
 
 class AlertSeverity(str, Enum):
@@ -145,41 +148,69 @@ class AlertService:
     
     async def create_alert(self, alert: Alert):
         """
-        Save an alert to the database.
+        Save an alert to the database and create a notification.
         """
-        # In a real implementation, we would save this to Firestore
-        # firebase_service.db.collection('alerts').document(alert.id).set(alert.dict())
-        print(f"Created alert: {alert.message}")
+        # Save alert to Firestore
+        firebase_service.db.collection('alerts').document(alert.id).set(alert.model_dump())
+        print(f"Saved alert to Firestore: {alert.message}")
+
+        # Fetch device owner to create a notification
+        device_ref = firebase_service.db.collection('devices').document(alert.device_id)
+        device_doc = device_ref.get()
+
+        if device_doc.exists:
+            device_data = device_doc.to_dict()
+            owner_id = device_data.get("owner_id")
+            if owner_id:
+                notification_data = NotificationCreate(
+                    user_id=owner_id,
+                    message=alert.message,
+                    type=alert.severity.value
+                )
+                notification_service.create_notification(notification_data, owner_id)
+                print(f"Created notification for user {owner_id}")
     
     async def get_device_alerts(self, device_id: str, status: Optional[AlertStatus] = None) -> List[Alert]:
         """
         Retrieve alerts for a specific device.
         """
-        # In a real implementation, we would fetch from Firestore
-        # with appropriate filters
-        return []
+        query = firebase_service.db.collection('alerts').where("device_id", "==", device_id)
+        if status:
+            query = query.where("status", "==", status.value)
+        
+        alerts = [Alert(**doc.to_dict()) for doc in query.stream()]
+        return alerts
     
     async def get_open_alerts(self) -> List[Alert]:
         """
         Retrieve all open alerts across all devices.
         """
-        # In a real implementation, we would fetch from Firestore
-        # with status = "open" filter
-        return []
+        query = firebase_service.db.collection('alerts').where("status", "==", AlertStatus.OPEN.value)
+        alerts = [Alert(**doc.to_dict()) for doc in query.stream()]
+        return alerts
     
     async def acknowledge_alert(self, alert_id: str, user_id: str):
         """
         Acknowledge an alert.
         """
-        # In a real implementation, we would update the alert in Firestore
-        pass
+        alert_ref = firebase_service.db.collection('alerts').document(alert_id)
+        alert_ref.update({
+            "status": AlertStatus.ACKNOWLEDGED.value,
+            "acknowledged_by": user_id,
+            "acknowledged_at": datetime.utcnow()
+        })
     
     async def resolve_alert(self, alert_id: str, user_id: str):
         """
         Resolve an alert.
         """
-        # In a real implementation, we would update the alert in Firestore
-        pass
+        alert_ref = firebase_service.db.collection('alerts').document(alert_id)
+        alert_ref.update({
+            "status": AlertStatus.RESOLVED.value,
+            "resolved_by": user_id,
+            "resolved_at": datetime.utcnow()
+        })
+
 
 
 # Global instance

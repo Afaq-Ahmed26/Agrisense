@@ -2,18 +2,18 @@
   <div>
     <AlertsBanner />
     <div class="container-fluid px-4 mt-3">
+      <div class="d-flex justify-content-end mb-3">
+        <button class="btn btn-secondary" @click="toggleCustomizeMode">
+          {{ customizeMode ? 'Save Layout' : 'Customize Dashboard' }}
+        </button>
+        <button v-if="customizeMode" class="btn btn-primary ms-2" @click="saveLayout">
+          Save
+        </button>
+      </div>
+
       <div class="row">
         <div class="col-lg-12">
-          <SensorDisplay ref="sensorDisplay" />
-          <div class="row">
-            <div class="col-lg-6">
-              <IrrigationControl />
-            </div>
-            <div class="col-lg-6">
-              <PredictionChart />
-            </div>
-          </div>
-          <LogsTable />
+          <component :is="getComponent(widget.id)" v-for="widget in dashboardLayout" :key="widget.id" v-show="widget.visible"></component>
         </div>
       </div>
     </div>
@@ -21,20 +21,65 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import AlertsBanner from '@/components/AlertsBanner.vue';
 import SensorDisplay from '@/components/SensorDisplay.vue';
 import IrrigationControl from '@/components/IrrigationControl.vue';
 import PredictionChart from '@/components/PredictionChart.vue';
 import LogsTable from '@/components/LogsTable.vue';
+import { authStore, fetchUser } from '@/store/auth';
+import { apiService } from '@/services/api';
 
-const sensorDisplay = ref(null);
+const sensorDisplay = ref(null); // Keep if needed for specific refs, otherwise can remove
+const customizeMode = ref(false);
+const dashboardLayout = ref([]);
 
-// In a real app, you might have a global state management or event bus
-// to communicate between components, for example, to pass alerts from
-// sensorDisplay to alertsBanner.
-// For now, we are keeping it simple.
+const availableWidgets = {
+  AlertsBanner: AlertsBanner,
+  SensorDisplay: SensorDisplay,
+  IrrigationControl: IrrigationControl,
+  PredictionChart: PredictionChart,
+  LogsTable: LogsTable
+};
 
+const defaultLayout = [
+  { id: 'AlertsBanner', component: 'AlertsBanner', visible: true, order: 1 },
+  { id: 'SensorDisplay', component: 'SensorDisplay', visible: true, order: 2 },
+  { id: 'IrrigationControl', component: 'IrrigationControl', visible: true, order: 3 },
+  { id: 'PredictionChart', component: 'PredictionChart', visible: true, order: 4 },
+  { id: 'LogsTable', component: 'LogsTable', visible: true, order: 5 }
+];
+
+onMounted(async () => {
+  if (!authStore.user) {
+    await fetchUser();
+  }
+  if (authStore.user && authStore.user.dashboard_preferences) {
+    dashboardLayout.value = authStore.user.dashboard_preferences;
+  } else {
+    dashboardLayout.value = defaultLayout;
+  }
+});
+
+const getComponent = (componentName) => {
+  return availableWidgets[componentName];
+};
+
+const toggleCustomizeMode = () => {
+  customizeMode.value = !customizeMode.value;
+};
+
+const saveLayout = async () => {
+  try {
+    await apiService.updateUser(authStore.user.id, { dashboard_preferences: dashboardLayout.value });
+    await fetchUser(); // Re-fetch user to update local store
+    customizeMode.value = false;
+    // Optionally, show a success message
+  } catch (error) {
+    console.error('Failed to save dashboard layout:', error);
+    // Optionally, show an error message
+  }
+};
 </script>
 
 <style scoped>

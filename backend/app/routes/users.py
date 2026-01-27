@@ -96,6 +96,14 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         firestore_updates['username'] = user_update.username
     if user_update.email: # Update email in Firestore if it changes
         firestore_updates['email'] = user_update.email
+    if user_update.full_name:
+        firestore_updates['full_name'] = user_update.full_name
+    if user_update.location:
+        firestore_updates['location'] = user_update.location
+    if user_update.profile_picture_url:
+        firestore_updates['profile_picture_url'] = user_update.profile_picture_url
+    if user_update.dashboard_preferences is not None:
+        firestore_updates['dashboard_preferences'] = user_update.dashboard_preferences
     
     # Handle role update (only if admin is making the request)
     if user_update.role is not None:

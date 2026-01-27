@@ -277,6 +277,17 @@ class ApiService {
             method: 'POST'  // Changed to POST as the backend uses POST for acknowledge
         });
     }
+
+    // Notification methods
+    async getNotifications() {
+        return this.request('/notifications/');
+    }
+
+    async markNotificationAsRead(notificationId) {
+        return this.request(`/notifications/${notificationId}/read`, {
+            method: 'POST'
+        });
+    }
 }
 
 // Create a singleton instance

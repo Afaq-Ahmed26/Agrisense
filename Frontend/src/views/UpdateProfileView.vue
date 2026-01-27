@@ -56,6 +56,9 @@ const name = ref('');
 const email = ref(''); // New email ref
 const password = ref('');
 const confirmPassword = ref('');
+const full_name = ref('');
+const location = ref('');
+const profile_picture_url = ref('');
 const errorMessage = ref('');
 const successMessage = ref('');
 const isLoading = ref(false);
@@ -67,6 +70,9 @@ onMounted(async () => {
   if (authStore.user) {
     name.value = authStore.user.username;
     email.value = authStore.user.email; // Initialize email field
+    full_name.value = authStore.user.full_name || '';
+    location.value = authStore.user.location || '';
+    profile_picture_url.value = authStore.user.profile_picture_url || '';
   }
 });
 
@@ -133,6 +139,21 @@ const handleUpdate = async () => {
         isLoading.value = false;
         return;
       }
+    }
+    
+    // 4. Update Full Name
+    if (full_name.value !== authStore.user.full_name) {
+      payload.full_name = full_name.value;
+    }
+
+    // 5. Update Location
+    if (location.value !== authStore.user.location) {
+      payload.location = location.value;
+    }
+
+    // 6. Update Profile Picture URL
+    if (profile_picture_url.value !== authStore.user.profile_picture_url) {
+      payload.profile_picture_url = profile_picture_url.value;
     }
     
     // Send updates to backend API if there are changes beyond what Firebase Auth handles directly
