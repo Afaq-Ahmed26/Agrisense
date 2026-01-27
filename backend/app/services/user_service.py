@@ -50,6 +50,7 @@ def get_all_users_from_firestore(skip: int = 0, limit: int = 100, include_delete
     all_users = []
     for doc in docs:
         user_data = doc.to_dict()
+        user_data['id'] = doc.id # Add the document ID
         all_users.append(User(**user_data))
 
     return all_users[skip : skip + limit]

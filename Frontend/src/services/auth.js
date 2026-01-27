@@ -67,21 +67,24 @@ class AuthService {
             }
 
             // Call backend /register endpoint
-            const response = await apiService.register(userData);
+            const response = await apiService.register(userData); // Backend returns User object on 200 OK
 
-            if (response.success) {
-                // Assuming the backend handles Firebase user creation and returns sufficient data
-                // For now, we'll return the response from the backend
-                return { success: true, message: response.message || 'Registration successful.' };
+            if (response && response.id) { // Check if the response is a valid User object (has an ID)
+                return { success: true, message: 'Registration successful.' };
             } else {
+                // This 'else' block might be hit if the backend returns an empty object or something unexpected on success.
+                // However, the backend should always return a User object or throw an error.
                 return { success: false, message: response.message || 'Registration failed. Please try again.' };
             }
 
         } catch (error) {
             console.error('Registration error:', error);
             let errorMessage = 'Registration failed. Please try again.';
+            // Improved error message extraction
             if (error.response && error.response.data && error.response.data.detail) {
                 errorMessage = error.response.data.detail;
+            } else if (error.message) {
+                errorMessage = error.message; // Catch generic HTTP errors
             }
             return { success: false, message: errorMessage };
         }

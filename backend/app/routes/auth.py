@@ -17,10 +17,13 @@ security = JWTBearer()
 
 @router.post("/register", response_model=User)
 async def register(user: UserCreate):
+    print(f"DEBUG: Register endpoint - Received user data: {user.model_dump_json()}")
+
     # Validate email format
     try:
         EmailValidator(email=user.email)
     except ValueError:
+        print(f"DEBUG: Register endpoint - Invalid email format for {user.email}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid email format"
@@ -30,6 +33,7 @@ async def register(user: UserCreate):
     try:
         PasswordValidator(password=user.password)
     except ValueError as e:
+        print(f"DEBUG: Register endpoint - Invalid password for {user.email}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)

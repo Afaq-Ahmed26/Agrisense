@@ -138,6 +138,7 @@ class ApiService {
     }
 
     async register(userData) {
+        console.log('DEBUG: apiService.register - Sending userData:', userData);
         return this.request('/auth/register', {
             method: 'POST',
             body: JSON.stringify(userData)

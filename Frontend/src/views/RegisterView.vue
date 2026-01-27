@@ -25,15 +25,16 @@
                 <label for="confirmPassword" class="form-label">Confirm Password</label>
                 <input type="password" class="form-control" id="confirmPassword" v-model="confirmPassword" placeholder="Confirm your password" required>
               </div>
+
               <div class="mb-3">
                 <label for="role" class="form-label">Select Role</label>
                 <select class="form-select" id="role" v-model="role" required>
                   <option value="">Choose your role...</option>
                   <option value="farmer">Farmer</option>
-                  <option value="admin">Admin</option>
                   <option value="officer">Officer</option>
                 </select>
               </div>
+
               <div class="d-grid">
                 <button type="submit" class="btn btn-success btn-lg" :disabled="isLoading">
                   <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -69,6 +70,7 @@ const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const role = ref('');
+
 const errorMessage = ref('');
 const successMessage = ref('');
 const isLoading = ref(false);
@@ -88,8 +90,9 @@ const handleRegister = async () => {
   const userData = {
     email: email.value,
     password: password.value,
-    name: name.value, // Re-enabled for Firebase displayName update
-    // role: role.value, // Firebase Auth doesn't directly use 'role' during registration, will need separate handling if needed
+    username: name.value, // Changed 'name' to 'username'
+    role: role.value,
+
   };
 
   const result = await authService.register(userData);
