@@ -67,3 +67,24 @@
 *   **Phase 2 Features:** Proceed with implementing the next set of desired features.
 *   **Refinement:** Implement advanced UI/UX for dashboard customization (e.g., drag-and-drop, widget visibility toggles).
 *   **Testing:** Thoroughly test the newly implemented features for robustness and correctness.
+
+### **Day 7: Backend Stability Fixes & Profile Picture Upload Setup**
+
+**Accomplishments:**
+
+*   **Resolved Backend `ImportError`s:**
+    *   Fixed `ImportError: cannot import name 'db'` in `backend/app/services/alert_service.py` and `backend/app/services/notification_service.py` by correcting the import of `firebase_service.db`.
+*   **Resolved Backend `NameError`:**
+    *   Fixed `NameError: name 'Alert' is not defined` in `backend/app/services/alert_service.py` by re-inserting the missing `Alert` class definition and related Enums.
+*   **Resolved Frontend Build Error:**
+    *   Fixed `Rollup failed to resolve import "/path/to/default/profile_pic.png"` by creating a placeholder image at `Frontend/public/default_profile_pic.png` and updating the image path in `Frontend/src/views/ProfileView.vue` to `/default_profile_pic.png`.
+*   **Backend - Profile Picture Upload Integration (Phase 1):**
+    *   **Firebase Storage:** Integrated Firebase Storage into `backend/app/services/firebase_service.py`, including initializing the storage client, adding a mock storage client, and implementing an `upload_file_to_storage` method.
+    *   **Configuration:** Added `FIREBASE_STORAGE_BUCKET` to `backend/app/config.py` for environment variable configuration.
+    *   **API Endpoint:** Created a new `POST /users/{user_id}/upload-profile-picture` endpoint in `backend/app/routes/users.py` to handle file uploads, validation, and update the `profile_picture_url` in Firestore.
+    *   **Frontend API Service:** Added `uploadProfilePicture` method to `Frontend/src/services/api.js` to communicate with the new backend upload endpoint.
+
+**Current Issues & Next Steps:**
+
+*   **Frontend - Profile Picture Upload UI:** The `Frontend/src/views/UpdateProfileView.vue` still needs to be updated to include the file input element and the logic to trigger the upload process. (Encountered a `replace` error during the last attempt).
+*   **Firestore Index for Notifications:** The `GET /notifications/` endpoint requires a composite index to be created manually in Firebase for `user_id` and `created_at` fields. (User still needs to perform this step).

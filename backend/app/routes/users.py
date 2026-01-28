@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List, Optional # Import Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
+from typing import List, Optional
 from app.middleware.auth import JWTBearer
 from app.models.user import User, UserUpdate
 from app.services.firebase_service import firebase_service
-from app.services.user_service import update_user_in_firestore, get_user_from_firestore, get_all_users_from_firestore # Import necessary functions
+from app.services.user_service import update_user_in_firestore, get_user_from_firestore, get_all_users_from_firestore
+from app.services.activity_log_service import log_activity
 from datetime import datetime
+import uuid
 
 
 router = APIRouter()
@@ -98,16 +100,19 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         firestore_updates['email'] = user_update.email
     if user_update.full_name:
         firestore_updates['full_name'] = user_update.full_name
-    if user_update.location:
-        firestore_updates['location'] = user_update.location
-    if user_update.profile_picture_url:
-        firestore_updates['profile_picture_url'] = user_update.profile_picture_url
     if user_update.dashboard_preferences is not None:
         firestore_updates['dashboard_preferences'] = user_update.dashboard_preferences
     
     # Handle role update (only if admin is making the request)
     if user_update.role is not None:
         if acting_user.role == 'admin':
+            target_user_current_data = get_user_from_firestore(user_id) # Fetch current data to compare roles
+            if target_user_current_data and user_update.role != target_user_current_data.role:
+                log_activity(
+                    user_id=acting_user_uid,
+                    action="User Role Change",
+                    details={"target_user_id": user_id, "old_role": target_user_current_data.role, "new_role": user_update.role}
+                )
             firestore_updates['role'] = user_update.role
         else:
             raise HTTPException(status_code=403, detail="Only admins can change user roles.")

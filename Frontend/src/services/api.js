@@ -262,6 +262,11 @@ class ApiService {
         });
     }
 
+    async getActivityLogs(limit = 100) {
+        const params = new URLSearchParams({ limit: limit });
+        return this.request(`/activity-logs?${params}`);
+    }
+
     // Alert methods
     async getActiveAlerts(deviceId) {
         // Get all alerts and filter for the specific device and active status

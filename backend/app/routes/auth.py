@@ -6,6 +6,7 @@ from app.models.user import UserCreate, User
 from app.services.auth_service import create_access_token, get_password_hash, verify_token
 from app.services.firebase_service import firebase_service
 from app.services.user_service import create_user_in_firestore, get_user_from_firestore # Import create_user_in_firestore and get_user_from_firestore
+from app.services.activity_log_service import log_activity
 from app.utils.validators import EmailValidator, PasswordValidator
 from app.config import settings
 from app.middleware.auth import JWTBearer
@@ -146,6 +147,13 @@ async def login(id_token: str = Body(..., embed=True)): # Accept id_token from r
             detail="User not found or account is disabled/deleted",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Log the login activity
+    log_activity(
+        user_id=uid,
+        action="User Login",
+        details={"email": email}
+    )
 
     # Create our own access token containing relevant user info including role
     token_data = {

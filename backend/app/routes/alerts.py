@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 from app.middleware.auth import JWTBearer
 from app.services.alert_service import alert_service, Alert, AlertStatus
+from app.services.activity_log_service import log_activity
+from app.services.user_service import get_user_from_firestore
 from datetime import datetime
 
 
@@ -48,22 +50,42 @@ async def get_alert(alert_id: str, token: str = Depends(security)):
 
 
 @router.post("/{alert_id}/acknowledge")
-async def acknowledge_alert(alert_id: str, user_id: str = None, token: str = Depends(security)):
+async def acknowledge_alert(alert_id: str, request: Request, token: str = Depends(security)):
     """
     Acknowledge an alert.
     """
+    user_payload = request.state.user
+    acting_user_uid = user_payload.get('uid')
+
     # In a real implementation, this would update the alert in Firestore
-    await alert_service.acknowledge_alert(alert_id, user_id or "unknown_user")
+    await alert_service.acknowledge_alert(alert_id, acting_user_uid or "unknown_user")
+
+    # Log the alert acknowledgment
+    log_activity(
+        user_id=acting_user_uid,
+        action="Alert Acknowledged",
+        details={"alert_id": alert_id}
+    )
     return {"message": "Alert acknowledged", "alert_id": alert_id}
 
 
 @router.post("/{alert_id}/resolve")
-async def resolve_alert(alert_id: str, user_id: str = None, token: str = Depends(security)):
+async def resolve_alert(alert_id: str, request: Request, token: str = Depends(security)):
     """
     Resolve an alert.
     """
+    user_payload = request.state.user
+    acting_user_uid = user_payload.get('uid')
+
     # In a real implementation, this would update the alert in Firestore
-    await alert_service.resolve_alert(alert_id, user_id or "unknown_user")
+    await alert_service.resolve_alert(alert_id, acting_user_uid or "unknown_user")
+    
+    # Log the alert resolution
+    log_activity(
+        user_id=acting_user_uid,
+        action="Alert Resolved",
+        details={"alert_id": alert_id}
+    )
     return {"message": "Alert resolved", "alert_id": alert_id}
 
 

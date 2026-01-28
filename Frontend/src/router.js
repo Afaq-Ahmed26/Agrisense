@@ -7,6 +7,7 @@ import UpdateProfileView from '@/views/UpdateProfileView.vue';
 import UserManagementView from '@/views/UserManagementView.vue';
 import ReportsView from '@/views/ReportsView.vue';
 import NotificationsView from '@/views/NotificationsView.vue';
+import ActivityLogView from '@/views/ActivityLogView.vue';
 import { authService } from '@/services/auth';
 import { authStore } from '@/store/auth';
 
@@ -43,6 +44,12 @@ const routes = [
     path: '/user-management',
     name: 'UserManagement',
     component: UserManagementView,
+    meta: { requiresAuth: true, role: 'admin' },
+  },
+  {
+    path: '/activity-logs',
+    name: 'ActivityLogs',
+    component: ActivityLogView,
     meta: { requiresAuth: true, role: 'admin' },
   },
   {

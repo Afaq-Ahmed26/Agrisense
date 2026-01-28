@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from app.routes import auth, users, sensors, irrigation, ml, alerts, notifications
+from app.routes import auth, users, sensors, irrigation, ml, alerts, notifications, activity_logs
 
 # Create FastAPI app instance
 app = FastAPI(
@@ -33,6 +33,7 @@ app.include_router(irrigation.router, prefix="/irrigation", tags=["irrigation"])
 app.include_router(ml.router, prefix="/ml", tags=["ml"])
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+app.include_router(activity_logs.router, prefix="/activity-logs", tags=["activity logs"])
 
 @app.get("/")
 async def root():

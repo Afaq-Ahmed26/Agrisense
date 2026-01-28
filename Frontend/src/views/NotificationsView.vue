@@ -6,7 +6,7 @@
       </div>
       <div class="card-body">
         <ul class="list-group">
-          <li v-for="notification in notifications" :key="notification.id" 
+          <li v-for="notification in notificationsStore.notifications" :key="notification.id" 
               class="list-group-item d-flex justify-content-between align-items-center"
               :class="{ 'list-group-item-light': notification.is_read }">
             
@@ -22,38 +22,21 @@
             </button>
           </li>
         </ul>
-        <p v-if="notifications.length === 0" class="text-center text-muted mt-3">You have no notifications.</p>
+        <p v-if="notificationsStore.notifications.length === 0 && !notificationsStore.isLoading" class="text-center text-muted mt-3">You have no notifications.</p>
+        <p v-if="notificationsStore.isLoading" class="text-center text-muted mt-3">Loading notifications...</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { apiService } from '@/services/api';
+import { notificationsStore } from '@/store/notifications';
 
-const notifications = ref([]);
-const isLoading = ref(false);
-
-onMounted(async () => {
-  isLoading.value = true;
-  try {
-    notifications.value = await apiService.getNotifications();
-  } catch (error) {
-    console.error("Failed to fetch notifications:", error);
-  } finally {
-    isLoading.value = false;
-  }
-});
+// Notifications are now managed by the store, fetched and updated automatically
+// The component simply reacts to changes in the store.
 
 const markAsRead = async (notification) => {
-  notification.is_read = true; // Optimistic update
-  try {
-    await apiService.markNotificationAsRead(notification.id);
-  } catch (error) {
-    console.error(`Failed to mark notification ${notification.id} as read:`, error);
-    notification.is_read = false; // Revert on failure
-  }
+  await notificationsStore.markAsRead(notification.id);
 };
 </script>
 

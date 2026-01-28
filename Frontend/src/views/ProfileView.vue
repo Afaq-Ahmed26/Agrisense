@@ -12,15 +12,6 @@
               <p><strong>Email:</strong> {{ user.email }}</p>
               <p><strong>Role:</strong> {{ user.role }}</p>
               <p v-if="user.full_name"><strong>Full Name:</strong> {{ user.full_name }}</p>
-              <p v-if="user.location"><strong>Location:</strong> {{ user.location }}</p>
-              <div v-if="user.profile_picture_url" class="mb-3">
-                <strong>Profile Picture:</strong><br>
-                <img :src="user.profile_picture_url" alt="Profile Picture" class="img-thumbnail mt-2" style="max-width: 150px;">
-              </div>
-              <div v-else class="mb-3">
-                <strong>Profile Picture:</strong><br>
-                <img src="/default_profile_pic.png" alt="Default Profile Picture" class="img-thumbnail mt-2" style="max-width: 150px;">
-              </div>
               <p><strong>Account Created:</strong> {{ new Date(user.created_at).toLocaleDateString() }}</p>
               <router-link to="/update-profile" class="btn btn-primary me-2">Update Profile</router-link>
               <button @click="confirmDeleteAccount" class="btn btn-danger">Delete Account</button>

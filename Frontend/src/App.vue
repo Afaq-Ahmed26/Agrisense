@@ -14,11 +14,19 @@
             <li class="nav-item" v-if="userRole === 'admin'">
               <router-link class="nav-link" to="/user-management" :class="{ active: currentRouteName === 'UserManagement' }"><i class="fas fa-users-cog me-1"></i>User Management</router-link>
             </li>
+            <li class="nav-item" v-if="userRole === 'admin'">
+              <router-link class="nav-link" to="/activity-logs" :class="{ active: currentRouteName === 'ActivityLogs' }"><i class="fas fa-clipboard-list me-1"></i>Activity Log</router-link>
+            </li>
             <li class="nav-item">
               <router-link class="nav-link" to="/reports" :class="{ active: currentRouteName === 'Reports' }"><i class="fas fa-chart-line me-1"></i>Reports</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/notifications" :class="{ active: currentRouteName === 'Notifications' }"><i class="fas fa-bell me-1"></i>Notifications</router-link>
+              <router-link class="nav-link" to="/notifications" :class="{ active: currentRouteName === 'Notifications' }">
+                <i class="fas fa-bell me-1"></i>
+                <span v-if="unreadCount > 0" class="badge rounded-pill bg-danger">
+                  {{ unreadCount }}
+                </span>
+              </router-link>
             </li>
             <!-- Add other nav items here as needed for Analytics, Settings, etc. -->
           </ul>
@@ -42,10 +50,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { authService } from '@/services/auth';
 import { authStore, isAuthenticated } from '@/store/auth';
+import { notificationsStore } from '@/store/notifications';
 
 const router = useRouter();
 const route = useRoute();
@@ -60,8 +69,22 @@ const userRole = computed(() => {
   return authStore.user?.role || '';
 });
 
+const unreadCount = computed(() => notificationsStore.unreadCount);
+
+onMounted(() => {
+  if (isAuthenticated.value) {
+    notificationsStore.fetchNotifications();
+    notificationsStore.startPolling();
+  }
+});
+
+onUnmounted(() => {
+  notificationsStore.stopPolling();
+});
+
 const logout = async () => {
   await authService.logout();
+  notificationsStore.stopPolling(); // Stop polling on logout
   router.push('/login');
 };
 </script>

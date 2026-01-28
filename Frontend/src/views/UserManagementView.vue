@@ -21,7 +21,21 @@
                 <tr v-for="user in users" :key="user.id">
                   <td>{{ user.username }}</td>
                   <td>{{ user.email }}</td>
-                  <td>{{ user.role }}</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <select class="form-select" 
+                              :value="user.role" 
+                              @change="updateUserRole(user, $event.target.value)"
+                              :disabled="user.isUpdatingRole">
+                        <option value="farmer">Farmer</option>
+                        <option value="officer">Officer</option>
+                        <!-- Admin role is not an option to prevent accidental changes -->
+                      </select>
+                      <div v-if="user.isUpdatingRole" class="spinner-border spinner-border-sm text-primary ms-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  </td>
                   <td>
                     <span :class="['badge', user.is_active ? 'bg-success' : 'bg-danger']">
                       {{ user.is_active ? 'Active' : 'Inactive' }}
@@ -30,9 +44,6 @@
                   <td>
                     <button class="btn btn-sm btn-primary me-2" @click="toggleUserStatus(user)">
                       {{ user.is_active ? 'Deactivate' : 'Activate' }}
-                    </button>
-                    <button class="btn btn-sm btn-secondary" @click="changeUserRole(user)">
-                      Change Role
                     </button>
                   </td>
                 </tr>
@@ -53,7 +64,8 @@ const users = ref([]);
 
 onMounted(async () => {
   try {
-    users.value = await apiService.getUsers();
+    const fetchedUsers = await apiService.getUsers();
+    users.value = fetchedUsers.map(user => ({ ...user, isUpdatingRole: false }));
   } catch (error) {
     console.error('Failed to fetch users:', error);
   }
@@ -71,19 +83,28 @@ const toggleUserStatus = async (user) => {
   }
 };
 
-const changeUserRole = async (user) => {
-  // This is a placeholder for a more complex implementation,
-  // such as opening a modal with a role selector.
-  const newRole = prompt(`Enter new role for ${user.username}: (farmer, admin, officer)`);
-  if (newRole && ['farmer', 'admin', 'officer'].includes(newRole)) {
-    try {
-      const updatedUser = await apiService.updateUser(user.id, { role: newRole });
-      const index = users.value.findIndex(u => u.id === user.id);
-      if (index !== -1) {
-        users.value[index] = updatedUser;
-      }
-    } catch (error) {
-      console.error(`Failed to change role for user ${user.id}:`, error);
+const updateUserRole = async (user, newRole) => {
+  const originalRole = user.role;
+  user.isUpdatingRole = true;
+  try {
+    const updatedUser = await apiService.updateUser(user.id, { role: newRole });
+    const index = users.value.findIndex(u => u.id === user.id);
+    if (index !== -1) {
+      // Keep the isUpdatingRole property
+      users.value[index] = { ...updatedUser, isUpdatingRole: false };
+    }
+  } catch (error) {
+    console.error(`Failed to change role for user ${user.id}:`, error);
+    // Revert the change in the UI on error
+    const index = users.value.findIndex(u => u.id === user.id);
+    if (index !== -1) {
+      users.value[index].role = originalRole;
+    }
+  } finally {
+    // Ensure the spinner is turned off
+    const index = users.value.findIndex(u => u.id === user.id);
+    if (index !== -1) {
+      users.value[index].isUpdatingRole = false;
     }
   }
 };

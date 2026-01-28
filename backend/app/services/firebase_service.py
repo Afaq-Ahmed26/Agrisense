@@ -4,6 +4,7 @@ from app.config import settings
 from unittest.mock import MagicMock
 import json
 from datetime import datetime
+import uuid # For generating unique file names
 
 
 class MockFirestoreDB:
