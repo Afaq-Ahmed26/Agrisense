@@ -8,6 +8,7 @@ class SensorReadingBase(BaseModel):
     soil_moisture: float
     temperature: float
     humidity: float
+    light_level: float
 
 
 class SensorReadingCreate(SensorReadingBase):

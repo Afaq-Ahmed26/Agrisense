@@ -35,20 +35,22 @@ class SensorDataSimulator:
         base_soil_moisture = random.uniform(20, 80)  # Percentage
         base_temperature = random.uniform(15, 35)    # Celsius
         base_humidity = random.uniform(30, 80)       # Percentage
+        base_light_level = random.uniform(100, 1500) # Lux
         
         # Add some variation based on time of day or season
         hour_factor = abs(12 - datetime.now().hour) / 6  # Factor based on time of day
-        seasonal_factor = random.uniform(0.8, 1.2)      # Random seasonal factor
         
         soil_moisture = max(0, min(100, base_soil_moisture + random.uniform(-5, 5)))
         temperature = max(-10, min(50, base_temperature + hour_factor * 2))
         humidity = max(0, min(100, base_humidity + random.uniform(-10, 10)))
+        light_level = max(0, base_light_level * (1 - hour_factor * 0.5) + random.uniform(-100, 100))
         
         return {
             "device_id": device_id,
             "soil_moisture": round(soil_moisture, 2),
             "temperature": round(temperature, 2),
             "humidity": round(humidity, 2),
+            "light_level": round(light_level, 2),
             "timestamp": datetime.utcnow()
         }
     

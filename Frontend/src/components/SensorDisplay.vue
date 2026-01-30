@@ -1,7 +1,7 @@
 <template>
   <div class="row">
     <!-- Temperature Sensor Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
       <div class="card h-100" :class="temperatureCardClass">
         <div class="card-body">
           <div class="row no-gutters align-items-center">
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Humidity Sensor Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
       <div class="card h-100" :class="humidityCardClass">
         <div class="card-body">
           <div class="row no-gutters align-items-center">
@@ -37,7 +37,7 @@
     </div>
 
     <!-- Soil Moisture Sensor Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
       <div class="card h-100" :class="moistureCardClass">
         <div class="card-body">
           <div class="row no-gutters align-items-center">
@@ -48,6 +48,24 @@
             </div>
             <div class="col-auto">
               <i class="fas fa-seedling fa-2x"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light Level Sensor Card -->
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card h-100" :class="lightLevelCardClass">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-uppercase mb-1">Light Level</div>
+              <div id="lightLevelValue" class="h5 mb-0 font-weight-bold">{{ formattedLightLevel }}</div>
+              <div id="lightLevelTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-sun fa-2x"></i>
             </div>
           </div>
         </div>
@@ -67,12 +85,14 @@ const deviceId = ref(localStorage.getItem('selectedDeviceId') || 'device_001');
 const temperature = ref(null);
 const humidity = ref(null);
 const moisture = ref(null);
+const lightLevel = ref(null); // Added state for light level
 const lastUpdateTime = ref('N/A');
 
 // Format values for display
 const formattedTemperature = computed(() => temperature.value !== null ? `${formatNumber(temperature.value)}°C` : 'N/A');
 const formattedHumidity = computed(() => humidity.value !== null ? `${formatNumber(humidity.value)}%` : 'N/A');
 const formattedMoisture = computed(() => moisture.value !== null ? `${formatNumber(moisture.value)}%` : 'N/A');
+const formattedLightLevel = computed(() => lightLevel.value !== null ? `${formatNumber(lightLevel.value)} lx` : 'N/A'); // Formatter for light level
 
 // Update data from listener or fetch
 const updateDisplay = (data) => {
@@ -81,6 +101,7 @@ const updateDisplay = (data) => {
   if (data.temperature !== undefined) temperature.value = data.temperature;
   if (data.humidity !== undefined) humidity.value = data.humidity;
   if (data.moisture !== undefined) moisture.value = data.moisture;
+  if (data.light_level !== undefined) lightLevel.value = data.light_level; // Update light level
 
   if (data.timestamp) {
     lastUpdateTime.value = `Last updated: ${new Date(data.timestamp * 1000).toLocaleTimeString()}`;
@@ -114,6 +135,12 @@ const moistureCardClass = computed(() => {
   if (moisture.value < SENSOR_THRESHOLDS.MOISTURE_CRITICAL) return 'bg-danger text-white';
   if (moisture.value < SENSOR_THRESHOLDS.MOISTURE_WARNING) return 'bg-warning text-dark';
   return 'bg-success text-white';
+});
+
+const lightLevelCardClass = computed(() => {
+  // Example class logic for light level
+  if (lightLevel.value > 1000) return 'bg-light text-dark';
+  return 'bg-secondary text-white';
 });
 
 // Expose method for parent components to check critical conditions

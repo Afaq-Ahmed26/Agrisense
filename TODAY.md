@@ -68,7 +68,7 @@
 *   **Refinement:** Implement advanced UI/UX for dashboard customization (e.g., drag-and-drop, widget visibility toggles).
 *   **Testing:** Thoroughly test the newly implemented features for robustness and correctness.
 
-### **Day 7: Backend Stability Fixes & Profile Picture Upload Setup**
+### **Day 7: Feature Refinements, Bug Fixes, and Activity Logging Implementation**
 
 **Accomplishments:**
 
@@ -78,13 +78,68 @@
     *   Fixed `NameError: name 'Alert' is not defined` in `backend/app/services/alert_service.py` by re-inserting the missing `Alert` class definition and related Enums.
 *   **Resolved Frontend Build Error:**
     *   Fixed `Rollup failed to resolve import "/path/to/default/profile_pic.png"` by creating a placeholder image at `Frontend/public/default_profile_pic.png` and updating the image path in `Frontend/src/views/ProfileView.vue` to `/default_profile_pic.png`.
-*   **Backend - Profile Picture Upload Integration (Phase 1):**
-    *   **Firebase Storage:** Integrated Firebase Storage into `backend/app/services/firebase_service.py`, including initializing the storage client, adding a mock storage client, and implementing an `upload_file_to_storage` method.
-    *   **Configuration:** Added `FIREBASE_STORAGE_BUCKET` to `backend/app/config.py` for environment variable configuration.
-    *   **API Endpoint:** Created a new `POST /users/{user_id}/upload-profile-picture` endpoint in `backend/app/routes/users.py` to handle file uploads, validation, and update the `profile_picture_url` in Firestore.
-    *   **Frontend API Service:** Added `uploadProfilePicture` method to `Frontend/src/services/api.js` to communicate with the new backend upload endpoint.
+*   **Removed Profile Picture Feature:**
+    *   Completely removed profile picture upload and display functionality from both frontend and backend to eliminate Firebase Storage dependency and simplify the application. This involved removing endpoints, model fields, service logic, and UI components.
+*   **Improved User Role Management UI:**
+    *   Replaced the `prompt()`-based role change with an interactive inline dropdown menu in `Frontend/src/views/UserManagementView.vue`, including a loading spinner for visual feedback.
+*   **Enhanced In-App Notifications UI:**
+    *   Created `notificationsStore` (`Frontend/src/store/notifications.js`) for centralized notification state management.
+    *   Integrated a dynamic notification bell icon with an unread count badge into the main navigation bar (`Frontend/src/App.vue`), implementing periodic polling for new notifications.
+    *   Refactored `Frontend/src/views/NotificationsView.vue` to utilize the centralized store.
+*   **Implemented Activity Logging/Audit Trail:**
+    *   **Backend:**
+        *   Created `backend/app/models/activity_log.py` for the `ActivityLog` Pydantic model.
+        *   Created `backend/app/services/activity_log_service.py` with functions to log and retrieve activities.
+        *   Integrated `log_activity` into `backend/app/routes/auth.py` (user login), `backend/app/routes/users.py` (user role changes), and `backend/app/routes/alerts.py` (alert acknowledgments/resolutions).
+        *   Created `backend/app/routes/activity_logs.py` with an admin-only endpoint to fetch logs.
+        *   Included the new `activity_logs` router in `backend/app/main.py`.
+    *   **Frontend:**
+        *   Added `getActivityLogs` function to `Frontend/src/services/api.js`.
+        *   Created `Frontend/src/views/ActivityLogView.vue` to display logs in a table.
+        *   Added an admin-only navigation link for "Activity Log" in `Frontend/src/App.vue`.
+        *   Added a route for `/activity-logs` in `Frontend/src/router.js`, protected for admin access.
+*   **Fixed Backend `SyntaxError`:**
+    *   Corrected parameter order in `backend/app/routes/activity_logs.py` to resolve `SyntaxError: parameter without a default follows parameter with a default`.
 
 **Current Issues & Next Steps:**
 
-*   **Frontend - Profile Picture Upload UI:** The `Frontend/src/views/UpdateProfileView.vue` still needs to be updated to include the file input element and the logic to trigger the upload process. (Encountered a `replace` error during the last attempt).
-*   **Firestore Index for Notifications:** The `GET /notifications/` endpoint requires a composite index to be created manually in Firebase for `user_id` and `created_at` fields. (User still needs to perform this step).
+*   **Firestore Index for Notifications:** The `GET /notifications/` endpoint requires a composite index to be created manually in Firebase for `user_id` (Ascending) and `created_at` (Descending). (User still needs to perform this step to fully enable notifications).
+*   **Firestore Index for User Listing:** The `GET /users/` endpoint requires a composite index to be created manually in Firebase for `created_at` (Ascending) and `is_deleted` (Ascending). (User still needs to perform this step to fully enable user listing).
+
+---
+
+### **Future Plans (Features to Add without Hardware/ML Integration)**
+
+Here are some feature suggestions that will add significant value and interactivity to your AgriSense application, leveraging your existing Firebase and frontend/backend setup, without requiring external hardware integrations or a deployed ML model yet:
+
+**Core Functionality & UX Enhancements:**
+
+1.  **Enhanced User Profile Management (Beyond Basics):**
+    *   **User Preferences:** Allow users to configure personal settings like preferred units (e.g., Celsius/Fahrenheit, liters/gallons), time zone, or notification sound preferences. Store these in Firestore.
+    *   **Account Activity Log (Improved Display):** Enhance the Activity Log with filtering, pagination, and search capabilities.
+
+2.  **Advanced Notification & Alert System:**
+    *   **Configurable Alert Thresholds (Admin/Officer):** Implement UI for setting custom alert thresholds for simulated sensor data (e.g., "notify me if temperature goes above 30°C"). These thresholds would be stored in Firestore and checked by your backend against simulated data.
+    *   **Notification Preferences:** Allow users to specify *how* they want to receive certain notifications (e.g., in-app only, email for critical alerts).
+    *   **Notification Archiving/Filtering:** Enable users to archive old notifications or filter them by type (e.g., "show only critical alerts").
+
+3.  **Role-Based Access Control (RBAC) Fine-Tuning:**
+    *   **Permission Management (Admin Feature):** While roles are set, an admin UI to view or even modify specific permissions associated with each role (e.g., "Officer can view reports but not manage users"). This is more granular than just assigning roles.
+
+4.  **Reporting & Data Visualization (More Dynamic):**
+    *   **Custom Date Range Selector:** Enhance existing reports to allow users to select arbitrary date ranges (e.g., "show data from last Tuesday to yesterday").
+    *   **Comparison Views:** Allow users to compare data from different sensors or different time periods side-by-side on charts.
+    *   **Data Export:** Implement functionality to export displayed sensor data or reports to CSV or PDF format (frontend-driven generation).
+
+**Preparing for ML & Hardware (UI/UX Placeholders):**
+
+5.  **"Connect Device" Walkthrough (Placeholder):**
+    *   Create a UI flow for "adding a new device" where users can input a simulated device ID, type, and location. Even if it's just mock data for now, this prepares the application for real hardware integration later.
+    *   Show a "Device Status: Offline (Simulated)" for these placeholders.
+
+6.  **Mock ML Prediction Visualization:**
+    *   Since you don't have an ML model yet, you could generate *mock* predictions (e.g., random numbers, simple linear trends) and display them in a chart or a dedicated "ML Insights" section. This showcases what the feature *will* look like and helps in designing the UI for real ML outputs.
+
+**Security & Maintainability:**
+
+7.  **User Impersonation (Admin Feature):** Allow admins to securely "impersonate" another user's session to troubleshoot issues or provide support. (Requires careful security considerations).

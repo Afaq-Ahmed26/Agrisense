@@ -22,12 +22,14 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     full_name: Optional[str] = None
     dashboard_preferences: Optional[Dict] = None
+    is_active: Optional[bool] = None
 
 
 class User(UserBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    is_active: bool = True  # Users are active by default
     is_deleted: bool = False # Added for soft deletion
     deleted_at: Optional[datetime] = None # Added for soft deletion
     dashboard_preferences: Optional[Dict] = None

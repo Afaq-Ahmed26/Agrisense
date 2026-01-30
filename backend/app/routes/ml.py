@@ -11,18 +11,20 @@ security = JWTBearer()
 async def get_ml_prediction(
     soil_moisture: float, 
     temperature: float, 
-    humidity: float, 
+    humidity: float,
+    light_level: float,
     device_id: str = None,
     token: str = Depends(security)
 ):
     """
     Get ML-based prediction for irrigation needs based on sensor data.
-    This endpoint serves as a placeholder for the future ML model integration.
+    This endpoint uses a trained model to predict the optimal valve duration.
     """
     sensor_data = {
         "soil_moisture": soil_moisture,
         "temperature": temperature,
         "humidity": humidity,
+        "light_level": light_level,
         "device_id": device_id
     }
     

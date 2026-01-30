@@ -102,6 +102,8 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         firestore_updates['full_name'] = user_update.full_name
     if user_update.dashboard_preferences is not None:
         firestore_updates['dashboard_preferences'] = user_update.dashboard_preferences
+    if user_update.is_active is not None:
+        firestore_updates['is_active'] = user_update.is_active
     
     # Handle role update (only if admin is making the request)
     if user_update.role is not None:

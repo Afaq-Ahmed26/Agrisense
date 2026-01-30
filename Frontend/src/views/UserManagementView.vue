@@ -26,10 +26,10 @@
                       <select class="form-select" 
                               :value="user.role" 
                               @change="updateUserRole(user, $event.target.value)"
-                              :disabled="user.isUpdatingRole">
+                              :disabled="user.isUpdatingRole || user.id === authStore.user?.id">
                         <option value="farmer">Farmer</option>
                         <option value="officer">Officer</option>
-                        <!-- Admin role is not an option to prevent accidental changes -->
+                        <option v-if="isAdmin" value="admin">Admin</option>
                       </select>
                       <div v-if="user.isUpdatingRole" class="spinner-border spinner-border-sm text-primary ms-2" role="status">
                         <span class="visually-hidden">Loading...</span>
@@ -42,7 +42,9 @@
                     </span>
                   </td>
                   <td>
-                    <button class="btn btn-sm btn-primary me-2" @click="toggleUserStatus(user)">
+                    <button class="btn btn-sm btn-primary me-2" 
+                            @click="toggleUserStatus(user)"
+                            :disabled="user.id === authStore.user?.id">
                       {{ user.is_active ? 'Deactivate' : 'Activate' }}
                     </button>
                   </td>
@@ -57,14 +59,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { apiService } from '@/services/api';
+import { authStore } from '@/store/auth';
 
 const users = ref([]);
+
+const isAdmin = computed(() => authStore.user?.role === 'admin');
 
 onMounted(async () => {
   try {
     const fetchedUsers = await apiService.getUsers();
+    // Show all users, but add a property to disable controls for self
     users.value = fetchedUsers.map(user => ({ ...user, isUpdatingRole: false }));
   } catch (error) {
     console.error('Failed to fetch users:', error);
@@ -93,7 +99,8 @@ const updateUserRole = async (user, newRole) => {
       // Keep the isUpdatingRole property
       users.value[index] = { ...updatedUser, isUpdatingRole: false };
     }
-  } catch (error) {
+  } catch (error)
+	{
     console.error(`Failed to change role for user ${user.id}:`, error);
     // Revert the change in the UI on error
     const index = users.value.findIndex(u => u.id === user.id);

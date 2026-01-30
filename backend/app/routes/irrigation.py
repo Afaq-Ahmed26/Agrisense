@@ -115,15 +115,26 @@ async def get_irrigation_recommendations(device_id: str, token: str = Depends(se
         "soil_moisture": 35.0,
         "temperature": 28.5,
         "humidity": 45.0,
+        "light_level": 500.0, # Added dummy light level
         "timestamp": datetime.utcnow().isoformat()
     }
     
-    prediction = await ml_service.predict_irrigation_need(dummy_sensor_data)
+    prediction_result = await ml_service.predict_irrigation_need(dummy_sensor_data)
+    
+    # Check for errors from the ML service
+    if prediction_result.get("error"):
+        raise HTTPException(status_code=500, detail=prediction_result["error"])
+
+    predicted_duration = prediction_result.get("predicted_valve_duration_s", 0)
+    
+    recommendation_text = "No irrigation recommended at this time."
+    if predicted_duration > 0.5: # If predicted duration is significant
+        recommendation_text = f"Irrigate for approximately {predicted_duration:.2f} seconds."
     
     return {
         "device_id": device_id,
-        "recommendation": prediction["recommendation"],
-        "confidence": prediction["confidence"],
-        "predicted_at": prediction["predicted_at"],
+        "recommendation": recommendation_text,
+        "predicted_valve_duration_s": predicted_duration,
+        "predicted_at": prediction_result.get("predicted_at", datetime.utcnow().isoformat()),
         "current_conditions": dummy_sensor_data
     }
