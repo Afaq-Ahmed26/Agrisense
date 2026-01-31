@@ -1,10 +1,11 @@
 import os
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from app.config import settings
 from unittest.mock import MagicMock
 import json
 from datetime import datetime
 import uuid # For generating unique file names
+from google.cloud.firestore_v1.base_query import FieldFilter # Import FieldFilter
 
 
 class MockFirestoreDB:
@@ -33,10 +34,45 @@ class MockCollection:
 
     def add(self, data):
         # Generate a mock document ID
-        doc_id = f"mock_doc_{len(self.documents) + 1}"
+        doc_id = str(uuid.uuid4())
         doc_ref = self.document(doc_id)
         doc_ref.set(data)
         return doc_ref, doc_id
+
+    def stream(self):
+        # Return all documents in the collection
+        for doc_ref in self.documents.values():
+            yield doc_ref.get()
+
+    def where(self, field, op, value):
+        # Basic mock for filtering
+        filtered_docs = []
+        for doc_ref in self.documents.values():
+            doc_data = doc_ref.get().to_dict()
+            if doc_data and field in doc_data:
+                if op == '==' and doc_data[field] == value:
+                    filtered_docs.append(doc_ref)
+                # Add more operators as needed for mock
+        new_mock_collection = MockCollection(self.name)
+        for doc_ref in filtered_docs:
+            new_mock_collection.document(doc_ref.doc_id).set(doc_ref.get().to_dict())
+        return new_mock_collection
+    
+    def order_by(self, field, direction="asc"):
+        # Basic mock for ordering
+        ordered_docs = sorted(self.documents.values(), key=lambda doc_ref: doc_ref.get().to_dict().get(field, None), reverse=(direction=="desc"))
+        new_mock_collection = MockCollection(self.name)
+        for doc_ref in ordered_docs:
+            new_mock_collection.document(doc_ref.doc_id).set(doc_ref.get().to_dict())
+        return new_mock_collection
+    
+    def limit(self, count):
+        # Basic mock for limiting
+        limited_docs = list(self.documents.values())[:count]
+        new_mock_collection = MockCollection(self.name)
+        for doc_ref in limited_docs:
+            new_mock_collection.document(doc_ref.doc_id).set(doc_ref.get().to_dict())
+        return new_mock_collection
 
 
 class MockDocumentReference:
@@ -44,22 +80,25 @@ class MockDocumentReference:
 
     def __init__(self, collection, doc_id):
         self.collection = collection
-        self.doc_id = doc_id
-        self.data = {}  # Initialize to empty dict
+        self.id = doc_id # Add id attribute
+        if doc_id in collection.documents: # Check if already exists
+            self.data = collection.documents[doc_id].data
+        else:
+            self.data = {}  # Initialize to empty dict
 
     def set(self, data):
-        print(f"DEBUG: MockDocumentReference.set called for {self.doc_id} with data: {data}")
+        print(f"DEBUG: MockDocumentReference.set called for {self.id} with data: {data}")
         self.data = data
-        self.collection.documents[self.doc_id] = self # Ensure collection keeps reference to this instance
+        self.collection.documents[self.id] = self # Ensure collection keeps reference to this instance
 
     def update(self, update_data: dict):
-        print(f"DEBUG: MockDocumentReference.update called for {self.doc_id} with data: {update_data}")
+        print(f"DEBUG: MockDocumentReference.update called for {self.id} with data: {update_data}")
         self.data.update(update_data)
-        self.collection.documents[self.doc_id] = self
+        self.collection.documents[self.id] = self
 
     def get(self):
-        print(f"DEBUG: MockDocumentReference.get called for {self.doc_id}, returning snapshot with data: {self.data}")
-        return MockDocumentSnapshot(self.doc_id, self.data) # Pass self.data directly
+        print(f"DEBUG: MockDocumentReference.get called for {self.id}, returning snapshot with data: {self.data}")
+        return MockDocumentSnapshot(self.id, self.data) # Pass self.data directly
 
 
 class MockDocumentSnapshot:
@@ -342,6 +381,85 @@ class FirebaseService:
             print(f"Error listing Firebase users: {e}")
             return [], None
 
+    async def create_irrigation_event_in_firestore(self, event_data: Dict[str, Any]):
+        """Saves an irrigation event to Firestore."""
+        try:
+            if self.is_mock:
+                event_data_copy = event_data.copy()
+                if "created_at" in event_data_copy and isinstance(event_data_copy["created_at"], datetime):
+                    event_data_copy["created_at"] = event_data_copy["created_at"].isoformat()
+                if "start_time" in event_data_copy and isinstance(event_data_copy["start_time"], datetime):
+                    event_data_copy["start_time"] = event_data_copy["start_time"].isoformat()
+                if "end_time" in event_data_copy and isinstance(event_data_copy["end_time"], datetime):
+                    event_data_copy["end_time"] = event_data_copy["end_time"].isoformat()
+
+                self.db.collection('irrigation_events').document(event_data['id']).set(event_data_copy)
+                return {"success": True, "id": event_data['id']}
+            else:
+                doc_ref = self.db.collection('irrigation_events').document(event_data['id'])
+                await doc_ref.set(event_data)
+                return {"success": True, "id": event_data['id']}
+        except Exception as e:
+            print(f"Error creating irrigation event in Firestore: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_irrigation_events_from_firestore(
+        self,
+        device_id: Optional[str] = None,
+        start_after: Optional[datetime] = None,
+        end_before: Optional[datetime] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Fetches irrigation events from Firestore with optional filters."""
+        try:
+            query = self.db.collection('irrigation_events')
+
+            if device_id:
+                query = query.where(filter=FieldFilter("device_id", "==", device_id))
+            if start_after:
+                query = query.where(filter=FieldFilter("start_time", ">=", start_after))
+            if end_before:
+                query = query.where(filter=FieldFilter("start_time", "<=", end_before))
+
+            query = query.order_by("start_time", direction="DESCENDING").limit(limit)
+
+            events = []
+            if self.is_mock:
+                # Mock implementation for fetching with filters
+                mock_events = []
+                for doc_ref in self.db.collection('irrigation_events').stream():
+                    doc_data = doc_ref.to_dict()
+                    if not doc_data:
+                        continue
+                    
+                    match = True
+                    if device_id and doc_data.get("device_id") != device_id:
+                        match = False
+                    
+                    doc_start_time = datetime.fromisoformat(doc_data["start_time"]) if "start_time" in doc_data and isinstance(doc_data["start_time"], str) else doc_data.get("start_time")
+                    
+                    if start_after and doc_start_time and doc_start_time < start_after:
+                        match = False
+                    if end_before and doc_start_time and doc_start_time > end_before:
+                        match = False
+
+                    if match:
+                        mock_events.append(doc_data)
+                
+                # Apply order and limit for mock
+                mock_events.sort(key=lambda x: x.get("start_time"), reverse=True)
+                for event_data in mock_events[:limit]:
+                    events.append(event_data)
+
+            else:
+                async for doc in query.stream():
+                    event_data = doc.to_dict()
+                    if event_data:
+                        events.append(event_data)
+            return events
+        except Exception as e:
+            print(f"Error fetching irrigation events from Firestore: {e}")
+            return []
 
 
 # Global instance

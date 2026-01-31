@@ -199,4 +199,11 @@ async def logout(token: str = Depends(security)):
     # In a real implementation with token blacklisting, you would add the token to a blacklist.
     # For this simplified version, we just return a success message.
     # The frontend is responsible for clearing the token.
+    payload = verify_token(token)
+    if payload:
+        log_activity(
+            user_id=payload.get("sub"),
+            action="User Logout",
+            details={"email": payload.get("email")}
+        )
     return {"message": "Successfully logged out"}

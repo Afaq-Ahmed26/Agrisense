@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
-from datetime import datetime
+from typing import List, Optional
+from datetime import datetime, timedelta
+import random
 from app.middleware.auth import JWTBearer
 from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, IrrigationScheduleUpdate, IrrigationEvent, IrrigationEventCreate
 from app.services.ml_service import ml_service
+from app.services.firebase_service import firebase_service
+
 
 
 router = APIRouter()
@@ -69,20 +72,23 @@ async def create_irrigation_event(event: IrrigationEventCreate, token: str = Dep
         end_time=event.end_time,
         duration_actual_minutes=event.duration_actual_minutes,
         status=event.status,
+        temperature=event.temperature,
+        humidity=event.humidity,
+        soil_moisture=event.soil_moisture,
+        light_level=event.light_level,
         created_at=datetime.utcnow()
     )
     
-    # In a real implementation, we would save this to Firestore
-    # firebase_service.db.collection('irrigation_events').document(new_event.id).set(new_event.dict())
+    
+    await firebase_service.create_irrigation_event_in_firestore(new_event.model_dump())
     
     return new_event
 
 
 @router.get("/events", response_model=List[IrrigationEvent])
-async def get_irrigation_events(skip: int = 0, limit: int = 100, token: str = Depends(security)):
-    # In a real implementation, this would fetch events from Firestore
-    # For now, returning empty list as placeholder
-    return []
+async def get_irrigation_events(device_id: Optional[str] = None, limit: int = 100, token: str = Depends(security)):
+    events_data = await firebase_service.get_irrigation_events_from_firestore(device_id=device_id, limit=limit)
+    return [IrrigationEvent(**data) for data in events_data]
 
 
 @router.post("/simulate", summary="Simulate irrigation for a device")
@@ -91,14 +97,28 @@ async def simulate_irrigation(device_id: str, duration_minutes: int = 30, token:
     Simulate irrigation for a device. This endpoint will be used when we don't have
     actual hardware connected to the system.
     """
-    # In a real implementation, this would send a command to the physical device
-    # For simulation purposes, we'll just return a success message
-    return {
-        "message": f"Irrigation simulated for device {device_id}",
-        "duration_minutes": duration_minutes,
-        "status": "completed",
-        "simulated_at": datetime.utcnow().isoformat()
+    start_time = datetime.utcnow()
+    end_time = start_time + timedelta(minutes=duration_minutes)
+    
+    dummy_sensor_data = {
+        "temperature": 25 + (random.random() * 5 - 2.5),
+        "humidity": 60 + (random.random() * 10 - 5),
+        "soil_moisture": 45 + (random.random() * 10 - 5),
+        "light_level": 800 + (random.random() * 200 - 100),
     }
+
+    event_create = IrrigationEventCreate(
+        device_id=device_id,
+        start_time=start_time,
+        end_time=end_time,
+        duration_actual_minutes=duration_minutes,
+        status="completed",
+        **dummy_sensor_data
+    )
+
+    new_event = await create_irrigation_event(event_create, token)
+    
+    return new_event
 
 
 @router.get("/recommendations/{device_id}")

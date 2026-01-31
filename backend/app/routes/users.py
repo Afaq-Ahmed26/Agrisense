@@ -105,16 +105,24 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
     if user_update.is_active is not None:
         firestore_updates['is_active'] = user_update.is_active
     
+    # Get current user data for logging changes
+    target_user_current_data = get_user_from_firestore(user_id)
+    if not target_user_current_data:
+        raise HTTPException(status_code=404, detail="Target user not found for logging.")
+
+    changes = {}
+    if user_update.username and user_update.username != target_user_current_data.username:
+        changes['username'] = {"old": target_user_current_data.username, "new": user_update.username}
+    if user_update.email and user_update.email != target_user_current_data.email:
+        changes['email'] = {"old": target_user_current_data.email, "new": user_update.email}
+    if user_update.full_name and user_update.full_name != target_user_current_data.full_name:
+        changes['full_name'] = {"old": target_user_current_data.full_name, "new": user_update.full_name}
+
     # Handle role update (only if admin is making the request)
     if user_update.role is not None:
         if acting_user.role == 'admin':
-            target_user_current_data = get_user_from_firestore(user_id) # Fetch current data to compare roles
-            if target_user_current_data and user_update.role != target_user_current_data.role:
-                log_activity(
-                    user_id=acting_user_uid,
-                    action="User Role Change",
-                    details={"target_user_id": user_id, "old_role": target_user_current_data.role, "new_role": user_update.role}
-                )
+            if user_update.role != target_user_current_data.role:
+                changes['role'] = {"old": target_user_current_data.role, "new": user_update.role}
             firestore_updates['role'] = user_update.role
         else:
             raise HTTPException(status_code=403, detail="Only admins can change user roles.")
@@ -129,6 +137,14 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         # Update Firestore
         if firestore_updates:
             update_user_in_firestore(user_id, firestore_updates)
+
+        # Log activity if there were changes
+        if changes:
+            log_activity(
+                user_id=acting_user_uid,
+                action="User Profile Update",
+                details={"target_user_id": user_id, "changes": changes}
+            )
 
         # Fetch the updated user from Firestore to return the complete and latest profile
         updated_user = get_user_from_firestore(user_id)

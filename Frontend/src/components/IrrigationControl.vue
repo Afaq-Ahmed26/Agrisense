@@ -85,17 +85,10 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { apiService } from '@/services/api';
-import { authService } from '@/services/auth';
-import { firebaseService } from '@/services/firebase';
 import { formatDuration } from '@/utils/helpers';
-// Note: Bootstrap's Modal needs to be handled carefully in Vue.
-// We'll use the data-bs-toggle attributes in the template, but for showing/hiding programmatically,
-// we'd typically need to get the modal instance.
-let modalInstance = null;
 
-const deviceId = ref(localStorage.getItem('selectedDeviceId') || 'device_001');
-const canControlIrrigation = computed(() => authService.hasPermission('control_own_irrigation'));
+// Simulate a user with permission
+const canControlIrrigation = ref(true);
 
 const isRunning = ref(false);
 const mode = ref('auto'); // 'auto' or 'manual'
@@ -105,20 +98,12 @@ const countdown = ref('');
 let irrigationTimer = null;
 let countdownInterval = null;
 
-// Modal state
+let modalInstance = null;
 const modalMessage = ref('');
 let confirmedAction = null;
 
-
-onMounted(async () => {
-  await loadInitialStatus();
-  // The listener should be initialized in a higher-level component or service if possible
-  // to avoid multiple initializations. For now, we do it here.
-  await firebaseService.initialize();
-        firebaseService.subscribeToDeviceStatus(deviceId.value, (status) => {    updateStatus(status);
-  });
-
-  // Get modal instance
+onMounted(() => {
+  mode.value = localStorage.getItem('irrigationModePreference') || 'auto';
   const modalEl = document.getElementById('irrigationConfirmationModal');
   if (window.bootstrap && modalEl) {
     modalInstance = new window.bootstrap.Modal(modalEl);
@@ -127,75 +112,43 @@ onMounted(async () => {
 
 watch(mode, (newMode) => {
   localStorage.setItem('irrigationModePreference', newMode);
-  // Potentially send mode change to backend if needed
 });
-
-const loadInitialStatus = async () => {
-  try {
-    const status = await apiService.getIrrigationStatus(deviceId.value);
-    updateStatus(status);
-    mode.value = localStorage.getItem('irrigationModePreference') || status.mode || 'auto';
-  } catch (error) {
-    console.error('Failed to load initial irrigation status:', error);
-  }
-};
-
-const updateStatus = (status) => {
-  if (!status) return;
-  isRunning.value = status.valve_open || false;
-  lastIrrigationTime.value = status.last_irrigation ? new Date(status.last_irrigation).toLocaleString() : 'N/A';
-
-  if (isRunning.value) {
-    if (!countdownInterval) {
-      // If we don't have start time from backend, we can't show countdown
-      // This part needs a robust implementation based on backend data
-    }
-  } else {
-    clearTimers();
-  }
-};
 
 const confirmStart = () => {
   modalMessage.value = `Start irrigation for ${durationMinutes.value} minutes?`;
   confirmedAction = startIrrigation;
-  if(modalInstance) modalInstance.show();
+  if (modalInstance) modalInstance.show();
 };
 
 const confirmStop = () => {
   modalMessage.value = 'Are you sure you want to stop the irrigation?';
   confirmedAction = stopIrrigation;
-  if(modalInstance) modalInstance.show();
+  if (modalInstance) modalInstance.show();
 };
 
 const executeConfirmedAction = () => {
   if (confirmedAction) {
     confirmedAction();
   }
-  if(modalInstance) modalInstance.hide();
+  if (modalInstance) modalInstance.hide();
   confirmedAction = null;
 };
 
-const startIrrigation = async () => {
-  try {
-    await apiService.startIrrigation(deviceId.value, durationMinutes.value);
-    // The firebase listener will update the state to running
-    // For immediate feedback, we can optimistically update
-    isRunning.value = true;
-    startCountdown(durationMinutes.value);
-  } catch (error) {
-    console.error('Failed to start irrigation:', error);
-  }
+const startIrrigation = () => {
+  isRunning.value = true;
+  startCountdown(durationMinutes.value);
+
+  irrigationTimer = setTimeout(() => {
+    stopIrrigation(true); // Automatically stop after duration
+  }, durationMinutes.value * 60 * 1000);
 };
 
-const stopIrrigation = async () => {
-  try {
-    await apiService.stopIrrigation(deviceId.value);
-    // The firebase listener will update the state to stopped
-    // For immediate feedback, we can optimistically update
-    isRunning.value = false;
-    clearTimers();
-  } catch (error) {
-    console.error('Failed to stop irrigation:', error);
+const stopIrrigation = (wasAutomatic = false) => {
+  isRunning.value = false;
+  lastIrrigationTime.value = new Date().toLocaleString();
+  clearTimers();
+  if (!wasAutomatic) {
+    // If stopped manually, we might want to show a notification
   }
 };
 
@@ -220,7 +173,6 @@ const clearTimers = () => {
   irrigationTimer = null;
 };
 
-// Computed properties for UI display
 const irrigationStatus = computed(() => isRunning.value ? 'RUNNING' : 'IDLE');
 const valveStatus = computed(() => isRunning.value ? 'OPEN' : 'CLOSED');
 
@@ -240,7 +192,6 @@ const statusIcon = computed(() => ({
   'fa-spinner fa-spin': isRunning.value,
   'fa-pause': !isRunning.value
 }));
-
 </script>
 
 <style scoped>

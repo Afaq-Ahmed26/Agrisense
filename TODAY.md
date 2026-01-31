@@ -143,3 +143,66 @@ Here are some feature suggestions that will add significant value and interactiv
 **Security & Maintainability:**
 
 7.  **User Impersonation (Admin Feature):** Allow admins to securely "impersonate" another user's session to troubleshoot issues or provide support. (Requires careful security considerations).
+
+### Day 9: ML Model Integration, Feature Enhancements, and Bug Squashing
+
+**Summary:**
+Today's session focused on the end-to-end integration of the machine learning model for irrigation prediction. This involved debugging complex dependency issues, retraining the model for compatibility, and updating the full application stack (backend, frontend) to support the new feature. We also implemented several UI/UX improvements and bug fixes related to user management.
+
+**Errors & Resolutions:**
+
+1.  **`numpy` CPU Incompatibility:**
+    *   **Error:** `RuntimeError: NumPy was built with baseline optimizations (X86_V2) but your machine doesn't support it.`
+    *   **Cause:** The version of `numpy` installed was compiled for a more modern CPU.
+    *   **Resolution:** After several attempts to rebuild from source, the issue was resolved by downgrading `pandas` and `scikit-learn` to versions that use an older, more broadly compatible `numpy` version (`1.26.4`).
+
+2.  **`scikit-learn` Model Incompatibility:**
+    *   **Error:** `_pickle.UnpicklingError: STACK_GLOBAL requires str` and an `InconsistentVersionWarning`.
+    *   **Cause:** The provided `irrigation_model.pkl` was created with a newer version of `scikit-learn` (`1.6.1`) than could be run in the user's environment, making the model file unreadable.
+    *   **Resolution:** Created a `model/train_model.py` script based on the provided Jupyter Notebook. This script was used to retrain the model, generating a new `irrigation_model.pkl` that is 100% compatible with the user's current environment.
+
+3.  **User Management Bugs:**
+    *   **"Admin" Role Missing:** Admins could not assign the "Admin" role to other users. This was fixed by conditionally rendering the "Admin" option in the `UserManagementView.vue` dropdown, visible only to logged-in admins.
+    *   **Admin Not Visible in List:** The admin's own account was hidden from the user list. This was changed to show all users, but with modification controls disabled for the admin's own row to prevent accidental self-lockout.
+    *   **"Inactive" Status Bug:** All users incorrectly showed as "Inactive". This was fixed by adding an `is_active` field to the backend User model (defaulting to `True`) and updating the user modification endpoint to handle status changes.
+
+**Accomplishments:**
+
+*   **Successfully Integrated ML Model:** The backend now uses a compatible, retrained `RandomForestRegressor` model to predict irrigation valve duration.
+*   **Full-Stack Feature: Light Sensor:**
+    *   Added `light_level` to the backend sensor model, simulation service, and ML prediction endpoint.
+    *   Added a "Light Level" display card to the frontend dashboard.
+*   **Enhanced User Management:** The user management panel is now more robust and functions as per the admin's requirements.
+*   **Resolved Critical Bugs:** Fixed the user status display and several complex dependency and model versioning issues.
+
+### Day 10: Dashboard UI & Data Management Improvements
+
+**Summary:**
+Today's session focused on resolving a persistent blank dashboard issue and enhancing the application's data management and UI capabilities. This involved debugging frontend rendering logic, configuring Firebase security rules, implementing new UI features, and expanding backend data models.
+
+**Accomplishments:**
+
+*   **Resolved Blank Dashboard Issue:**
+    *   Diagnosed and resolved the `permission-denied` error from Firebase Firestore by guiding the user to configure appropriate security rules, allowing the frontend to access necessary data.
+    *   Fixed a `ReferenceError: clearTimers is not defined` in `Frontend/src/components/IrrigationControl.vue`, which was caused by an accidental revert to an older script version.
+    *   Temporarily disabled `vue-draggable-next` in `Frontend/src/views/DashboardView.vue` to confirm that dashboard widgets render correctly with a standard `v-for` loop, thereby isolating the issue to the `draggable` component's integration.
+*   **Expanded Activity Logging:**
+    *   Implemented detailed activity logging in the backend for user login, logout, and profile updates, providing a more comprehensive audit trail.
+    *   Modified `backend/app/routes/auth.py` and `backend/app/routes/users.py` to record these actions using the `log_activity` service.
+*   **Enhanced Irrigation History with Sensor Data:**
+    *   Modified the `IrrigationEvent` model in `backend/app/models/irrigation.py` to include fields for `temperature`, `humidity`, `soil_moisture`, and `light_level`.
+    *   Updated the `simulate_irrigation` endpoint in `backend/app/routes/irrigation.py` to generate and store dummy sensor data alongside irrigation events.
+    *   Implemented `create_irrigation_event_in_firestore` and `get_irrigation_events_from_firestore` functions in `backend/app/services/firebase_service.py` to persist and retrieve irrigation events with sensor data.
+    *   Updated `Frontend/src/components/LogsTable.vue` to display and export the new sensor data columns, enhancing the utility of irrigation logs for potential ML model retraining.
+*   **Implemented "Connect Device" UI Flow:**
+    *   Created `Frontend/src/views/ConnectDeviceView.vue` to provide a user interface for adding new simulated devices, including input fields for ID, type, and location, and displaying a simulated "offline" status.
+    *   Integrated the "Connect Device" view into the frontend navigation and routing.
+*   **Implemented "Customize Dashboard" Feature (Core Logic):**
+    *   Integrated `vue-draggable-next` into `Frontend/src/views/DashboardView.vue` to enable drag-and-drop functionality for dashboard widgets.
+    *   Added controls to hide and show widgets, with user preferences stored in Firebase.
+
+**Current Issues & Next Steps:**
+
+*   **`vue-draggable-next` Integration Debugging:** The `draggable` component, when re-integrated into `DashboardView.vue`, still results in a blank dashboard. Further investigation is required to correctly integrate `vue-draggable-next` to allow drag-and-drop functionality while maintaining dashboard visibility. This might involve adjusting the structure of the items passed to `draggable` or exploring alternative integration patterns.
+*   **Dashboard Widget Prioritization:** Implement dynamic positioning of the `AlertsBanner` (top priority if active) and other dashboard widgets based on user preferences and alert status, as per user suggestion. This requires refining the `dashboardLayout` logic in `DashboardView.vue`.
+*   **Frontend UI Cleanup:** Remove debugging `console.log` statements from `Frontend/src/views/DashboardView.vue`.

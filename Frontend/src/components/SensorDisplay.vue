@@ -75,52 +75,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, defineExpose } from 'vue';
-import { firebaseService } from '@/services/firebase';
-import { apiService } from '@/services/api';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { formatNumber } from '@/utils/helpers';
 import { SENSOR_THRESHOLDS } from '@/config';
 
-const deviceId = ref(localStorage.getItem('selectedDeviceId') || 'device_001');
-const temperature = ref(null);
-const humidity = ref(null);
-const moisture = ref(null);
-const lightLevel = ref(null); // Added state for light level
+const temperature = ref(25);
+const humidity = ref(60);
+const moisture = ref(45);
+const lightLevel = ref(800);
 const lastUpdateTime = ref('N/A');
 
-// Format values for display
-const formattedTemperature = computed(() => temperature.value !== null ? `${formatNumber(temperature.value)}°C` : 'N/A');
-const formattedHumidity = computed(() => humidity.value !== null ? `${formatNumber(humidity.value)}%` : 'N/A');
-const formattedMoisture = computed(() => moisture.value !== null ? `${formatNumber(moisture.value)}%` : 'N/A');
-const formattedLightLevel = computed(() => lightLevel.value !== null ? `${formatNumber(lightLevel.value)} lx` : 'N/A'); // Formatter for light level
+let intervalId;
 
-// Update data from listener or fetch
-const updateDisplay = (data) => {
-  if (!data) return;
-
-  if (data.temperature !== undefined) temperature.value = data.temperature;
-  if (data.humidity !== undefined) humidity.value = data.humidity;
-  if (data.moisture !== undefined) moisture.value = data.moisture;
-  if (data.light_level !== undefined) lightLevel.value = data.light_level; // Update light level
-
-  if (data.timestamp) {
-    lastUpdateTime.value = `Last updated: ${new Date(data.timestamp * 1000).toLocaleTimeString()}`;
-  }
+const updateSimulatedData = () => {
+  temperature.value = 25 + (Math.random() * 5 - 2.5);
+  humidity.value = 60 + (Math.random() * 10 - 5);
+  moisture.value = 45 + (Math.random() * 10 - 5);
+  lightLevel.value = 800 + (Math.random() * 200 - 100);
+  lastUpdateTime.value = `Last updated: ${new Date().toLocaleTimeString()}`;
 };
 
-onMounted(async () => {
-  // Fetch initial data
-  const initialData = await apiService.getLatestSensorData(deviceId.value);
-  updateDisplay(initialData);
-
-  // Subscribe to real-time updates
-  await firebaseService.initialize();
-  firebaseService.subscribeToSensorData(deviceId.value, (data) => {
-    updateDisplay(data);
-  });
+onMounted(() => {
+  updateSimulatedData();
+  intervalId = setInterval(updateSimulatedData, 5000);
 });
 
-// Dynamic card classes for visual feedback
+onUnmounted(() => {
+  clearInterval(intervalId);
+});
+
+const formattedTemperature = computed(() => `${formatNumber(temperature.value)}°C`);
+const formattedHumidity = computed(() => `${formatNumber(humidity.value)}%`);
+const formattedMoisture = computed(() => `${formatNumber(moisture.value)}%`);
+const formattedLightLevel = computed(() => `${formatNumber(lightLevel.value)} lx`);
+
 const temperatureCardClass = computed(() => {
   if (temperature.value > SENSOR_THRESHOLDS.TEMP_HIGH_WARNING) return 'bg-danger text-white';
   return 'bg-primary text-white';
@@ -138,33 +126,8 @@ const moistureCardClass = computed(() => {
 });
 
 const lightLevelCardClass = computed(() => {
-  // Example class logic for light level
   if (lightLevel.value > 1000) return 'bg-light text-dark';
   return 'bg-secondary text-white';
-});
-
-// Expose method for parent components to check critical conditions
-const checkCriticalConditions = () => {
-  const criticalAlerts = [];
-  if (moisture.value < SENSOR_THRESHOLDS.MOISTURE_CRITICAL) {
-    criticalAlerts.push({
-      type: 'moisture_critical',
-      message: `CRITICAL: Soil moisture at ${formattedMoisture.value} is extremely low!`,
-      priority: 1
-    });
-  }
-  if (temperature.value > SENSOR_THRESHOLDS.TEMP_HIGH_WARNING) {
-    criticalAlerts.push({
-      type: 'high_temperature',
-      message: `WARNING: High temperature detected (${formattedTemperature.value})`,
-      priority: 2
-    });
-  }
-  return criticalAlerts;
-};
-
-defineExpose({
-  checkCriticalConditions,
 });
 </script>
 

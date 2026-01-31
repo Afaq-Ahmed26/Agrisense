@@ -39,6 +39,10 @@ class IrrigationEventBase(BaseModel):
     end_time: Optional[datetime] = None
     duration_actual_minutes: Optional[int] = None
     status: str = "pending"  # pending, active, completed, failed
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    soil_moisture: Optional[float] = None
+    light_level: Optional[float] = None
 
 
 class IrrigationEventCreate(IrrigationEventBase):

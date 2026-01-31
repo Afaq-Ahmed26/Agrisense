@@ -8,6 +8,7 @@ import UserManagementView from '@/views/UserManagementView.vue';
 import ReportsView from '@/views/ReportsView.vue';
 import NotificationsView from '@/views/NotificationsView.vue';
 import ActivityLogView from '@/views/ActivityLogView.vue';
+import ConnectDeviceView from '@/views/ConnectDeviceView.vue';
 import { authService } from '@/services/auth';
 import { authStore } from '@/store/auth';
 
@@ -62,6 +63,12 @@ const routes = [
     path: '/notifications',
     name: 'Notifications',
     component: NotificationsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/connect-device',
+    name: 'ConnectDevice',
+    component: ConnectDeviceView,
     meta: { requiresAuth: true },
   },
   {
