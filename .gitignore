@@ -2,8 +2,9 @@ node_modules/
 venv/
 .env
 __pycache__/
-.chotay.md 
-.G.md
-.Q.md
-.DS_Store
-.Today.md
+*.md
+!.gitignore
+!README.md
+!README.MD
+!readme.md
+!Readme.md
