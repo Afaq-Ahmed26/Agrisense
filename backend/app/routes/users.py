@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFi
 from typing import List, Optional
 from app.middleware.auth import JWTBearer
 from app.models.user import User, UserUpdate
+from app.models.preferences import UserPreferences
+from app.models.notification_preferences import NotificationPreferences
 from app.services.firebase_service import firebase_service
 from app.services.user_service import update_user_in_firestore, get_user_from_firestore, get_all_users_from_firestore
 from app.services.activity_log_service import log_activity
@@ -29,7 +31,7 @@ async def get_current_user(request: Request, token: str = Depends(security)):
     # Get the current authenticated user's information
     user_payload = request.state.user
     print(f"DEBUG: /me - user_payload from token: {user_payload}")
-    uid = user_payload.get("uid") # Extract UID from the decoded Firebase token
+    uid = user_payload.get("user_id") # Extract UID from the decoded Firebase token
     print(f"DEBUG: /me - extracted UID: {uid}")
 
     if not uid:
@@ -68,7 +70,7 @@ async def get_user(user_id: str, include_deleted: bool = False, token: str = Dep
 @router.patch("/{user_id}", response_model=User)
 async def update_user(user_id: str, user_update: UserUpdate, request: Request, token: str = Depends(security)):
     user_payload = request.state.user
-    acting_user_uid = user_payload.get('uid')
+    acting_user_uid = user_payload.get('user_id')
 
     if not acting_user_uid:
         raise HTTPException(status_code=403, detail="Could not validate user credentials.")
@@ -162,7 +164,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
 async def delete_user(user_id: str, request: Request, token: str = Depends(security)): # Added request
     user_payload = request.state.user
     print(f"DEBUG: delete_user - user_payload: {user_payload}")
-    if user_payload['uid'] != user_id and user_payload.get('role') != 'admin': # Only admin or self can delete
+    if user_payload['user_id'] != user_id and user_payload.get('role') != 'admin': # Only admin or self can delete
         raise HTTPException(status_code=403, detail="Not authorized to delete this user.")
 
     try:
@@ -175,3 +177,99 @@ async def delete_user(user_id: str, request: Request, token: str = Depends(secur
         return {"message": "User deleted permanently from Firebase Auth and marked as deleted in Firestore."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete user: {e}")
+
+
+@router.get("/{user_id}/preferences", response_model=UserPreferences)
+async def get_user_preferences(user_id: str, token: str = Depends(security)):
+    """
+    Retrieve a user's preferences.
+    If no preferences are set, return the default preferences.
+    """
+    prefs_ref = firebase_service.db.collection('user_preferences').document(user_id)
+    doc = prefs_ref.get()
+    if doc.exists:
+        return UserPreferences(**doc.to_dict())
+    return UserPreferences()
+
+
+@router.put("/{user_id}/preferences", response_model=UserPreferences)
+async def update_user_preferences(user_id: str, preferences: UserPreferences, request: Request, token: str = Depends(security)):
+    """
+    Update a user's preferences.
+    Only the user themselves or an admin can update preferences.
+    """
+    user_payload = request.state.user
+    acting_user_uid = user_payload.get('uid')
+    
+    # To get the role, we need to fetch the user's profile from Firestore
+    acting_user = get_user_from_firestore(acting_user_uid)
+    if not acting_user:
+        raise HTTPException(status_code=404, detail="Acting user not found.")
+
+    if acting_user.role != 'admin' and acting_user_uid != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update these preferences.")
+
+    prefs_ref = firebase_service.db.collection('user_preferences').document(user_id)
+    
+    # For logging, get old preferences
+    old_prefs_doc = prefs_ref.get()
+    old_prefs = UserPreferences(**old_prefs_doc.to_dict()) if old_prefs_doc.exists else UserPreferences()
+
+    # Set the new preferences
+    prefs_ref.set(preferences.model_dump())
+
+    # Log the activity
+    changes = {k: {"old": getattr(old_prefs, k), "new": getattr(preferences, k)} for k in preferences.model_dump().keys() if getattr(old_prefs, k) != getattr(preferences, k)}
+    if changes:
+        log_activity(
+            user_id=acting_user_uid,
+            action="User Preferences Update",
+            details={"target_user_id": user_id, "changes": changes}
+        )
+
+    return preferences
+
+
+@router.get("/{user_id}/notification-preferences", response_model=NotificationPreferences)
+async def get_user_notification_preferences(user_id: str, token: str = Depends(security)):
+    """
+    Retrieve a user's notification preferences.
+    """
+    prefs_ref = firebase_service.db.collection('notification_preferences').document(user_id)
+    doc = prefs_ref.get()
+    if doc.exists:
+        return NotificationPreferences(**doc.to_dict())
+    return NotificationPreferences()
+
+
+@router.put("/{user_id}/notification-preferences", response_model=NotificationPreferences)
+async def update_user_notification_preferences(user_id: str, preferences: NotificationPreferences, request: Request, token: str = Depends(security)):
+    """
+    Update a user's notification preferences.
+    """
+    user_payload = request.state.user
+    acting_user_uid = user_payload.get('uid')
+    
+    acting_user = get_user_from_firestore(acting_user_uid)
+    if not acting_user:
+        raise HTTPException(status_code=404, detail="Acting user not found.")
+
+    if acting_user.role != 'admin' and acting_user_uid != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update these preferences.")
+
+    prefs_ref = firebase_service.db.collection('notification_preferences').document(user_id)
+    
+    old_prefs_doc = prefs_ref.get()
+    old_prefs = NotificationPreferences(**old_prefs_doc.to_dict()) if old_prefs_doc.exists else NotificationPreferences()
+
+    prefs_ref.set(preferences.model_dump())
+
+    changes = {k: {"old": getattr(old_prefs, k), "new": getattr(preferences, k)} for k in preferences.model_dump().keys() if getattr(old_prefs, k) != getattr(preferences, k)}
+    if changes:
+        log_activity(
+            user_id=acting_user_uid,
+            action="Notification Preferences Update",
+            details={"target_user_id": user_id, "changes": changes}
+        )
+
+    return preferences

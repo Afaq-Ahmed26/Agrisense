@@ -6,6 +6,7 @@ from app.middleware.auth import JWTBearer
 from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, IrrigationScheduleUpdate, IrrigationEvent, IrrigationEventCreate
 from app.services.ml_service import ml_service
 from app.services.firebase_service import firebase_service
+from app.services.irrigation_service import irrigation_service
 
 
 
@@ -15,29 +16,14 @@ security = JWTBearer()
 
 @router.post("/schedule", response_model=IrrigationSchedule)
 async def create_irrigation_schedule(schedule: IrrigationScheduleCreate, token: str = Depends(security)):
-    # Create a new irrigation schedule
-    new_schedule = IrrigationSchedule(
-        id=f"schedule_{datetime.utcnow().timestamp()}",
-        device_id=schedule.device_id,
-        start_time=schedule.start_time,
-        duration_minutes=schedule.duration_minutes,
-        is_recurring=schedule.is_recurring,
-        recurrence_pattern=schedule.recurrence_pattern,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    
-    # In a real implementation, we would save this to Firestore
-    # firebase_service.db.collection('irrigation_schedules').document(new_schedule.id).set(new_schedule.dict())
-    
+    new_schedule = irrigation_service.create_irrigation_schedule(schedule)
     return new_schedule
 
 
 @router.get("/schedule", response_model=List[IrrigationSchedule])
 async def get_irrigation_schedules(skip: int = 0, limit: int = 100, token: str = Depends(security)):
-    # In a real implementation, this would fetch schedules from Firestore
-    # For now, returning empty list as placeholder
-    return []
+    schedules = irrigation_service.get_irrigation_schedules()
+    return schedules[skip : skip + limit]
 
 
 @router.get("/schedule/{schedule_id}", response_model=IrrigationSchedule)
@@ -64,31 +50,14 @@ async def delete_irrigation_schedule(schedule_id: str, token: str = Depends(secu
 
 @router.post("/events", response_model=IrrigationEvent)
 async def create_irrigation_event(event: IrrigationEventCreate, token: str = Depends(security)):
-    # Create a new irrigation event
-    new_event = IrrigationEvent(
-        id=f"event_{datetime.utcnow().timestamp()}",
-        device_id=event.device_id,
-        start_time=event.start_time,
-        end_time=event.end_time,
-        duration_actual_minutes=event.duration_actual_minutes,
-        status=event.status,
-        temperature=event.temperature,
-        humidity=event.humidity,
-        soil_moisture=event.soil_moisture,
-        light_level=event.light_level,
-        created_at=datetime.utcnow()
-    )
-    
-    
-    await firebase_service.create_irrigation_event_in_firestore(new_event.model_dump())
-    
+    new_event = irrigation_service.create_irrigation_event(event)
     return new_event
 
 
 @router.get("/events", response_model=List[IrrigationEvent])
 async def get_irrigation_events(device_id: Optional[str] = None, limit: int = 100, token: str = Depends(security)):
-    events_data = await firebase_service.get_irrigation_events_from_firestore(device_id=device_id, limit=limit)
-    return [IrrigationEvent(**data) for data in events_data]
+    events = irrigation_service.get_irrigation_events(device_id=device_id, limit=limit)
+    return events
 
 
 @router.post("/simulate", summary="Simulate irrigation for a device")

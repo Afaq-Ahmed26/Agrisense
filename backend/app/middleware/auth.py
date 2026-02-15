@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.services.firebase_service import firebase_service
+from app.services.auth_service import verify_token # Import the correct verify_token
 from typing import Optional
 
 
@@ -19,18 +19,18 @@ class JWTBearer(HTTPBearer):
                 )
             
             token = credentials.credentials
-            user = self.verify_jwt(token)
+            user_payload = self.verify_jwt(token) # Renamed to user_payload for clarity
             
-            print(f"DEBUG: JWTBearer - verified user payload: {user}")
+            print(f"DEBUG: JWTBearer - verified user payload: {user_payload}")
             
-            if not user:
+            if not user_payload:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Invalid token or expired token."
                 )
             
             # Attach user info to request for use in route handlers
-            request.state.user = user
+            request.state.user = user_payload
             return token
         else:
             raise HTTPException(
@@ -40,12 +40,12 @@ class JWTBearer(HTTPBearer):
 
     def verify_jwt(self, jwtoken: str) -> Optional[dict]:
         try:
-            # Try Firebase verification first
-            decoded_token = firebase_service.verify_token(jwtoken)
-            if decoded_token:
-                return decoded_token
+            # Use app.services.auth_service.verify_token for backend's JWT
+            payload = verify_token(jwtoken)
+            if payload:
+                return payload
                 
         except Exception as e:
-            print(f"Firebase Token verification error: {e}")
+            print(f"Backend JWT verification error: {e}")
         
         return None

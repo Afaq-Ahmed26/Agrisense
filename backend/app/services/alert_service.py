@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel
@@ -6,6 +6,8 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 from app.services.firebase_service import firebase_service
 from app.models.notification import NotificationCreate
 from app.services import notification_service
+from app.models.thresholds import AlertThresholds
+from app.models.notification_preferences import NotificationPreferences
 
 
 class AlertSeverity(str, Enum):
@@ -49,14 +51,29 @@ class AlertService:
     """
     
     def __init__(self):
-        self.alert_thresholds = {
-            "soil_moisture_low": 30,  # percentage
-            "soil_moisture_critical": 20,  # percentage
-            "temperature_high": 40,  # Celsius
-            "temperature_critical": 45,  # Celsius
-            "humidity_low": 20,  # percentage
-            "humidity_high": 85,  # percentage
-        }
+        self._thresholds_cache: Optional[AlertThresholds] = None
+        self._cache_expiry = timedelta(minutes=5)
+        self._last_cache_time: Optional[datetime] = None
+
+    def _get_thresholds(self) -> AlertThresholds:
+        """
+        Retrieves alert thresholds from Firestore, with in-memory caching.
+        """
+        now = datetime.utcnow()
+        if (self._thresholds_cache and self._last_cache_time and
+                (now - self._last_cache_time) < self._cache_expiry):
+            return self._thresholds_cache
+
+        settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
+        doc = settings_ref.get()
+        if doc.exists:
+            self._thresholds_cache = AlertThresholds(**doc.to_dict())
+        else:
+            # Use default values if not set in DB
+            self._thresholds_cache = AlertThresholds()
+        
+        self._last_cache_time = now
+        return self._thresholds_cache
     
     def evaluate_sensor_data(self, sensor_data: Dict) -> List[Alert]:
         """
@@ -65,11 +82,12 @@ class AlertService:
         alerts = []
         device_id = sensor_data.get("device_id")
         timestamp = sensor_data.get("timestamp", datetime.utcnow())
+        thresholds = self._get_thresholds()
         
         # Check soil moisture levels
         soil_moisture = sensor_data.get("soil_moisture")
         if soil_moisture is not None:
-            if soil_moisture < self.alert_thresholds["soil_moisture_critical"]:
+            if soil_moisture < thresholds.soil_moisture_critical:
                 alerts.append(
                     Alert(
                         id=f"alert_{timestamp.timestamp()}_{device_id}_moisture_critical",
@@ -80,7 +98,7 @@ class AlertService:
                         timestamp=timestamp
                     )
                 )
-            elif soil_moisture < self.alert_thresholds["soil_moisture_low"]:
+            elif soil_moisture < thresholds.soil_moisture_low:
                 alerts.append(
                     Alert(
                         id=f"alert_{timestamp.timestamp()}_{device_id}_moisture_low",
@@ -95,7 +113,7 @@ class AlertService:
         # Check temperature levels
         temperature = sensor_data.get("temperature")
         if temperature is not None:
-            if temperature > self.alert_thresholds["temperature_critical"]:
+            if temperature > thresholds.temperature_critical:
                 alerts.append(
                     Alert(
                         id=f"alert_{timestamp.timestamp()}_{device_id}_temp_critical",
@@ -106,7 +124,7 @@ class AlertService:
                         timestamp=timestamp
                     )
                 )
-            elif temperature > self.alert_thresholds["temperature_high"]:
+            elif temperature > thresholds.temperature_high:
                 alerts.append(
                     Alert(
                         id=f"alert_{timestamp.timestamp()}_{device_id}_temp_high",
@@ -121,7 +139,7 @@ class AlertService:
         # Check humidity levels
         humidity = sensor_data.get("humidity")
         if humidity is not None:
-            if humidity < self.alert_thresholds["humidity_low"]:
+            if humidity < thresholds.humidity_low:
                 alerts.append(
                     Alert(
                         id=f"alert_{timestamp.timestamp()}_{device_id}_humidity_low",
@@ -132,7 +150,7 @@ class AlertService:
                         timestamp=timestamp
                     )
                 )
-            elif humidity > self.alert_thresholds["humidity_high"]:
+            elif humidity > thresholds.humidity_high:
                 alerts.append(
                     Alert(
                         id=f"alert_{timestamp.timestamp()}_{device_id}_humidity_high",
@@ -148,7 +166,7 @@ class AlertService:
     
     async def create_alert(self, alert: Alert):
         """
-        Save an alert to the database and create a notification.
+        Save an alert to the database and create a notification based on user preferences.
         """
         # Save alert to Firestore
         firebase_service.db.collection('alerts').document(alert.id).set(alert.model_dump())
@@ -162,13 +180,40 @@ class AlertService:
             device_data = device_doc.to_dict()
             owner_id = device_data.get("owner_id")
             if owner_id:
-                notification_data = NotificationCreate(
-                    user_id=owner_id,
-                    message=alert.message,
-                    type=alert.severity.value
-                )
-                notification_service.create_notification(notification_data, owner_id)
-                print(f"Created notification for user {owner_id}")
+                # Fetch user's notification preferences
+                prefs_ref = firebase_service.db.collection('notification_preferences').document(owner_id)
+                prefs_doc = prefs_ref.get()
+                prefs = NotificationPreferences(**prefs_doc.to_dict()) if prefs_doc.exists else NotificationPreferences()
+
+                # Determine which channel to use based on severity
+                channel_map = {
+                    AlertSeverity.CRITICAL: prefs.on_critical_alert,
+                    AlertSeverity.HIGH: prefs.on_high_alert,
+                    AlertSeverity.MEDIUM: prefs.on_medium_alert,
+                    AlertSeverity.LOW: prefs.on_low_alert,
+                }
+                channel = channel_map.get(alert.severity)
+
+                if channel == 'in_app':
+                    notification_data = NotificationCreate(
+                        user_id=owner_id,
+                        message=alert.message,
+                        type=alert.severity.value
+                    )
+                    notification_service.create_notification(notification_data, owner_id)
+                    print(f"Created in-app notification for user {owner_id}")
+                elif channel == 'email':
+                    # Placeholder for email sending logic
+                    # You would integrate with a service like SendGrid, Mailgun, etc.
+                    user_doc = firebase_service.db.collection('users').document(owner_id).get()
+                    if user_doc.exists:
+                        user_email = user_doc.to_dict().get('email')
+                        if user_email:
+                            print(f"INFO: Would send email alert to {user_email}: {alert.message}")
+                        else:
+                            print(f"WARNING: User {owner_id} has no email address for email notification.")
+                elif channel == 'none':
+                    print(f"INFO: Notification for user {owner_id} suppressed by user preference.")
     
     async def get_device_alerts(self, device_id: str, status: Optional[AlertStatus] = None) -> List[Alert]:
         """

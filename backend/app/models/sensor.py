@@ -28,6 +28,9 @@ class DeviceBase(BaseModel):
     location: str
     owner_id: str
     type: str = "irrigation_device"
+    zone_id: Optional[str] = None # Added for grouping
+    crop_type: Optional[str] = None # Added for ML context
+    area_size: Optional[float] = None # Added for ML context
 
 
 class DeviceCreate(DeviceBase):
@@ -48,3 +51,26 @@ class Device(DeviceBase):
 
     class Config:
         from_attributes = True
+
+
+class HourlyAverageReadings(BaseModel):
+    device_id: str
+    soil_moisture_avg: float
+    temperature_avg: float
+    humidity_avg: float
+    light_level_avg: float
+    count: int
+
+class SensorSummaryValue(BaseModel):
+    min: float
+    max: float
+    avg: float
+
+class DailySummaryReadings(BaseModel):
+    device_id: str
+    date: str # ISO formatted date string
+    count: int
+    soil_moisture: SensorSummaryValue
+    temperature: SensorSummaryValue
+    humidity: SensorSummaryValue
+    light_level: SensorSummaryValue

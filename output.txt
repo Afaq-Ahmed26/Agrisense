@@ -1,0 +1,3 @@
+I have updated the `sess.md` file with the summary of this session.
+
+I am waiting for you to create the Firestore indexes as instructed previously.

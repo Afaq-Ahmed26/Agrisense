@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer
 from typing import Optional
 from datetime import timedelta, datetime
 from app.models.user import UserCreate, User
-from app.services.auth_service import create_access_token, get_password_hash, verify_token
+from app.services.auth_service import get_password_hash, verify_token
 from app.services.firebase_service import firebase_service
 from app.services.user_service import create_user_in_firestore, get_user_from_firestore # Import create_user_in_firestore and get_user_from_firestore
 from app.services.activity_log_service import log_activity
@@ -155,43 +155,17 @@ async def login(id_token: str = Body(..., embed=True)): # Accept id_token from r
         details={"email": email}
     )
 
-    # Create our own access token containing relevant user info including role
-    token_data = {
-        "sub": uid, # Use UID as subject
+    # Return a success message or relevant user info. The Firebase ID token itself
+    # will be used by the frontend for subsequent authenticated requests.
+    return {
+        "message": "Login successful",
+        "uid": uid,
         "email": email,
-        "role": user_from_firestore.role, # Use role from Firestore
-        "exp": (datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()
+        "role": user_from_firestore.role
     }
-    
-    access_token = create_access_token(
-        data=token_data,
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/refresh")
-async def refresh_token(token: str = Depends(security)):
-    # Verify the current token
-    payload = verify_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Create a new token with extended expiry
-    new_token_data = {
-        "sub": payload.get("sub"),
-        "role": payload.get("role", "farmer"),
-        "exp": (datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()
-    }
-    
-    new_access_token = create_access_token(data=new_token_data)
-    
-    return {"access_token": new_access_token, "token_type": "bearer"}
+
 
 
 @router.post("/logout")

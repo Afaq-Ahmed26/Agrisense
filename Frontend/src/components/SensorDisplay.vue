@@ -75,9 +75,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject } from 'vue';
 import { formatNumber } from '@/utils/helpers';
+import { formatWithUserPreferences } from '@/utils/unitConverter';
 import { SENSOR_THRESHOLDS } from '@/config';
+import { authStore } from '@/store/auth';
 
 const temperature = ref(25);
 const humidity = ref(60);
@@ -104,13 +106,31 @@ onUnmounted(() => {
   clearInterval(intervalId);
 });
 
-const formattedTemperature = computed(() => `${formatNumber(temperature.value)}°C`);
+const formattedTemperature = computed(() => {
+  const userPrefs = authStore.user?.preferences || {
+    temperature_unit: 'Celsius',
+    volume_unit: 'liters',
+    time_zone: 'UTC',
+    notification_sound: 'default'
+  };
+  const result = formatWithUserPreferences(temperature.value, 'temperature', userPrefs);
+  return `${formatNumber(result.value)}${result.unit}`;
+});
+
 const formattedHumidity = computed(() => `${formatNumber(humidity.value)}%`);
 const formattedMoisture = computed(() => `${formatNumber(moisture.value)}%`);
 const formattedLightLevel = computed(() => `${formatNumber(lightLevel.value)} lx`);
 
 const temperatureCardClass = computed(() => {
-  if (temperature.value > SENSOR_THRESHOLDS.TEMP_HIGH_WARNING) return 'bg-danger text-white';
+  // For temperature threshold comparison, we need to convert the threshold to the current unit
+  const userPrefs = authStore.user?.preferences || {
+    temperature_unit: 'Celsius',
+    volume_unit: 'liters',
+    time_zone: 'UTC',
+    notification_sound: 'default'
+  };
+  const tempThreshold = formatWithUserPreferences(SENSOR_THRESHOLDS.TEMP_HIGH_WARNING, 'temperature', userPrefs);
+  if (temperature.value > tempThreshold.value) return 'bg-danger text-white';
   return 'bg-primary text-white';
 });
 

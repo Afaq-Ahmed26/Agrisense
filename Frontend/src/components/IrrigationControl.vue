@@ -86,6 +86,8 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { formatDuration } from '@/utils/helpers';
+import { formatWithUserPreferences } from '@/utils/unitConverter';
+import { authStore } from '@/store/auth';
 
 // Simulate a user with permission
 const canControlIrrigation = ref(true);
@@ -192,6 +194,18 @@ const statusIcon = computed(() => ({
   'fa-spinner fa-spin': isRunning.value,
   'fa-pause': !isRunning.value
 }));
+
+// Function to format volume with user preferences
+const formatVolumeWithUserPreferences = (liters) => {
+  const userPrefs = authStore.user?.preferences || {
+    temperature_unit: 'Celsius',
+    volume_unit: 'liters',
+    time_zone: 'UTC',
+    notification_sound: 'default'
+  };
+  const result = formatWithUserPreferences(liters, 'volume', userPrefs);
+  return result.formatted;
+};
 </script>
 
 <style scoped>

@@ -252,6 +252,28 @@ class ApiService {
         });
     }
 
+    async getUserPreferences(userId) {
+        return this.request(`/users/${userId}/preferences`);
+    }
+
+    async updateUserPreferences(userId, preferences) {
+        return this.request(`/users/${userId}/preferences`, {
+            method: 'PUT',
+            body: JSON.stringify(preferences)
+        });
+    }
+
+    async getUserNotificationPreferences(userId) {
+        return this.request(`/users/${userId}/notification-preferences`);
+    }
+
+    async updateUserNotificationPreferences(userId, preferences) {
+        return this.request(`/users/${userId}/notification-preferences`, {
+            method: 'PUT',
+            body: JSON.stringify(preferences)
+        });
+    }
+
     async getUsers() {
         return this.request('/users/');
     }
@@ -262,8 +284,17 @@ class ApiService {
         });
     }
 
-    async getActivityLogs(limit = 100) {
-        const params = new URLSearchParams({ limit: limit });
+    async getActivityLogs(skip = 0, limit = 100, userId = null, action = null) {
+        const params = new URLSearchParams({ 
+            skip: skip,
+            limit: limit
+        });
+        if (userId) {
+            params.append('user_id', userId);
+        }
+        if (action) {
+            params.append('action', action);
+        }
         return this.request(`/activity-logs?${params}`);
     }
 
@@ -283,14 +314,42 @@ class ApiService {
         });
     }
 
+    async getAlertThresholds() {
+        return this.request('/thresholds/');
+    }
+
+    async updateAlertThresholds(thresholds) {
+        return this.request('/thresholds/', {
+            method: 'PUT',
+            body: JSON.stringify(thresholds)
+        });
+    }
+
     // Notification methods
-    async getNotifications() {
-        return this.request('/notifications/');
+    async getNotifications(isArchived = false, skip = 0, limit = 100) {
+        const params = new URLSearchParams({ 
+            is_archived: isArchived,
+            skip: skip,
+            limit: limit
+        });
+        return this.request(`/notifications?${params}`);
     }
 
     async markNotificationAsRead(notificationId) {
         return this.request(`/notifications/${notificationId}/read`, {
-            method: 'POST'
+            method: 'PATCH'
+        });
+    }
+
+    async archiveNotification(notificationId) {
+        return this.request(`/notifications/${notificationId}/archive`, {
+            method: 'PATCH'
+        });
+    }
+
+    async unarchiveNotification(notificationId) {
+        return this.request(`/notifications/${notificationId}/unarchive`, {
+            method: 'PATCH'
         });
     }
 }

@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
-from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Dict, Optional
+from datetime import datetime, date, timedelta # Added timedelta
 from app.middleware.auth import JWTBearer
-from app.models.sensor import SensorReading, SensorReadingCreate, Device, DeviceCreate, DeviceUpdate
+from app.models.sensor import SensorReading, SensorReadingCreate, Device, DeviceCreate, DeviceUpdate, HourlyAverageReadings, DailySummaryReadings
+from app.models.irrigation import IrrigationEventCreate # Added IrrigationEventCreate
 from app.services.firebase_service import firebase_service
 from app.services.alert_service import alert_service
+from app.services.sensor_service import sensor_service
+from app.services.ml_service import ml_service
+from app.config import settings
+from app.services.irrigation_service import irrigation_service # Added irrigation_service
 from app.utils.helpers import calculate_dew_point, calculate_heat_index
 
 
@@ -14,38 +19,22 @@ security = JWTBearer()
 
 @router.post("/", response_model=Device)
 async def create_device(device: DeviceCreate, token: str = Depends(security)):
-    # In a real implementation, this would create a device record in Firestore
-    # For now, returning a placeholder
-    from app.utils.helpers import generate_device_id
-    
-    new_device = Device(
-        id=generate_device_id(),
-        name=device.name,
-        location=device.location,
-        owner_id=device.owner_id,
-        type=device.type,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    
-    # In a real implementation, we would save this to Firestore
-    # firebase_service.db.collection('devices').document(new_device.id).set(...)
-    
+    new_device = await sensor_service.create_device(device)
     return new_device
 
 
 @router.get("/", response_model=List[Device])
 async def get_devices(skip: int = 0, limit: int = 100, token: str = Depends(security)):
-    # In a real implementation, this would fetch devices from Firestore
-    # For now, returning empty list as placeholder
-    return []
+    devices = await sensor_service.get_devices()
+    return devices[skip : skip + limit]
 
 
 @router.get("/{device_id}", response_model=Device)
 async def get_device(device_id: str, token: str = Depends(security)):
-    # In a real implementation, this would fetch a specific device from Firestore
-    # For now, returning placeholder
-    raise HTTPException(status_code=404, detail="Device not found")
+    device = await sensor_service.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return device
 
 
 @router.put("/{device_id}", response_model=Device)
@@ -73,18 +62,8 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate, to
     dew_point = calculate_dew_point(reading.temperature, reading.humidity)
     heat_index = calculate_heat_index(reading.temperature, reading.humidity)
 
-    # Create sensor reading with calculated values
-    sensor_reading = SensorReading(
-        id=f"reading_{datetime.utcnow().timestamp()}",
-        device_id=reading.device_id,
-        soil_moisture=reading.soil_moisture,
-        temperature=reading.temperature,
-        humidity=reading.humidity,
-        timestamp=reading.timestamp or datetime.utcnow()
-    )
-
-    # In a real implementation, we would save this to Firestore
-    # doc_ref = firebase_service.db.collection('sensor_readings').add(sensor_reading.dict())
+    # Use the service to create the sensor reading
+    sensor_reading = await sensor_service.create_sensor_reading(device_id, reading)
 
     # Evaluate the sensor data for potential alerts
     sensor_data_for_alert = {
@@ -98,6 +77,55 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate, to
     alerts = alert_service.evaluate_sensor_data(sensor_data_for_alert)
     for alert in alerts:
         await alert_service.create_alert(alert)
+
+    # ML Auto-Trigger Logic
+    if sensor_reading.soil_moisture < settings.SOIL_MOISTURE_THRESHOLD:
+        print(f"Soil moisture {sensor_reading.soil_moisture}% is below threshold {settings.SOIL_MOISTURE_THRESHOLD}%. Triggering ML prediction for device {device_id}.")
+        
+        # Prepare data for ML model
+        ml_input_data = {
+            "soil_moisture": sensor_reading.soil_moisture,
+            "temperature": sensor_reading.temperature,
+            "humidity": sensor_reading.humidity,
+            "light_level": sensor_reading.light_level,
+        }
+        
+        # Get ML prediction
+        ml_prediction = await ml_service.predict_irrigation_need(ml_input_data)
+        
+        if ml_prediction and ml_prediction.get("predicted_valve_duration_s") is not None:
+            predicted_duration = ml_prediction["predicted_valve_duration_s"]
+            print(f"ML predicted valve duration for device {device_id}: {predicted_duration} seconds.")
+            
+            # --- NEW CODE: Connect ML Output Directly to Irrigation Events ---
+            if predicted_duration > 0: # Only create event if irrigation is predicted
+                duration_minutes = max(1, round(predicted_duration / 60)) # Convert to minutes, min 1 minute
+                print(f"Creating irrigation event for {device_id} for {duration_minutes} minutes.")
+
+                # We need the current sensor readings for the event details
+                current_sensor_data = {
+                    "temperature": sensor_reading.temperature,
+                    "humidity": sensor_reading.humidity,
+                    "soil_moisture": sensor_reading.soil_moisture,
+                    "light_level": sensor_reading.light_level,
+                }
+
+                irrigation_event_create = IrrigationEventCreate(
+                    device_id=device_id,
+                    start_time=datetime.utcnow(),
+                    end_time=datetime.utcnow() + timedelta(minutes=duration_minutes),
+                    duration_actual_minutes=duration_minutes,
+                    status="pending", # Will be 'active' by hardware, then 'completed'
+                    **current_sensor_data
+                )
+                
+                # Use the irrigation_service to create the event
+                irrigation_service.create_irrigation_event(irrigation_event_create)
+                print(f"Successfully created irrigation event for device {device_id}.")
+
+            # --- END NEW CODE ---
+        else:
+            print(f"ML prediction failed or returned no duration for device {device_id}: {ml_prediction}")
 
     return sensor_reading
 
@@ -115,3 +143,31 @@ async def get_sensor_readings(
     # with filtering options
     # For now, returning empty list as placeholder
     return []
+
+
+@router.get("/{device_id}/latest-reading", response_model=SensorReading)
+async def get_latest_reading(device_id: str, token: str = Depends(security)):
+    latest_reading = sensor_service.get_latest_sensor_reading(device_id)
+    if not latest_reading:
+        raise HTTPException(status_code=404, detail="No sensor readings found for this device")
+    return latest_reading
+
+
+@router.get("/{device_id}/hourly-average", response_model=HourlyAverageReadings)
+async def get_hourly_average_readings_route(device_id: str, token: str = Depends(security)):
+    hourly_averages = sensor_service.get_hourly_average_readings(device_id)
+    if not hourly_averages["count"]:
+        raise HTTPException(status_code=404, detail="No sensor readings found for this device in the last hour")
+    return hourly_averages
+
+
+@router.get("/{device_id}/daily-summary", response_model=DailySummaryReadings)
+async def get_daily_summary_readings_route(
+    device_id: str, 
+    date: Optional[date] = Query(None), # Optional date parameter
+    token: str = Depends(security)
+):
+    daily_summary = sensor_service.get_daily_summary_readings(device_id, date)
+    if not daily_summary["count"]:
+        raise HTTPException(status_code=404, detail="No sensor readings found for this device on the specified date")
+    return daily_summary

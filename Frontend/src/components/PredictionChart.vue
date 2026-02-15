@@ -10,7 +10,7 @@
       <div v-if="nextIrrigation" class="mt-2 text-center small">
         <strong>Next recommended irrigation:</strong>
         {{ nextIrrigation.time.toLocaleString() }}
-        ({{ nextIrrigation.waterLiters }} L)
+        ({{ nextIrrigation.waterLiters }} {{ nextIrrigation.unit }})
       </div>
     </div>
   </div>
@@ -19,6 +19,8 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, shallowRef } from 'vue';
 import { Chart, registerables } from 'chart.js';
+import { formatWithUserPreferences } from '@/utils/unitConverter';
+import { authStore } from '@/store/auth';
 
 Chart.register(...registerables);
 
@@ -47,9 +49,18 @@ const loadPredictionData = () => {
 const findNextIrrigation = () => {
     const next = predictionData.value.find(p => p.irrigation_needed);
     if (next) {
+        // Convert water volume to user's preferred unit
+        const userPrefs = authStore.user?.preferences || {
+            temperature_unit: 'Celsius',
+            volume_unit: 'liters',
+            time_zone: 'UTC',
+            notification_sound: 'default'
+        };
+        const convertedVolume = formatWithUserPreferences(next.water_liters, 'volume', userPrefs);
         nextIrrigation.value = {
             time: new Date(next.time),
-            waterLiters: next.water_liters,
+            waterLiters: convertedVolume.value,
+            unit: convertedVolume.unit
         };
     } else {
         nextIrrigation.value = null;
@@ -72,13 +83,30 @@ const generateDemoData = () => {
 
 const getChartData = () => {
   const data = predictionData.value;
+  // Convert all water volumes to user's preferred unit
+  const userPrefs = authStore.user?.preferences || {
+    temperature_unit: 'Celsius',
+    volume_unit: 'liters',
+    time_zone: 'UTC',
+    notification_sound: 'default'
+  };
+  const convertedData = data.map(item => {
+    if (item.irrigation_needed) {
+      const converted = formatWithUserPreferences(item.water_liters, 'volume', userPrefs);
+      return { ...item, water_liters_converted: converted.value };
+    }
+    return { ...item, water_liters_converted: null };
+  });
+  
+  const volumeUnit = formatWithUserPreferences(0, 'volume', userPrefs).unit;
+  
   return {
-    labels: data.map(p => new Date(p.time).toLocaleTimeString([], { hour: '2-digit' })),
+    labels: convertedData.map(p => new Date(p.time).toLocaleTimeString([], { hour: '2-digit' })),
     datasets: [{
-      label: 'Water Needed (Liters)',
-      data: data.map(p => p.irrigation_needed ? p.water_liters : null),
-      backgroundColor: data.map(p => p.irrigation_needed ? 'rgba(54, 162, 235, 0.6)' : 'transparent'),
-      borderColor: data.map(p => p.irrigation_needed ? 'rgba(54, 162, 235, 1)' : 'transparent'),
+      label: `Water Needed (${volumeUnit})`,
+      data: convertedData.map(p => p.irrigation_needed ? p.water_liters_converted : null),
+      backgroundColor: convertedData.map(p => p.irrigation_needed ? 'rgba(54, 162, 235, 0.6)' : 'transparent'),
+      borderColor: convertedData.map(p => p.irrigation_needed ? 'rgba(54, 162, 235, 1)' : 'transparent'),
       borderWidth: 1,
       borderRadius: 4,
     }]
@@ -88,6 +116,12 @@ const getChartData = () => {
 const renderChart = () => {
   if (!chartCanvas.value) return;
   const ctx = chartCanvas.value.getContext('2d');
+  const userPrefs = authStore.user?.preferences || {
+    temperature_unit: 'Celsius',
+    volume_unit: 'liters',
+    time_zone: 'UTC',
+    notification_sound: 'default'
+  };
   chartInstance.value = new Chart(ctx, {
     type: 'bar',
     data: getChartData(),
@@ -101,7 +135,9 @@ const renderChart = () => {
                 label: (context) => {
                     const item = predictionData.value[context.dataIndex];
                     if (item.irrigation_needed) {
-                        return `Water: ${item.water_liters} L (Confidence: ${(item.confidence * 100).toFixed(0)}%)`;
+                        // Convert the water volume to user's preferred unit
+                        const converted = formatWithUserPreferences(item.water_liters, 'volume', userPrefs);
+                        return `Water: ${converted.formatted} (Confidence: ${(item.confidence * 100).toFixed(0)}%)`;
                     }
                     return 'No irrigation predicted';
                 }
@@ -115,7 +151,7 @@ const renderChart = () => {
         },
         y: {
           beginAtZero: true,
-          title: { display: true, text: 'Water (Liters)' }
+          title: { display: true, text: `Water (${formatWithUserPreferences(0, 'volume', userPrefs).unit})` }
         }
       }
     }
@@ -129,6 +165,7 @@ const updateChart = () => {
     chartInstance.value.data.datasets[0].data = newChartData.datasets[0].data;
     chartInstance.value.data.datasets[0].backgroundColor = newChartData.datasets[0].backgroundColor;
     chartInstance.value.data.datasets[0].borderColor = newChartData.datasets[0].borderColor;
+    chartInstance.value.options.scales.y.title.text = `Water (${formatWithUserPreferences(0, 'volume', authStore.user?.preferences || {}).unit})`;
     chartInstance.value.update();
   }
 };

@@ -20,13 +20,31 @@ def log_activity(user_id: str, action: str, details: Optional[Dict] = None):
     firebase_service.db.collection('activity_logs').document(log_entry.id).set(log_entry.model_dump())
     print(f"Activity Logged: User {user_id}, Action: {action}, Details: {details}")
 
-def get_activity_logs(limit: int = 100) -> List[ActivityLog]:
+def get_activity_logs(
+    limit: int = 100, 
+    skip: int = 0, 
+    user_id: Optional[str] = None, 
+    action: Optional[str] = None
+) -> List[ActivityLog]:
     """
-    Retrieves activity logs from Firestore, ordered by timestamp descending.
+    Retrieves activity logs from Firestore with optional filtering and pagination.
+    NOTE: Firestore requires composite indexes for queries that filter on multiple 
+          fields and order by another. You may need to create indexes for combinations
+          of (user_id, timestamp) and (action, timestamp).
     """
-    logs_ref = firebase_service.db.collection('activity_logs').order_by('timestamp', direction='DESCENDING').limit(limit)
+    query = firebase_service.db.collection('activity_logs')
+
+    # Apply filters
+    if user_id:
+        query = query.where('user_id', '==', user_id)
+    if action:
+        query = query.where('action', '==', action)
+
+    # Apply ordering and pagination
+    query = query.order_by('timestamp', direction='DESCENDING').offset(skip).limit(limit)
+    
     logs = []
-    for doc in logs_ref.stream():
+    for doc in query.stream():
         try:
             log_data = doc.to_dict()
             log_data['id'] = doc.id

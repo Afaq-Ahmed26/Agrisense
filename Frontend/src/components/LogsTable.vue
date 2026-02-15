@@ -16,10 +16,10 @@
               <th>Date</th>
               <th>Start Time</th>
               <th>Duration (min)</th>
-              <th>Water Used (L)</th>
+              <th>Water Used ({{ volumeUnit }})</th>
               <th>Mode</th>
               <th>Status</th>
-              <th>Temperature (°C)</th>
+              <th>Temperature ({{ temperatureUnit }})</th>
               <th>Humidity (%)</th>
               <th>Soil Moisture (%)</th>
               <th>Light Level (lx)</th>
@@ -33,14 +33,14 @@
               <td>{{ formatDate(log.start_time) }}</td>
               <td>{{ formatTime(log.start_time) }}</td>
               <td>{{ log.duration_actual_minutes }}</td>
-              <td>{{ log.water_used_liters }}</td>
+              <td>{{ formatVolumeWithUserPreferences(log.water_used_liters) }}</td>
               <td>
                 <span class="badge" :class="modeClass(log.mode)">{{ capitalize(log.mode) }}</span>
               </td>
               <td>
                 <span class="badge" :class="statusClass(log.status)">{{ log.status }}</span>
               </td>
-              <td>{{ log.temperature ? log.temperature.toFixed(2) : 'N/A' }}</td>
+              <td>{{ log.temperature ? formatTemperatureWithUserPreferences(log.temperature) : 'N/A' }}</td>
               <td>{{ log.humidity ? log.humidity.toFixed(2) : 'N/A' }}</td>
               <td>{{ log.soil_moisture ? log.soil_moisture.toFixed(2) : 'N/A' }}</td>
               <td>{{ log.light_level ? log.light_level.toFixed(2) : 'N/A' }}</td>
@@ -55,6 +55,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { capitalize } from '@/utils/helpers';
+import { formatWithUserPreferences } from '@/utils/unitConverter';
+import { authStore } from '@/store/auth';
 
 const logs = ref([]);
 
@@ -66,8 +68,28 @@ const sortedLogs = computed(() => {
   return [...logs.value].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 });
 
+const userPrefs = computed(() => authStore.user?.preferences || {
+  temperature_unit: 'Celsius',
+  volume_unit: 'liters',
+  time_zone: 'UTC',
+  notification_sound: 'default'
+});
+
+const volumeUnit = computed(() => formatWithUserPreferences(0, 'volume', userPrefs.value).unit);
+const temperatureUnit = computed(() => formatWithUserPreferences(0, 'temperature', userPrefs.value).unit);
+
 const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
 const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const formatVolumeWithUserPreferences = (liters) => {
+  const result = formatWithUserPreferences(liters, 'volume', userPrefs.value);
+  return result.formatted;
+};
+
+const formatTemperatureWithUserPreferences = (celsius) => {
+  const result = formatWithUserPreferences(celsius, 'temperature', userPrefs.value);
+  return result.formatted;
+};
 
 const modeClass = (mode) => ({
   'bg-primary': mode?.toLowerCase() === 'auto',
@@ -85,16 +107,16 @@ const exportCSV = () => {
     console.warn('No logs to export.');
     return;
   }
-  let csvContent = 'Start Date,Start Time,Duration (min),Water Used (L),Mode,Status,Temperature (°C),Humidity (%),Soil Moisture (%),Light Level (lx)\n';
+  let csvContent = `Start Date,Start Time,Duration (min),Water Used (${volumeUnit.value}),Mode,Status,Temperature (${temperatureUnit.value}),Humidity (%),Soil Moisture (%),Light Level (lx)\n`;
   sortedLogs.value.forEach(log => {
     const row = [
       formatDate(log.start_time),
       formatTime(log.start_time),
       log.duration_actual_minutes,
-      log.water_used_liters,
+      formatVolumeWithUserPreferences(log.water_used_liters),
       log.mode,
       log.status,
-      log.temperature ? log.temperature.toFixed(2) : 'N/A',
+      log.temperature ? formatTemperatureWithUserPreferences(log.temperature) : 'N/A',
       log.humidity ? log.humidity.toFixed(2) : 'N/A',
       log.soil_moisture ? log.soil_moisture.toFixed(2) : 'N/A',
       log.light_level ? log.light_level.toFixed(2) : 'N/A',

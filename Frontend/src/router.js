@@ -9,6 +9,7 @@ import ReportsView from '@/views/ReportsView.vue';
 import NotificationsView from '@/views/NotificationsView.vue';
 import ActivityLogView from '@/views/ActivityLogView.vue';
 import ConnectDeviceView from '@/views/ConnectDeviceView.vue';
+import ThresholdsView from '@/views/Admin/ThresholdsView.vue';
 import { authService } from '@/services/auth';
 import { authStore } from '@/store/auth';
 
@@ -45,13 +46,19 @@ const routes = [
     path: '/user-management',
     name: 'UserManagement',
     component: UserManagementView,
-    meta: { requiresAuth: true, role: 'admin' },
+    meta: { requiresAuth: true, roles: ['admin'] },
   },
   {
     path: '/activity-logs',
     name: 'ActivityLogs',
     component: ActivityLogView,
-    meta: { requiresAuth: true, role: 'admin' },
+    meta: { requiresAuth: true, roles: ['admin'] },
+  },
+  {
+    path: '/admin/thresholds',
+    name: 'AdminThresholds',
+    component: ThresholdsView,
+    meta: { requiresAuth: true, roles: ['admin', 'officer'] },
   },
   {
     path: '/reports',
@@ -104,8 +111,8 @@ router.beforeEach(async (to, from, next) => {
     // If the user is authenticated and tries to access login or register, redirect to dashboard
     next('/dashboard');
   } else if (requiresAuth && isAuthenticated) {
-    const requiredRole = to.meta.role;
-    if (requiredRole && authStore.user?.role !== requiredRole) {
+    const requiredRoles = to.meta.roles;
+    if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(authStore.user?.role)) {
       // If the route requires a specific role and the user does not have it, redirect to the dashboard
       next('/dashboard');
     } else {

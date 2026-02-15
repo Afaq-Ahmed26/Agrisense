@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import requests
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
@@ -18,24 +19,36 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-    return encoded_jwt
-
-
 def verify_token(token: str) -> Optional[dict]:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        # Get the public key from Google
+        public_key_url = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+        response = requests.get(public_key_url)
+        public_keys = response.json()
+
+        # Get the unverified header from the token
+        unverified_header = jwt.get_unverified_header(token)
+        alg = unverified_header["alg"]
+        kid = unverified_header["kid"]
+
+        # Find the correct key
+        key = public_keys.get(kid)
+        if not key:
+            print("ERROR: Public key not found for kid.")
             return None
+
+        # Verify the token
+        payload = jwt.decode(
+            token,
+            key,
+            algorithms=[alg],
+            audience=settings.FIREBASE_PROJECT_ID,
+            issuer=f"https://securetoken.google.com/{settings.FIREBASE_PROJECT_ID}"
+        )
         return payload
-    except JWTError:
+    except JWTError as e:
+        print(f"ERROR: JWT verification failed: {e}")
+        return None
+    except Exception as e:
+        print(f"ERROR: Unexpected error during JWT verification: {e}")
         return None

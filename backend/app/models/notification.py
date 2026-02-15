@@ -12,11 +12,13 @@ class NotificationCreate(NotificationBase):
 
 class NotificationUpdate(BaseModel):
     is_read: Optional[bool] = None
+    is_archived: Optional[bool] = None
 
 class Notification(NotificationBase):
     id: str
     created_at: datetime
     is_read: bool = False
+    is_archived: bool = False
 
     class Config:
         from_attributes = True

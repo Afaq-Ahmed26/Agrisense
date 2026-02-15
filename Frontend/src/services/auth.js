@@ -27,8 +27,9 @@ class AuthService {
         firebaseService.auth.onAuthStateChanged(async (user) => {
             if (user) {
                 // User is signed in.
-                // It's crucial to await getIdToken() before setting the user to ensure token is available
-                setUser(user, await user.getIdToken());
+                // It's crucial to await getIdToken(true) to force refresh token before setting the user
+                const refreshedToken = await user.getIdToken(true); // Force refresh
+                setUser(user, refreshedToken);
                 await fetchUser(); // Fetch detailed user profile from backend using Firebase ID Token
             } else {
                 // User is signed out.

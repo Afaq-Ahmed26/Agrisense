@@ -235,20 +235,19 @@ class MockUserMetadata:
 class FirebaseService:
     def __init__(self):
         # Check if Firebase credentials are available
-        if settings.FIREBASE_ADMIN_SDK_CONFIG or settings.FIREBASE_PROJECT_ID: # Updated condition
+        if settings.FIREBASE_CONFIG_PATH or settings.FIREBASE_ADMIN_SDK_CONFIG or settings.FIREBASE_PROJECT_ID:
             try:
                 import firebase_admin
                 from firebase_admin import credentials, firestore, auth
 
                 # Initialize Firebase Admin SDK if not already initialized
                 if not firebase_admin._apps:
-                    if settings.FIREBASE_ADMIN_SDK_CONFIG: # Check for Admin SDK config
-                        print(f"DEBUG: FIREBASE_ADMIN_SDK_CONFIG received: {settings.FIREBASE_ADMIN_SDK_CONFIG[:500]}...") # Print first 500 chars to avoid overwhelming output but still see enough
+                    if settings.FIREBASE_CONFIG_PATH:
+                        cred = credentials.Certificate(settings.FIREBASE_CONFIG_PATH)
+                    elif settings.FIREBASE_ADMIN_SDK_CONFIG:
                         # Parse the JSON string from environment variable
                         cred_json = json.loads(settings.FIREBASE_ADMIN_SDK_CONFIG)
                         cred = credentials.Certificate(cred_json)
-                    elif settings.FIREBASE_CONFIG_PATH: # Fallback to file path if available (less secure)
-                        cred = credentials.Certificate(settings.FIREBASE_CONFIG_PATH)
                     else:
                         # Use default credentials if available (for Google Cloud environment)
                         cred = credentials.ApplicationDefault()
@@ -381,85 +380,7 @@ class FirebaseService:
             print(f"Error listing Firebase users: {e}")
             return [], None
 
-    async def create_irrigation_event_in_firestore(self, event_data: Dict[str, Any]):
-        """Saves an irrigation event to Firestore."""
-        try:
-            if self.is_mock:
-                event_data_copy = event_data.copy()
-                if "created_at" in event_data_copy and isinstance(event_data_copy["created_at"], datetime):
-                    event_data_copy["created_at"] = event_data_copy["created_at"].isoformat()
-                if "start_time" in event_data_copy and isinstance(event_data_copy["start_time"], datetime):
-                    event_data_copy["start_time"] = event_data_copy["start_time"].isoformat()
-                if "end_time" in event_data_copy and isinstance(event_data_copy["end_time"], datetime):
-                    event_data_copy["end_time"] = event_data_copy["end_time"].isoformat()
 
-                self.db.collection('irrigation_events').document(event_data['id']).set(event_data_copy)
-                return {"success": True, "id": event_data['id']}
-            else:
-                doc_ref = self.db.collection('irrigation_events').document(event_data['id'])
-                await doc_ref.set(event_data)
-                return {"success": True, "id": event_data['id']}
-        except Exception as e:
-            print(f"Error creating irrigation event in Firestore: {e}")
-            return {"success": False, "error": str(e)}
-
-    async def get_irrigation_events_from_firestore(
-        self,
-        device_id: Optional[str] = None,
-        start_after: Optional[datetime] = None,
-        end_before: Optional[datetime] = None,
-        limit: int = 100
-    ) -> List[Dict[str, Any]]:
-        """Fetches irrigation events from Firestore with optional filters."""
-        try:
-            query = self.db.collection('irrigation_events')
-
-            if device_id:
-                query = query.where(filter=FieldFilter("device_id", "==", device_id))
-            if start_after:
-                query = query.where(filter=FieldFilter("start_time", ">=", start_after))
-            if end_before:
-                query = query.where(filter=FieldFilter("start_time", "<=", end_before))
-
-            query = query.order_by("start_time", direction="DESCENDING").limit(limit)
-
-            events = []
-            if self.is_mock:
-                # Mock implementation for fetching with filters
-                mock_events = []
-                for doc_ref in self.db.collection('irrigation_events').stream():
-                    doc_data = doc_ref.to_dict()
-                    if not doc_data:
-                        continue
-                    
-                    match = True
-                    if device_id and doc_data.get("device_id") != device_id:
-                        match = False
-                    
-                    doc_start_time = datetime.fromisoformat(doc_data["start_time"]) if "start_time" in doc_data and isinstance(doc_data["start_time"], str) else doc_data.get("start_time")
-                    
-                    if start_after and doc_start_time and doc_start_time < start_after:
-                        match = False
-                    if end_before and doc_start_time and doc_start_time > end_before:
-                        match = False
-
-                    if match:
-                        mock_events.append(doc_data)
-                
-                # Apply order and limit for mock
-                mock_events.sort(key=lambda x: x.get("start_time"), reverse=True)
-                for event_data in mock_events[:limit]:
-                    events.append(event_data)
-
-            else:
-                async for doc in query.stream():
-                    event_data = doc.to_dict()
-                    if event_data:
-                        events.append(event_data)
-            return events
-        except Exception as e:
-            print(f"Error fetching irrigation events from Firestore: {e}")
-            return []
 
 
 # Global instance
