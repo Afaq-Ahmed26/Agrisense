@@ -21,7 +21,7 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     password: Optional[str] = None
     full_name: Optional[str] = None
-    dashboard_preferences: Optional[Dict] = None
+    dashboard_preferences: Optional[list[dict]] = None
     is_active: Optional[bool] = None
 
 
@@ -32,7 +32,7 @@ class User(UserBase):
     is_active: bool = True  # Users are active by default
     is_deleted: bool = False # Added for soft deletion
     deleted_at: Optional[datetime] = None # Added for soft deletion
-    dashboard_preferences: Optional[Dict] = None
+    dashboard_preferences: Optional[list[dict]] = None
 
     class Config:
         from_attributes = True

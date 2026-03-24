@@ -1,37 +1,42 @@
 import { CONFIG } from '@/config';
+import { firebaseService } from './firebase'; // Import firebaseService
+import { logout as storeLogout, setUser } from '@/store/auth'; // Import setUser and storeLogout
 
 // API Service for AgriSense - handles all backend communication
 class ApiService {
     constructor() {
         this.baseURL = CONFIG.API_BASE_URL;
         this.timeout = CONFIG.API_TIMEOUT;
-        this.token = localStorage.getItem('accessToken') || null;
+        // this.token no longer explicitly stored here; always fetched from localStorage
+        this.isRefreshing = false; // Flag to prevent multiple refresh attempts
+        this.failedQueue = []; // Queue for requests that failed due to expired token
     }
 
-    // Set authentication token
-    setToken(token) {
-        this.token = token;
-        if (token) {
-            localStorage.setItem('accessToken', token);
-        } else {
-            localStorage.removeItem('accessToken');
-        }
+
+
+
+
+    // Helper to process the queue of failed requests
+    processQueue(error = null, token = null) {
+        this.failedQueue.forEach(prom => {
+            if (error) {
+                prom.reject(error);
+            } else {
+                prom.resolve(token);
+            }
+        });
+        this.failedQueue = [];
     }
 
-    // Remove authentication token
-    removeToken() {
-        this.token = null;
-        localStorage.removeItem('accessToken');
-    }
-
-    // Generic API request method
-    async request(endpoint, options = {}) {
+    // Generic API request method with token refresh logic
+    async request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
 
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
-                ...(this.token && { 'Authorization': `Bearer ${this.token}` })
+                // Always get the latest token from localStorage
+                ...(localStorage.getItem('accessToken') && { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` })
             },
             timeout: this.timeout
         };
@@ -56,8 +61,74 @@ class ApiService {
 
             clearTimeout(timeoutId);
 
+            // Handle token expiration / unauthorized access
+            if ((response.status === 401 || response.status === 403) && firebaseService.auth.currentUser && !isRetry) {
+                console.warn(`Token expired or unauthorized for ${endpoint}, attempting to refresh...`);
+                // This creates a promise that will resolve/reject once token refresh is done
+                return new Promise((resolve, reject) => {
+                    this.failedQueue.push({ resolve, reject });
+                    
+                    if (!this.isRefreshing) {
+                        this.isRefreshing = true;
+                        if (!firebaseService.auth.currentUser) {
+                            console.error("Firebase currentUser is null during token refresh attempt. Logging out.");
+                            storeLogout();
+                            this.processQueue(new Error("No user to refresh token."), null);
+                            this.isRefreshing = false; // Reset flag
+                            return reject(new Error("No user to refresh token.")); // Reject the outer promise and exit
+                        }
+                        firebaseService.auth.currentUser.getIdToken(true)
+                            .then(refreshedToken => {
+                                // Update authStore token and localStorage
+                                if (firebaseService.auth.currentUser) {
+                                    setUser(firebaseService.auth.currentUser, refreshedToken);
+                                }
+                                this.processQueue(null, refreshedToken); // Process all queued requests
+                                resolve(refreshedToken); // Resolve the outer promise
+                            })
+                            .catch(err => {
+                                console.error('Failed to refresh Firebase ID token:', err);
+                                this.processQueue(err); // Process all queued requests with error
+                                storeLogout(); // Logout if refresh itself fails
+                                reject(err); // Reject the outer promise
+                            })
+                            .finally(() => {
+                                this.isRefreshing = false; // Reset refresh flag
+                            });
+                    }
+                    // If this.isRefreshing is true, the current request is already in the failedQueue,
+                    // and its resolution/rejection will be handled by processQueue when the ongoing refresh finishes.
+                }).then((refreshedToken) => {
+                    // Retry the original request with the new token
+                    const newOptions = { ...options };
+                    newOptions.headers = {
+                        ...newOptions.headers,
+                        'Authorization': `Bearer ${refreshedToken}`
+                    };
+                    return this.request(endpoint, newOptions, true); // Mark as retry
+                }).catch(err => {
+                    // If token refresh or retry fails, re-throw the error
+                    storeLogout();
+                    throw new Error(`Failed to refresh token or retry request: ${err.message}`);
+                });
+            } else if ((response.status === 401 || response.status === 403) && isRetry) {
+                // If it's a retry and still 401/403, something is wrong, force logout
+                storeLogout();
+                throw new Error(`Authentication failed on retry. Please login again. Status: ${response.status}`);
+            }
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // For other non-OK responses, try to parse JSON error message if available
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorJson = await response.json();
+                    if (errorJson && errorJson.detail) {
+                        errorMessage = `HTTP error! status: ${response.status}. Detail: ${errorJson.detail}`;
+                    }
+                } catch (jsonError) {
+                    // Ignore JSON parsing errors, use generic message
+                }
+                throw new Error(errorMessage);
             }
 
             return await response.json();
@@ -92,7 +163,7 @@ class ApiService {
                     const deviceId = urlParams.get('device_id');
                     return mockApiService.getActiveAlerts(deviceId);
                 }
-            } else if (endpoint.includes('/irrigation/simulate')) {
+            } else if (endpoint.includes('/irrigation/trigger')) { // Updated to trigger
                 // Extract device_id and duration_minutes from query params
                 const urlParams = new URLSearchParams(endpoint.split('?')[1]);
                 const deviceId = urlParams.get('device_id');
@@ -158,10 +229,12 @@ class ApiService {
     }
 
     // Sensor data methods
-    async getLatestSensorData(deviceId) {
-        // Get all sensors and find the one with the specified device ID
-        const sensors = await this.request('/sensors/');
-        return sensors.find(sensor => sensor.id === deviceId) || null;
+    async getSensorById(deviceId) {
+        return this.request(`/sensors/${deviceId}`, { method: 'GET' });
+    }
+
+    async getLatestSensorReadings(deviceId) {
+        return this.request(`/sensors/${deviceId}/latest-reading`);
     }
 
     async getSensorHistory(deviceId, startDate, endDate) {
@@ -178,43 +251,59 @@ class ApiService {
         });
     }
 
+    async getDevices() { // New method to get all devices
+        return this.request('/sensors/');
+    }
+
     // Irrigation control methods
     async getIrrigationStatus(deviceId) {
         // For now, return a mock status since the backend doesn't have a specific status endpoint
         return { device_id: deviceId, status: 'active', last_updated: new Date().toISOString() };
     }
 
-    async startIrrigation(deviceId, durationMinutes) {
+    async startIrrigation(deviceId, durationSeconds) {
         // Use the simulate endpoint since we don't have hardware
         const params = new URLSearchParams({
             device_id: deviceId,
-            duration_minutes: durationMinutes.toString()
+            duration_seconds: durationSeconds.toString() // Change to duration_seconds
         });
-        return this.request(`/irrigation/simulate?${params}`, {
+        return this.request(`/irrigation/trigger?${params}`, {
             method: 'POST'
         });
     }
 
+    async triggerIrrigation(deviceId, predictedDurationSeconds) {
+        // Pass predictedDurationSeconds directly
+        return this.startIrrigation(deviceId, predictedDurationSeconds);
+    }
+
     async stopIrrigation(deviceId) {
-        // For now, return a mock response since we don't have a stop endpoint
-        return { device_id: deviceId, status: 'stopped', stopped_at: new Date().toISOString() };
+        // Call the backend endpoint to stop irrigation
+        return this.request(`/irrigation/stop/${deviceId}/`, {
+            method: 'POST'
+        });
     }
 
     async getIrrigationLogs(deviceId, limit = 50) {
         // Get irrigation events for the device
-        const events = await this.request('/irrigation/events');
+        const events = await this.request('/irrigation/events/');
         // Filter for the specific device and limit results
         return events.filter(event => event.device_id === deviceId).slice(0, limit);
     }
 
     async getIrrigationPredictions(deviceId, hoursAhead = 48) {
         // Get recommendations for the device
-        return this.request(`/irrigation/recommendations/${deviceId}`);
+        const params = new URLSearchParams({ hours_ahead: hoursAhead });
+        return this.request(`/ml/future_predictions/${deviceId}?${params}`);
     }
 
     // ML model methods
-    async getModelPredictions(data) {
+    async getMLPrediction(soil_moisture, temperature, humidity, light_level, device_id = null) {
         try {
+            const data = { soil_moisture, temperature, humidity, light_level };
+            if (device_id) {
+                data.device_id = device_id;
+            }
             return await this.request('/ml/predict', {
                 method: 'POST',
                 body: JSON.stringify(data)
@@ -222,7 +311,7 @@ class ApiService {
         } catch (error) {
             console.warn('ML predict failed, falling back to mock data:', error.message);
             const { mockApiService } = await import('@/services/mock-api.js');
-            return mockApiService.getModelPredictions(data);
+            return mockApiService.getModelPredictions({ soil_moisture, temperature, humidity, light_level, device_id });
         }
     }
 
@@ -332,7 +421,7 @@ class ApiService {
             skip: skip,
             limit: limit
         });
-        return this.request(`/notifications?${params}`);
+        return this.request(`/notifications/?${params}`);
     }
 
     async markNotificationAsRead(notificationId) {

@@ -50,7 +50,7 @@ async def delete_device(device_id: str, token: str = Depends(security)):
 
 
 @router.post("/{device_id}/readings", response_model=SensorReading)
-async def create_sensor_reading(device_id: str, reading: SensorReadingCreate, token: str = Depends(security)):
+async def create_sensor_reading(device_id: str, reading: SensorReadingCreate):
     # Validate that the device_id in the path matches the one in the reading
     if device_id != reading.device_id:
         raise HTTPException(
@@ -78,10 +78,12 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate, to
     for alert in alerts:
         await alert_service.create_alert(alert)
 
-    # ML Auto-Trigger Logic
+    # ML Auto-Trigger Logic - COMMENTED OUT (Not testing ML today)
+    # Only soil moisture sensor display on frontend is the goal
+    """
     if sensor_reading.soil_moisture < settings.SOIL_MOISTURE_THRESHOLD:
         print(f"Soil moisture {sensor_reading.soil_moisture}% is below threshold {settings.SOIL_MOISTURE_THRESHOLD}%. Triggering ML prediction for device {device_id}.")
-        
+
         # Prepare data for ML model
         ml_input_data = {
             "soil_moisture": sensor_reading.soil_moisture,
@@ -89,14 +91,14 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate, to
             "humidity": sensor_reading.humidity,
             "light_level": sensor_reading.light_level,
         }
-        
+
         # Get ML prediction
         ml_prediction = await ml_service.predict_irrigation_need(ml_input_data)
-        
+
         if ml_prediction and ml_prediction.get("predicted_valve_duration_s") is not None:
             predicted_duration = ml_prediction["predicted_valve_duration_s"]
             print(f"ML predicted valve duration for device {device_id}: {predicted_duration} seconds.")
-            
+
             # --- NEW CODE: Connect ML Output Directly to Irrigation Events ---
             if predicted_duration > 0: # Only create event if irrigation is predicted
                 duration_minutes = max(1, round(predicted_duration / 60)) # Convert to minutes, min 1 minute
@@ -118,14 +120,12 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate, to
                     status="pending", # Will be 'active' by hardware, then 'completed'
                     **current_sensor_data
                 )
-                
-                # Use the irrigation_service to create the event
-                irrigation_service.create_irrigation_event(irrigation_event_create)
-                print(f"Successfully created irrigation event for device {device_id}.")
 
-            # --- END NEW CODE ---
-        else:
-            print(f"ML prediction failed or returned no duration for device {device_id}: {ml_prediction}")
+                # Use the irrigation_service to create the event
+                await irrigation_service.create_irrigation_event(irrigation_event_create)
+                print(f"Successfully created irrigation event for device {device_id}.")
+    """
+    # End ML Auto-Trigger Logic (commented out)
 
     return sensor_reading
 
@@ -139,10 +139,14 @@ async def get_sensor_readings(
     limit: int = 100, 
     token: str = Depends(security)
 ):
-    # In a real implementation, this would fetch sensor readings from Firestore
-    # with filtering options
-    # For now, returning empty list as placeholder
-    return []
+    readings = sensor_service.get_sensor_readings(
+        device_id=device_id,
+        start_time=start_time,
+        end_time=end_time,
+        skip=skip,
+        limit=limit
+    )
+    return readings
 
 
 @router.get("/{device_id}/latest-reading", response_model=SensorReading)

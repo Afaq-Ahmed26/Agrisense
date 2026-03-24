@@ -11,7 +11,7 @@ export const isAuthenticated = computed(() => !!authStore.token);
 export async function fetchUser() {
   if (authStore.token) {
     try {
-      apiService.setToken(authStore.token);
+
       const user = await apiService.getMe();
       authStore.user = user;
     } catch (error) {
@@ -25,12 +25,10 @@ export function setUser(user, token) {
   authStore.user = user;
   authStore.token = token;
   localStorage.setItem('accessToken', token);
-  apiService.setToken(token);
 }
 
 export function logout() {
   authStore.user = null;
   authStore.token = null;
   localStorage.removeItem('accessToken');
-  apiService.removeToken();
 }

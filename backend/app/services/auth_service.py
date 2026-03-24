@@ -47,7 +47,7 @@ def verify_token(token: str) -> Optional[dict]:
         )
         return payload
     except JWTError as e:
-        print(f"ERROR: JWT verification failed: {e}")
+        print(f"ERROR: JWT verification failed: {e.__class__.__name__}: {e}")
         return None
     except Exception as e:
         print(f"ERROR: Unexpected error during JWT verification: {e}")

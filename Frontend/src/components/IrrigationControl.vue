@@ -4,8 +4,8 @@
       <h6 class="m-0 font-weight-bold text-primary">Irrigation Control</h6>
     </div>
     <div class="card-body">
-      <div v-if="!canControlIrrigation" class="text-center text-muted">
-        <p>You do not have permission to control irrigation.</p>
+      <div v-if="!props.deviceId" class="text-center text-muted">
+        <p>No device selected for irrigation control.</p>
       </div>
 
       <div v-else>
@@ -40,12 +40,14 @@
         <div id="manualControls" v-if="mode === 'manual'">
           <div class="input-group mb-3">
             <label class="input-group-text" for="durationMinutes">Duration (min)</label>
-            <input type="number" class="form-control" id="durationMinutes" v-model.number="durationMinutes" min="1" max="120" :disabled="isRunning">
-            <button id="startIrrigation" class="btn btn-success" @click="confirmStart" :disabled="isRunning">
-              <i class="fas fa-play"></i> Start
+            <input type="number" class="form-control" id="durationMinutes" v-model.number="durationMinutes" min="1" max="120" :disabled="isRunning || isLoading">
+            <button id="startIrrigation" class="btn btn-success" @click="confirmStart" :disabled="isRunning || isLoading">
+              <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <i v-else class="fas fa-play"> Start</i>
             </button>
-            <button id="stopIrrigation" class="btn btn-danger" @click="confirmStop" :disabled="!isRunning">
-              <i class="fas fa-stop"></i> Stop
+            <button id="stopIrrigation" class="btn btn-danger" @click="confirmStop" :disabled="!isRunning || isLoading">
+              <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <i v-else class="fas fa-stop"> Stop</i>
             </button>
           </div>
           <small class="form-text text-muted">Set a duration between 1 and 120 minutes.</small>
@@ -88,10 +90,27 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { formatDuration } from '@/utils/helpers';
 import { formatWithUserPreferences } from '@/utils/unitConverter';
 import { authStore } from '@/store/auth';
+import { apiService } from '@/services/api'; // Import apiService
 
-// Simulate a user with permission
-const canControlIrrigation = ref(true);
+const props = defineProps({
+  deviceId: {
+    type: String,
+    required: true
+  },
+  // New props for external triggering from DashboardView
+  externalIrrigationTriggered: {
+    type: Boolean,
+    default: false
+  },
+  externalIrrigationDurationSeconds: {
+    type: Number,
+    default: 0
+  }
+});
 
+const emit = defineEmits(['irrigation-started', 'irrigation-stopped']); // New emit for events
+
+const isLoading = ref(false); // New: Loading state for API calls
 const isRunning = ref(false);
 const mode = ref('auto'); // 'auto' or 'manual'
 const durationMinutes = ref(15);
@@ -116,15 +135,26 @@ watch(mode, (newMode) => {
   localStorage.setItem('irrigationModePreference', newMode);
 });
 
+// Watch for external irrigation trigger
+watch(() => props.externalIrrigationTriggered, (newVal) => {
+  if (newVal && props.externalIrrigationDurationSeconds > 0) {
+    // Convert seconds to minutes for startIrrigation function
+    const durationMin = Math.ceil(props.externalIrrigationDurationSeconds / 60);
+    // Don't call API again, just start local state management
+    startLocalIrrigationFeedback(durationMin);
+    emit('irrigation-started', { deviceId: props.deviceId, duration: durationMin });
+  }
+});
+
 const confirmStart = () => {
   modalMessage.value = `Start irrigation for ${durationMinutes.value} minutes?`;
-  confirmedAction = startIrrigation;
+  confirmedAction = () => startIrrigationAPI(durationMinutes.value); // Use new API-calling function
   if (modalInstance) modalInstance.show();
 };
 
 const confirmStop = () => {
   modalMessage.value = 'Are you sure you want to stop the irrigation?';
-  confirmedAction = stopIrrigation;
+  confirmedAction = stopIrrigation; // This will trigger the local stop first
   if (modalInstance) modalInstance.show();
 };
 
@@ -136,21 +166,49 @@ const executeConfirmedAction = () => {
   confirmedAction = null;
 };
 
-const startIrrigation = () => {
-  isRunning.value = true;
-  startCountdown(durationMinutes.value);
+// Function to call the API and start local feedback
+const startIrrigationAPI = async (duration) => {
+  if (!props.deviceId) {
+    alert('No device specified for irrigation.');
+    return;
+  }
+  isLoading.value = true;
+  try {
+    await apiService.startIrrigation(props.deviceId, duration); // Use the correct apiService method
+    alert(`Irrigation command sent successfully for ${duration} minutes!`);
+    
+    // Start local countdown for visual feedback
+    startLocalIrrigationFeedback(duration);
+    emit('irrigation-started', { deviceId: props.deviceId, duration: duration });
 
-  irrigationTimer = setTimeout(() => {
-    stopIrrigation(true); // Automatically stop after duration
-  }, durationMinutes.value * 60 * 1000);
+  } catch (error) {
+    console.error('Failed to trigger irrigation via API:', error);
+    alert('Failed to start irrigation. Check console for details.');
+  } finally {
+    isLoading.value = false;
+  }
 };
 
+// Function to manage local state and countdown
+const startLocalIrrigationFeedback = (duration) => {
+  isRunning.value = true;
+  startCountdown(duration);
+
+  irrigationTimer = setTimeout(() => {
+    stopIrrigation(true); // Automatically stop local timer after duration
+  }, duration * 60 * 1000);
+};
+
+
 const stopIrrigation = (wasAutomatic = false) => {
+  // For now, stopping is purely local as backend /trigger endpoint completes immediately.
+  // A real "stop" would require another API call to interrupt an ongoing physical irrigation.
   isRunning.value = false;
   lastIrrigationTime.value = new Date().toLocaleString();
   clearTimers();
   if (!wasAutomatic) {
-    // If stopped manually, we might want to show a notification
+    // If stopped manually, we might want to show a notification or log a partial event
+    emit('irrigation-stopped', { deviceId: props.deviceId });
   }
 };
 
@@ -195,32 +253,5 @@ const statusIcon = computed(() => ({
   'fa-pause': !isRunning.value
 }));
 
-// Function to format volume with user preferences
-const formatVolumeWithUserPreferences = (liters) => {
-  const userPrefs = authStore.user?.preferences || {
-    temperature_unit: 'Celsius',
-    volume_unit: 'liters',
-    time_zone: 'UTC',
-    notification_sound: 'default'
-  };
-  const result = formatWithUserPreferences(liters, 'volume', userPrefs);
-  return result.formatted;
-};
-</script>
 
-<style scoped>
-.status-badge {
-  padding: 0.25em 0.6em;
-  border-radius: 0.25rem;
-  font-weight: 700;
-  font-size: 0.75em;
-}
-.status-badge.running {
-  background-color: #007bff;
-  color: white;
-}
-.status-badge.idle {
-  background-color: #6c757d;
-  color: white;
-}
-</style>
+</script>

@@ -37,12 +37,13 @@ class IrrigationEventBase(BaseModel):
     device_id: str
     start_time: datetime
     end_time: Optional[datetime] = None
-    duration_actual_minutes: Optional[int] = None
+    duration_actual_seconds: Optional[int] = None # Changed to seconds
     status: str = "pending"  # pending, active, completed, failed
     temperature: Optional[float] = None
     humidity: Optional[float] = None
     soil_moisture: Optional[float] = None
     light_level: Optional[float] = None
+    user_triggered: Optional[bool] = False
 
 
 class IrrigationEventCreate(IrrigationEventBase):
@@ -52,6 +53,7 @@ class IrrigationEventCreate(IrrigationEventBase):
 class IrrigationEvent(IrrigationEventBase):
     id: str
     created_at: datetime
+    user_triggered: Optional[bool] = False
 
     class Config:
         from_attributes = True

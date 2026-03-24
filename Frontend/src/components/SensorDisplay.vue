@@ -9,6 +9,11 @@
               <div class="text-xs font-weight-bold text-uppercase mb-1">Temperature</div>
               <div id="temperatureValue" class="h5 mb-0 font-weight-bold">{{ formattedTemperature }}</div>
               <div id="temperatureTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
+              <div class="text-xs mt-1">
+                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
+                {{ deviceStatus.online ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+              </div>
             </div>
             <div class="col-auto">
               <i class="fas fa-thermometer-half fa-2x"></i>
@@ -27,6 +32,11 @@
               <div class="text-xs font-weight-bold text-uppercase mb-1">Humidity</div>
               <div id="humidityValue" class="h5 mb-0 font-weight-bold">{{ formattedHumidity }}</div>
               <div id="humidityTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
+              <div class="text-xs mt-1">
+                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
+                {{ deviceStatus.online ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+              </div>
             </div>
             <div class="col-auto">
               <i class="fas fa-tint fa-2x"></i>
@@ -45,6 +55,11 @@
               <div class="text-xs font-weight-bold text-uppercase mb-1">Soil Moisture</div>
               <div id="moistureValue" class="h5 mb-0 font-weight-bold">{{ formattedMoisture }}</div>
               <div id="moistureTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
+              <div class="text-xs mt-1">
+                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
+                {{ deviceStatus.online ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+              </div>
             </div>
             <div class="col-auto">
               <i class="fas fa-seedling fa-2x"></i>
@@ -63,6 +78,11 @@
               <div class="text-xs font-weight-bold text-uppercase mb-1">Light Level</div>
               <div id="lightLevelValue" class="h5 mb-0 font-weight-bold">{{ formattedLightLevel }}</div>
               <div id="lightLevelTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
+              <div class="text-xs mt-1">
+                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
+                {{ deviceStatus.online ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+              </div>
             </div>
             <div class="col-auto">
               <i class="fas fa-sun fa-2x"></i>
@@ -81,30 +101,33 @@ import { formatWithUserPreferences } from '@/utils/unitConverter';
 import { SENSOR_THRESHOLDS } from '@/config';
 import { authStore } from '@/store/auth';
 
-const temperature = ref(25);
-const humidity = ref(60);
-const moisture = ref(45);
-const lightLevel = ref(800);
-const lastUpdateTime = ref('N/A');
-
-let intervalId;
-
-const updateSimulatedData = () => {
-  temperature.value = 25 + (Math.random() * 5 - 2.5);
-  humidity.value = 60 + (Math.random() * 10 - 5);
-  moisture.value = 45 + (Math.random() * 10 - 5);
-  lightLevel.value = 800 + (Math.random() * 200 - 100);
-  lastUpdateTime.value = `Last updated: ${new Date().toLocaleTimeString()}`;
-};
-
-onMounted(() => {
-  updateSimulatedData();
-  intervalId = setInterval(updateSimulatedData, 5000);
+const props = defineProps({
+  sensorData: {
+    type: Object,
+    default: () => ({
+      temperature: 25,
+      humidity: 60,
+      soil_moisture: 45,
+      light_level: 800,
+      last_updated: new Date().toISOString()
+    })
+  },
+  deviceStatus: {
+    type: Object,
+    default: () => ({
+      online: true,
+      last_heartbeat: new Date().toISOString(),
+      battery_level: 95
+    })
+  }
 });
 
-onUnmounted(() => {
-  clearInterval(intervalId);
-});
+const temperature = computed(() => props.sensorData.temperature);
+const humidity = computed(() => props.sensorData.humidity);
+const moisture = computed(() => props.sensorData.soil_moisture);
+const lightLevel = computed(() => props.sensorData.light_level);
+const lastUpdateTime = computed(() => `Last updated: ${new Date(props.sensorData.last_updated).toLocaleTimeString()}`);
+
 
 const formattedTemperature = computed(() => {
   const userPrefs = authStore.user?.preferences || {

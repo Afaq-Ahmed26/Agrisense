@@ -1,7 +1,7 @@
 <template>
   <div class="card shadow mb-4">
     <div class="card-header py-3">
-      <h6 class="m-0 font-weight-bold text-primary">Predicted Water Requirements (Next 48 Hours)</h6>
+      <h6 class="m-0 font-weight-bold text-primary">Current Irrigation Prediction</h6>
     </div>
     <div class="card-body">
       <div class="chart-area">
@@ -17,22 +17,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, shallowRef } from 'vue';
+import { ref, onMounted, onBeforeUnmount, shallowRef, watch } from 'vue';
 import { Chart, registerables } from 'chart.js';
 import { formatWithUserPreferences } from '@/utils/unitConverter';
 import { authStore } from '@/store/auth';
+import { apiService } from '@/services/api'; // Import apiService
 
 Chart.register(...registerables);
 
 const chartCanvas = ref(null);
 const chartInstance = shallowRef(null);
-const predictionData = ref([]);
-const nextIrrigation = ref(null);
-const timeRange = 48; // hours
+const predictionData = ref(null); // Changed to null for single prediction
+const timeRange = 48; // hours (still relevant for display context, but data will be single point for now)
+
+const props = defineProps({
+  deviceId: {
+    type: String,
+    required: true
+  }
+});
 
 onMounted(() => {
-  loadPredictionData();
+  if (props.deviceId) {
+    loadPredictionData(props.deviceId);
+  }
   renderChart();
+});
+
+// Watch for deviceId changes
+watch(() => props.deviceId, (newDeviceId) => {
+  if (newDeviceId) {
+    loadPredictionData(newDeviceId);
+  } else {
+    predictionData.value = null; // Clear prediction if no device
+    updateChart();
+  }
 });
 
 onBeforeUnmount(() => {
@@ -41,74 +60,76 @@ onBeforeUnmount(() => {
   }
 });
 
-const loadPredictionData = () => {
-  predictionData.value = generateDemoData();
-  findNextIrrigation();
-};
-
-const findNextIrrigation = () => {
-    const next = predictionData.value.find(p => p.irrigation_needed);
-    if (next) {
-        // Convert water volume to user's preferred unit
-        const userPrefs = authStore.user?.preferences || {
-            temperature_unit: 'Celsius',
-            volume_unit: 'liters',
-            time_zone: 'UTC',
-            notification_sound: 'default'
-        };
-        const convertedVolume = formatWithUserPreferences(next.water_liters, 'volume', userPrefs);
-        nextIrrigation.value = {
-            time: new Date(next.time),
-            waterLiters: convertedVolume.value,
-            unit: convertedVolume.unit
-        };
+const loadPredictionData = async (deviceId) => {
+  if (!deviceId) {
+    predictionData.value = null;
+    updateChart();
+    return;
+  }
+  try {
+    // Call the new API to get future irrigation predictions
+    // Pass hoursAhead from timeRange
+    const futurePredictions = await apiService.getIrrigationPredictions(deviceId, timeRange);
+    
+    if (futurePredictions && futurePredictions.length > 0) {
+      // Store the list of predictions
+      predictionData.value = futurePredictions;
     } else {
-        nextIrrigation.value = null;
+      console.warn(`No future predictions found for device ${deviceId}.`);
+      predictionData.value = null;
     }
-}
-
-const generateDemoData = () => {
-    const data = [];
-    const now = new Date();
-    for (let i = 0; i < timeRange; i++) {
-        data.push({
-            time: new Date(now.getTime() + i * 60 * 60 * 1000).toISOString(),
-            irrigation_needed: Math.random() > 0.7,
-            water_liters: Math.floor(Math.random() * 50) + 20,
-            confidence: Math.random() * 0.3 + 0.7
-        });
-    }
-    return data;
+    updateChart(); // Update chart after new data is fetched
+  } catch (error) {
+    console.error('Failed to load future prediction data:', error);
+    predictionData.value = null;
+    updateChart();
+  }
 };
 
 const getChartData = () => {
-  const data = predictionData.value;
-  // Convert all water volumes to user's preferred unit
+  const predictions = predictionData.value;
   const userPrefs = authStore.user?.preferences || {
     temperature_unit: 'Celsius',
     volume_unit: 'liters',
     time_zone: 'UTC',
     notification_sound: 'default'
   };
-  const convertedData = data.map(item => {
-    if (item.irrigation_needed) {
-      const converted = formatWithUserPreferences(item.water_liters, 'volume', userPrefs);
-      return { ...item, water_liters_converted: converted.value };
-    }
-    return { ...item, water_liters_converted: null };
-  });
   
   const volumeUnit = formatWithUserPreferences(0, 'volume', userPrefs).unit;
-  
+
+  if (!predictions || predictions.length === 0) {
+    return {
+      labels: [],
+      datasets: [{
+        label: `Valve Duration (${volumeUnit})`,
+        data: [],
+        backgroundColor: 'rgba(200, 200, 200, 0.6)',
+        borderColor: 'rgba(200, 200, 200, 1)',
+        borderWidth: 1,
+      }]
+    };
+  }
+
+  // Generate labels for each hour, including date
+  const labels = predictions.map(p => {
+    const date = new Date(p.predicted_at);
+    // Format to a readable date and time, e.g., "Feb 19, 6:00 PM"
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  });
+
+  // Extract predicted valve durations
+  const data = predictions.map(p => p.predicted_valve_duration_s / 60);
+
   return {
-    labels: convertedData.map(p => new Date(p.time).toLocaleTimeString([], { hour: '2-digit' })),
+    labels: labels,
     datasets: [{
-      label: `Water Needed (${volumeUnit})`,
-      data: convertedData.map(p => p.irrigation_needed ? p.water_liters_converted : null),
-      backgroundColor: convertedData.map(p => p.irrigation_needed ? 'rgba(54, 162, 235, 0.6)' : 'transparent'),
-      borderColor: convertedData.map(p => p.irrigation_needed ? 'rgba(54, 162, 235, 1)' : 'transparent'),
+      label: `Valve Duration (${volumeUnit})`,
+      data: data,
+      backgroundColor: 'rgba(54, 162, 235, 0.6)',
+      borderColor: 'rgba(54, 162, 235, 1)',
       borderWidth: 1,
-      borderRadius: 4,
+      fill: false, // For line chart
+      tension: 0.1 // For smooth lines
     }]
   };
 };
@@ -123,7 +144,7 @@ const renderChart = () => {
     notification_sound: 'default'
   };
   chartInstance.value = new Chart(ctx, {
-    type: 'bar',
+    type: 'line', // Changed to line chart type for future predictions
     data: getChartData(),
     options: {
       responsive: true,
@@ -132,12 +153,13 @@ const renderChart = () => {
         legend: { display: false },
         tooltip: {
             callbacks: {
+                title: (tooltipItems) => {
+                    return `Time: ${tooltipItems[0].label}`; // Show time in title
+                },
                 label: (context) => {
-                    const item = predictionData.value[context.dataIndex];
-                    if (item.irrigation_needed) {
-                        // Convert the water volume to user's preferred unit
-                        const converted = formatWithUserPreferences(item.water_liters, 'volume', userPrefs);
-                        return `Water: ${converted.formatted} (Confidence: ${(item.confidence * 100).toFixed(0)}%)`;
+                    const duration = context.parsed.y;
+                    if (duration > 0) {
+                        return `Predicted Duration: ${duration.toFixed(1)} minutes`;
                     }
                     return 'No irrigation predicted';
                 }
@@ -147,11 +169,12 @@ const renderChart = () => {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+          title: { display: true, text: 'Time Ahead' }, // X-axis title for time
+          ticks: { maxRotation: 45, autoSkip: true } // Rotate labels for better readability
         },
         y: {
           beginAtZero: true,
-          title: { display: true, text: `Water (${formatWithUserPreferences(0, 'volume', userPrefs).unit})` }
+          title: { display: true, text: 'Valve Duration (minutes)' }
         }
       }
     }
@@ -165,7 +188,13 @@ const updateChart = () => {
     chartInstance.value.data.datasets[0].data = newChartData.datasets[0].data;
     chartInstance.value.data.datasets[0].backgroundColor = newChartData.datasets[0].backgroundColor;
     chartInstance.value.data.datasets[0].borderColor = newChartData.datasets[0].borderColor;
-    chartInstance.value.options.scales.y.title.text = `Water (${formatWithUserPreferences(0, 'volume', authStore.user?.preferences || {}).unit})`;
+    chartInstance.value.options.scales.y.title.text = 'Valve Duration (minutes)';
+    
+    // Update chart type if it somehow changed (though it shouldn't if set once)
+    if (chartInstance.value.config.type !== 'line') {
+      chartInstance.value.config.type = 'line';
+    }
+    
     chartInstance.value.update();
   }
 };

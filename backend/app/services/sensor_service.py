@@ -67,6 +67,30 @@ class SensorService:
             return SensorReading(**readings[0].to_dict())
         return None
 
+    def get_sensor_readings(
+        self, 
+        device_id: str, 
+        start_time: Optional[datetime] = None, 
+        end_time: Optional[datetime] = None, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[SensorReading]:
+        query = (
+            self.db.collection('sensor_readings')
+            .where('device_id', '==', device_id)
+        )
+        
+        if start_time:
+            query = query.where('timestamp', '>=', start_time)
+        if end_time:
+            query = query.where('timestamp', '<=', end_time)
+
+        query = query.order_by('timestamp', direction=firestore.Query.DESCENDING)
+        
+        readings_docs = query.offset(skip).limit(limit).get()
+        print(f"DEBUG: get_sensor_readings - Raw Firestore response for device {device_id} (skip={skip}, limit={limit}): {readings_docs}") # Added debug print
+        return [SensorReading(**doc.to_dict()) for doc in readings_docs]
+
     def get_hourly_average_readings(self, device_id: str) -> Dict[str, float]:
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
         
@@ -168,7 +192,7 @@ class SensorService:
         }
         return summary
 
-    async def simulate_irrigation_effect(self, device_id: str, duration_minutes: int) -> Optional[SensorReading]:
+    async def simulate_irrigation_effect(self, device_id: str, duration_seconds: int) -> Optional[SensorReading]:
         # Fetch the latest reading to base the simulation on
         latest_reading = self.get_latest_sensor_reading(device_id)
         
@@ -177,9 +201,9 @@ class SensorService:
             return None
         
         # Calculate soil moisture increase: example 5-8% increase per 120s (2 minutes)
-        # So, per minute: (5-8)% / 2 = 2.5-4%
-        increase_per_minute = random.uniform(2.5, 4.0)
-        simulated_moisture_increase = increase_per_minute * duration_minutes
+        # So, per second: (5-8)% / 120 = 0.041-0.066%
+        increase_per_second = random.uniform(0.041, 0.066)
+        simulated_moisture_increase = increase_per_second * duration_seconds
         
         new_soil_moisture = min(100.0, latest_reading.soil_moisture + simulated_moisture_increase)
         
@@ -197,7 +221,7 @@ class SensorService:
             timestamp=datetime.utcnow() + timedelta(seconds=1) # Slightly after the event for distinct timestamp
         )
         
-        print(f"Simulating irrigation effect for device {device_id}: moisture increased from {latest_reading.soil_moisture:.2f}% to {new_soil_moisture:.2f}%")
+        print(f"Simulating irrigation effect for device {device_id}: moisture increased from {latest_reading.soil_moisture:.2f}% to {new_soil_moisture:.2f}% over {duration_seconds} seconds.")
         return await self.create_sensor_reading(device_id, simulated_reading_create)
 
 

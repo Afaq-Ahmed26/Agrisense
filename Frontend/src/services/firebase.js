@@ -236,29 +236,72 @@ class FirebaseService {
         }
     }
 
-    // Get historical sensor data
+    // Subscribe to live sensor data updates from Firestore
+    subscribeToLiveSensorData(deviceId, callback) {
+        if (!this.db) {
+            console.error('Firestore not initialized.');
+            return () => {}; // Return a no-op unsubscribe function
+        }
+
+        const sensorReadingsCollection = collection(this.db, 'sensor_readings');
+        let q = query(sensorReadingsCollection, orderBy('timestamp', 'desc'));
+
+        if (deviceId) {
+            q = query(sensorReadingsCollection, where('device_id', '==', deviceId), orderBy('timestamp', 'desc'));
+        }
+
+        const path = `live_sensor_data/${deviceId || 'all'}`;
+
+        if (this.listeners[path]) {
+            this.listeners[path](); // Unsubscribe existing listener
+        }
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const sensorData = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                sensorData.push({ id: doc.id, ...data });
+            });
+            callback(sensorData);
+        }, (error) => {
+            console.error("Error subscribing to live sensor data:", error);
+        });
+
+        this.listeners[path] = unsubscribe;
+        return unsubscribe;
+    }
+
+    // Get historical sensor data from Firestore
     async getHistoricalSensorData(deviceId, startDate, endDate) {
         if (!this.db) {
             console.error('Firestore not initialized.');
             return [];
         }
         try {
-            const startTimestamp = startDate ? new Date(startDate).getTime() : Date.now() - (7 * 24 * 60 * 60 * 1000); // Default: last 7 days
-            const endTimestamp = endDate ? new Date(endDate).getTime() : Date.now();
+            const readingsCollection = collection(this.db, 'sensor_readings');
+            let q = query(readingsCollection);
 
-            const readingsCollection = collection(this.db, 'sensor_readings', deviceId, 'readings');
-            const readingsQuery = query(
-                readingsCollection,
-                where('timestamp', '>=', startTimestamp),
-                where('timestamp', '<=', endTimestamp),
-                orderBy('timestamp', 'desc')
-            );
+            if (deviceId) {
+                q = query(q, where('device_id', '==', deviceId));
+            }
 
-            const snapshot = await onSnapshot(readingsQuery); // Using onSnapshot for real-time history or getDocs for one-time fetch
+            if (startDate) {
+                q = query(q, where('timestamp', '>=', new Date(startDate).getTime()));
+            }
+            if (endDate) {
+                q = query(q, where('timestamp', '<=', new Date(endDate).getTime()));
+            }
+
+            q = query(q, orderBy('timestamp', 'desc')); // Order by timestamp for most recent first
+
+            const querySnapshot = await getDocs(q); // Use getDocs for one-time fetch
             const readings = [];
 
-            snapshot.forEach(doc => {
-                readings.push({ id: doc.id, ...doc.data() });
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                // Ensure timestamp is present and convert if needed (Firestore serverTimestamp is an object)
+                const timestamp = data.timestamp?.toDate ? data.timestamp.toDate().getTime() : data.timestamp;
+                readings.push({ id: doc.id, ...data, timestamp });
             });
 
             return readings.reverse(); // Return in chronological order

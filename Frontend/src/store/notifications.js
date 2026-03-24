@@ -101,5 +101,24 @@ export const notificationsStore = reactive({
       clearInterval(this.pollingId);
       this.pollingId = null;
     }
+  },
+
+  // NEW: Add a client-side notification
+  addNotification({ title, message, type = 'info', deviceId = null }) {
+    const newNotification = {
+      id: `client_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: title,
+      message: message,
+      type: type,
+      device_id: deviceId,
+      is_read: false,
+      is_archived: false,
+      timestamp: new Date().toISOString()
+    };
+    this.notifications.unshift(newNotification); // Add to the beginning of the array
+    // Optionally, if we want to limit client-side notifications
+    // if (this.notifications.length > 50) {
+    //   this.notifications.pop();
+    // }
   }
 });

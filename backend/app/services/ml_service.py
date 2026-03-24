@@ -1,8 +1,10 @@
-from datetime import datetime
-from typing import Dict, Any
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, List
 import joblib  # Changed from pickle to joblib
 import pandas as pd
 import os
+import random
+from app.services.sensor_service import sensor_service
 
 
 class MLService:
@@ -37,7 +39,7 @@ class MLService:
             return {
                 "error": "The irrigation prediction model could not be loaded.",
                 "predicted_valve_duration_s": None,
-                "predicted_at": datetime.utcnow().isoformat(),
+                "predicted_at": datetime.now(timezone.utc).isoformat(),
                 "input_data": sensor_data,
             }
 
@@ -82,9 +84,60 @@ class MLService:
         return {
             "predicted_valve_duration_s": round(predicted_duration, 2),
             "unit": "seconds",
-            "predicted_at": datetime.utcnow().isoformat(),
+            "predicted_at": datetime.now(timezone.utc).isoformat(),
             "input_data": sensor_data
         }
+    
+    async def predict_future_irrigation_needs(self, device_id: str, hours_ahead: int = 48) -> List[Dict[str, Any]]:
+        """
+        Predict irrigation needs for future hours based on simulated sensor data.
+        """
+        future_predictions = []
+        current_time = datetime.now(timezone.utc)
+
+        # Get the latest actual sensor reading as a starting point
+        latest_actual_reading = sensor_service.get_latest_sensor_reading(device_id)
+
+        if not latest_actual_reading:
+            print(f"WARNING: No latest sensor reading found for device {device_id}. Cannot predict future.")
+            return []
+
+        # Initialize simulated sensor values with the latest actual reading
+        simulated_soil_moisture = latest_actual_reading.soil_moisture
+        simulated_temperature = latest_actual_reading.temperature
+        simulated_humidity = latest_actual_reading.humidity
+        simulated_light_level = latest_actual_reading.light_level
+
+        for i in range(1, hours_ahead + 1):
+            future_time = current_time + timedelta(hours=i)
+
+            # Simple simulation: random walk with bounds
+            # Keep values within reasonable ranges (e.g., soil moisture 0-100, temp -10-50, humidity 0-100, light 0-2000)
+            simulated_soil_moisture = max(0.0, min(100.0, simulated_soil_moisture + random.uniform(-2.0, 2.0)))
+            simulated_temperature = max(-10.0, min(50.0, simulated_temperature + random.uniform(-1.0, 1.0)))
+            simulated_humidity = max(0.0, min(100.0, simulated_humidity + random.uniform(-1.0, 1.0)))
+            
+            # Light level can vary more significantly with day/night cycles, but for simplicity, a random walk for now
+            # A more advanced simulation would consider time of day.
+            simulated_light_level = max(0.0, min(2000.0, simulated_light_level + random.uniform(-50.0, 50.0)))
+
+
+            simulated_sensor_data = {
+                'soil_moisture': simulated_soil_moisture,
+                'temperature': simulated_temperature,
+                'humidity': simulated_humidity,
+                'light_level': simulated_light_level
+            }
+
+            prediction_result = await self.predict_irrigation_need(simulated_sensor_data)
+            
+            future_predictions.append({
+                "predicted_at": future_time.isoformat(),
+                "predicted_valve_duration_s": prediction_result["predicted_valve_duration_s"],
+                "input_data": simulated_sensor_data
+            })
+        
+        return future_predictions
     
     async def get_optimal_irrigation_schedule(self, device_id: str, user_preferences: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -98,10 +151,11 @@ class MLService:
             {"day": "friday", "time": "06:00"}
         ]
         
+        
         return {
             "device_id": device_id,
             "optimal_schedule": optimal_times,
-            "calculated_at": datetime.utcnow().isoformat(),
+            "calculated_at": datetime.now(timezone.utc).isoformat(),
             "user_preferences_applied": user_preferences or {}
         }
 
