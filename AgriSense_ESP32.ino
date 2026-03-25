@@ -56,7 +56,8 @@ const int SOIL_MOISTURE_PIN = 34;  // Soil moisture sensor analog output
 // =============================================================================
 const char* WIFI_SSID = "Agrisense";
 const char* WIFI_PASSWORD = "passwordd";
-const char* API_BASE_URL = "http://192.168.1.100:8000";  // CHANGE THIS
+// Updated: Backend server IP address (your computer's current IP)
+const char* API_BASE_URL = "http://192.168.43.120:8000";
 
 // =============================================================================
 // Calibration Values
@@ -71,8 +72,9 @@ const int SOIL_MOISTURE_WET = 1250;  // Raw ADC value when sensor is wet
 // const int MOISTURE_TURN_ON_THRESHOLD = 40;   // Turn on when moisture < 40%
 // const int MOISTURE_TURN_OFF_THRESHOLD = 60;  // Turn off when moisture >= 60%
 
-// Sensor reading interval (5 seconds)
-const unsigned long SENSOR_READ_INTERVAL_MS = 5000;
+// Sensor reading interval - FAST for demo purposes
+// Change to 5000-10000 for production use
+const unsigned long SENSOR_READ_INTERVAL_MS = 2000;  // 2000ms = 2 seconds (DEMO MODE)
 unsigned long lastReadTime = 0;
 
 // =============================================================================
