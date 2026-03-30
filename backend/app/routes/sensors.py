@@ -58,9 +58,12 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate):
             detail="Device ID in path does not match device ID in request body"
         )
 
-    # Calculate derived values
-    dew_point = calculate_dew_point(reading.temperature, reading.humidity)
-    heat_index = calculate_heat_index(reading.temperature, reading.humidity)
+    # Calculate derived values only if sensors are connected
+    dew_point = None
+    heat_index = None
+    if reading.temperature is not None and reading.humidity is not None:
+        dew_point = calculate_dew_point(reading.temperature, reading.humidity)
+        heat_index = calculate_heat_index(reading.temperature, reading.humidity)
 
     # Use the service to create the sensor reading
     sensor_reading = await sensor_service.create_sensor_reading(device_id, reading)

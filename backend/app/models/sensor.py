@@ -6,9 +6,9 @@ from datetime import datetime
 class SensorReadingBase(BaseModel):
     device_id: str
     soil_moisture: float
-    temperature: float
-    humidity: float
-    light_level: float
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    light_level: Optional[float] = None
 
 
 class SensorReadingCreate(SensorReadingBase):

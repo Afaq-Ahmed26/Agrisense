@@ -120,17 +120,23 @@ class MockApiService {
     async getSensorHealth(deviceId) {
         await this.delay();
         const device = MOCK_DEVICES.find(d => d.id === deviceId);
-        if (!device) {
-            throw new Error('Device not found');
-        }
         
+        // Return default device object if not found (instead of throwing)
+        const foundDevice = device || {
+            id: deviceId,
+            name: 'Unknown Device',
+            location: 'Unknown',
+            is_active: true
+        };
+
         const latestReading = await this.getLatestSensorData(deviceId);
-        
+
         return {
-            ...device,
+            ...foundDevice,
             last_reading: latestReading,
             status: 'online',
-            last_seen: new Date().toISOString()
+            last_seen: new Date().toISOString(),
+            online: true
         };
     }
 

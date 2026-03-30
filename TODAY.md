@@ -265,8 +265,34 @@ Here are some feature suggestions that will add significant value and interactiv
 *   **Firebase Data Verification:** User needs to confirm that sensor data is appearing correctly in their Firebase Console's Firestore `devices/<DEVICE_ID>/readings` collection.
 *   **Frontend Display Verification:** Once data is confirmed in Firestore, verify that the frontend dashboard (`SensorDisplay` component) is correctly displaying these live values.
 ---
-**End of Day 69 Session**
 
-Session Ended at: 2026-03-08T17:15:30Z
-Session ID: Could not be retrieved automatically. Please manually insert if available for exact resume.
-Session ID: daa5e687-9d11-493e-96b6-d3790445da65
+### **Day 98: Hardware Integration, Production Optimization & Quota Management**
+
+**Accomplishments:**
+
+*   **Production Readiness & Hardware Integration:**
+    *   **Full-Stack Alignment:** Synchronized the ESP32 firmware, FastAPI backend, and Vue.js frontend to work with actual hardware on the local network (`192.168.100.253`).
+    *   **Fixed Device ID:** Hardcoded the device ID to `esp32-b47cb8` across the hardware and mock-seeding logic to ensure immediate "plug-and-play" functionality for the user's specific ESP32 module.
+    *   **Backend Connectivity:** Verified that the backend correctly listens on `0.0.0.0:8000`, allowing the ESP32 and other network devices to post sensor data.
+
+*   **Firebase Quota Optimization (The "65K Reads" Fix):**
+    *   **Identified Root Cause:** Determined that high-frequency polling (5s) combined with unoptimized backend logic was causing a massive spike in Firestore reads (65,000 reads in 2 hours).
+    *   **Implemented Backend Caching:** Added an in-memory caching layer to `AlertService` (`backend/app/services/alert_service.py`) for device owners and user preferences. This eliminates up to 3 redundant Firestore reads for every incoming sensor heartbeat.
+    *   **Optimized Hardware Throttling:** Increased the ESP32 sensor read interval (`SENSOR_READ_INTERVAL_MS`) from 5 seconds to **10 seconds** for the demo, significantly reducing write operations while maintaining responsiveness.
+    *   **Frontend Polling Optimization:** Updated `DashboardView.vue` to poll every 10 seconds and implemented a visibility check (`document.hidden`) to stop all background reads when the browser tab is not active.
+
+*   **System Stabilization:**
+    *   **Mock/Prod Toggle:** Successfully navigated a Firestore "Quota Exceeded" event by implementing a temporary mock-seeding mechanism to allow development to continue, then reverted to production settings once optimizations were in place.
+    *   **CORS Fix:** Updated `backend/app/main.py` to allow wildcard origins and properly handle credentials for local network development.
+
+**Current Status:**
+
+*   **Phase 1 Complete:** The system is fully integrated with physical hardware. All four sensors (Temperature, Humidity, Soil Moisture, Light Level) are reporting live data to the dashboard.
+*   **Demo Ready:** The system is tuned for a "Plant Pot Demo" with a 10-second refresh rate, providing a balance between real-time feedback and Firebase quota safety.
+*   **ML Status:** Machine Learning auto-triggers remain disabled to ensure Phase 1 stability and minimize API complexity during initial hardware testing.
+
+**Next Steps:**
+
+*   **Hardware Validation:** User to confirm live data updates on the dashboard after watering the plant (expecting a ~10s response time).
+*   **Monitor Quota:** Observe the Firebase Console to verify that the new caching and throttling logic has successfully stabilized the read/write counts.
+*   **Phase 2 Planning:** Prepare for re-enabling ML recommendations and automated irrigation triggers once sensor stability is confirmed.

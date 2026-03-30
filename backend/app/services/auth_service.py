@@ -19,22 +19,42 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def verify_token(token: str) -> Optional[dict]:
-    try:
-        # Get the public key from Google
-        public_key_url = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
-        response = requests.get(public_key_url)
-        public_keys = response.json()
+public_keys_cache = {}
+last_fetch_time = None
+CACHE_DURATION_SECONDS = 3600  # Cache for 1 hour
 
-        # Get the unverified header from the token
+def verify_token(token: str) -> Optional[dict]:
+    global public_keys_cache, last_fetch_time
+
+    # 1. Check cache for public keys
+    if not public_keys_cache or \
+       (last_fetch_time and (datetime.now() - last_fetch_time).total_seconds() > CACHE_DURATION_SECONDS):
+        try:
+            public_key_url = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+            response = requests.get(public_key_url, timeout=5)  # Add a timeout for safety
+            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+            public_keys_cache = response.json()
+            last_fetch_time = datetime.now()
+            print("INFO: Fetched new Firebase public keys and updated cache.")
+        except requests.exceptions.RequestException as req_e:
+            print(f"ERROR: Failed to fetch Firebase public keys: {req_e}")
+            # If we can't fetch new keys, try with existing cache if it exists, otherwise fail
+            if not public_keys_cache:
+                return None
+        except Exception as e:
+            print(f"ERROR: Unexpected error while fetching Firebase public keys: {e}")
+            if not public_keys_cache:
+                return None
+    
+    # Rest of the verification logic remains largely the same, using public_keys_cache
+    try:
         unverified_header = jwt.get_unverified_header(token)
         alg = unverified_header["alg"]
         kid = unverified_header["kid"]
 
-        # Find the correct key
-        key = public_keys.get(kid)
+        key = public_keys_cache.get(kid)  # Use from cache
         if not key:
-            print("ERROR: Public key not found for kid.")
+            print("ERROR: Public key not found in cache for kid.")
             return None
 
         # Verify the token

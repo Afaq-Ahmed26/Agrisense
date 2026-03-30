@@ -7,12 +7,17 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-uppercase mb-1">Temperature</div>
-              <div id="temperatureValue" class="h5 mb-0 font-weight-bold">{{ formattedTemperature }}</div>
-              <div id="temperatureTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
+              <div v-if="temperature !== null">
+                <div id="temperatureValue" class="h5 mb-0 font-weight-bold">{{ formattedTemperature }}</div>
+              </div>
+              <div v-else class="text-warning small font-weight-bold">
+                <i class="fas fa-exclamation-triangle"></i> Sensor Offline
+              </div>
+              <div id="temperatureTime" class="text-xs mb-1">{{ lastUpdateTime }}</div>
               <div class="text-xs mt-1">
-                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
-                {{ deviceStatus.online ? 'Online' : 'Offline' }}
-                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+                <span :class="(deviceStatus?.online ?? true) ? 'text-success' : 'text-danger'">●</span>
+                {{ (deviceStatus?.online ?? true) ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus?.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
               </div>
             </div>
             <div class="col-auto">
@@ -30,12 +35,17 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-uppercase mb-1">Humidity</div>
-              <div id="humidityValue" class="h5 mb-0 font-weight-bold">{{ formattedHumidity }}</div>
+              <div v-if="humidity !== null">
+                <div id="humidityValue" class="h5 mb-0 font-weight-bold">{{ formattedHumidity }}</div>
+              </div>
+              <div v-else class="text-warning small font-weight-bold">
+                <i class="fas fa-exclamation-triangle"></i> Sensor Offline
+              </div>
               <div id="humidityTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
               <div class="text-xs mt-1">
-                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
-                {{ deviceStatus.online ? 'Online' : 'Offline' }}
-                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+                <span :class="(deviceStatus?.online ?? true) ? 'text-success' : 'text-danger'">●</span>
+                {{ (deviceStatus?.online ?? true) ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus?.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
               </div>
             </div>
             <div class="col-auto">
@@ -53,12 +63,17 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-uppercase mb-1">Soil Moisture</div>
-              <div id="moistureValue" class="h5 mb-0 font-weight-bold">{{ formattedMoisture }}</div>
+              <div v-if="moisture !== null">
+                <div id="moistureValue" class="h5 mb-0 font-weight-bold">{{ formattedMoisture }}</div>
+              </div>
+              <div v-else class="text-warning small font-weight-bold">
+                <i class="fas fa-exclamation-triangle"></i> Sensor Offline
+              </div>
               <div id="moistureTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
               <div class="text-xs mt-1">
-                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
-                {{ deviceStatus.online ? 'Online' : 'Offline' }}
-                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+                <span :class="(deviceStatus?.online ?? true) ? 'text-success' : 'text-danger'">●</span>
+                {{ (deviceStatus?.online ?? true) ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus?.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
               </div>
             </div>
             <div class="col-auto">
@@ -76,12 +91,17 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-uppercase mb-1">Light Level</div>
-              <div id="lightLevelValue" class="h5 mb-0 font-weight-bold">{{ formattedLightLevel }}</div>
+              <div v-if="lightLevel !== null">
+                <div id="lightLevelValue" class="h5 mb-0 font-weight-bold">{{ formattedLightLevel }}</div>
+              </div>
+              <div v-else class="text-warning small font-weight-bold">
+                <i class="fas fa-exclamation-triangle"></i> Sensor Offline
+              </div>
               <div id="lightLevelTime" class="text-xs mt-1">{{ lastUpdateTime }}</div>
               <div class="text-xs mt-1">
-                <span :class="deviceStatus.online ? 'text-success' : 'text-danger'">●</span>
-                {{ deviceStatus.online ? 'Online' : 'Offline' }}
-                <span v-if="deviceStatus.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
+                <span :class="(deviceStatus?.online ?? true) ? 'text-success' : 'text-danger'">●</span>
+                {{ (deviceStatus?.online ?? true) ? 'Online' : 'Offline' }}
+                <span v-if="deviceStatus?.last_heartbeat">- Last heartbeat: {{ new Date(deviceStatus.last_heartbeat).toLocaleTimeString() }}</span>
               </div>
             </div>
             <div class="col-auto">
@@ -105,10 +125,10 @@ const props = defineProps({
   sensorData: {
     type: Object,
     default: () => ({
-      temperature: 25,
-      humidity: 60,
-      soil_moisture: 45,
-      light_level: 800,
+      temperature: null,
+      humidity: null,
+      soil_moisture: null,
+      light_level: null,
       last_updated: new Date().toISOString()
     })
   },
@@ -122,14 +142,17 @@ const props = defineProps({
   }
 });
 
-const temperature = computed(() => props.sensorData.temperature);
-const humidity = computed(() => props.sensorData.humidity);
-const moisture = computed(() => props.sensorData.soil_moisture);
-const lightLevel = computed(() => props.sensorData.light_level);
-const lastUpdateTime = computed(() => `Last updated: ${new Date(props.sensorData.last_updated).toLocaleTimeString()}`);
+const temperature = computed(() => props.sensorData?.temperature ?? null);
+const humidity = computed(() => props.sensorData?.humidity ?? null);
+const moisture = computed(() => props.sensorData?.soil_moisture ?? null);
+const lightLevel = computed(() => props.sensorData?.light_level ?? null);
+const lastUpdateTime = computed(() => props.sensorData?.last_updated 
+  ? `Last updated: ${new Date(props.sensorData.last_updated).toLocaleTimeString()}` 
+  : 'Last updated: Never');
 
 
 const formattedTemperature = computed(() => {
+  if (temperature.value === null) return 'N/A';
   const userPrefs = authStore.user?.preferences || {
     temperature_unit: 'Celsius',
     volume_unit: 'liters',
@@ -140,12 +163,12 @@ const formattedTemperature = computed(() => {
   return `${formatNumber(result.value)}${result.unit}`;
 });
 
-const formattedHumidity = computed(() => `${formatNumber(humidity.value)}%`);
-const formattedMoisture = computed(() => `${formatNumber(moisture.value)}%`);
-const formattedLightLevel = computed(() => `${formatNumber(lightLevel.value)} lx`);
+const formattedHumidity = computed(() => humidity.value !== null ? `${formatNumber(humidity.value)}%` : 'N/A');
+const formattedMoisture = computed(() => moisture.value !== null ? `${formatNumber(moisture.value)}%` : 'N/A');
+const formattedLightLevel = computed(() => lightLevel.value !== null ? `${formatNumber(lightLevel.value)} lx` : 'N/A');
 
 const temperatureCardClass = computed(() => {
-  // For temperature threshold comparison, we need to convert the threshold to the current unit
+  if (temperature.value === null) return 'bg-secondary text-white';
   const userPrefs = authStore.user?.preferences || {
     temperature_unit: 'Celsius',
     volume_unit: 'liters',
@@ -158,17 +181,20 @@ const temperatureCardClass = computed(() => {
 });
 
 const humidityCardClass = computed(() => {
+  if (humidity.value === null) return 'bg-secondary text-white';
   if (humidity.value > 80 || humidity.value < 20) return 'bg-warning text-dark';
   return 'bg-info text-white';
 });
 
 const moistureCardClass = computed(() => {
+  if (moisture.value === null) return 'bg-secondary text-white';
   if (moisture.value < SENSOR_THRESHOLDS.MOISTURE_CRITICAL) return 'bg-danger text-white';
   if (moisture.value < SENSOR_THRESHOLDS.MOISTURE_WARNING) return 'bg-warning text-dark';
   return 'bg-success text-white';
 });
 
 const lightLevelCardClass = computed(() => {
+  if (lightLevel.value === null) return 'bg-secondary text-white';
   if (lightLevel.value > 1000) return 'bg-light text-dark';
   return 'bg-secondary text-white';
 });

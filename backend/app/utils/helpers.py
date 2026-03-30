@@ -19,18 +19,27 @@ def format_timestamp(timestamp: datetime) -> str:
     return timestamp.isoformat()
 
 
-def calculate_dew_point(temperature: float, humidity: float) -> float:
+import math
+from typing import Dict, Any, Optional
+
+def calculate_dew_point(temperature: Optional[float], humidity: Optional[float]) -> Optional[float]:
     """Calculate dew point from temperature and humidity"""
+    if temperature is None or humidity is None:
+        return None
     # Simplified Magnus formula
     a = 17.27
     b = 237.7
-    alpha = ((a * temperature) / (b + temperature)) + (humidity / 100.0)
+    # Protect against zero humidity for log calculation
+    h = max(0.01, humidity)
+    alpha = ((a * temperature) / (b + temperature)) + math.log(h / 100.0)
     dew_point = (b * alpha) / (a - alpha)
     return round(dew_point, 2)
 
 
-def calculate_heat_index(temperature: float, humidity: float) -> float:
+def calculate_heat_index(temperature: Optional[float], humidity: Optional[float]) -> Optional[float]:
     """Calculate heat index from temperature and humidity"""
+    if temperature is None or humidity is None:
+        return None
     # Simplified calculation
     if temperature < 27:  # Below 80°F
         return temperature

@@ -28,23 +28,31 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { apiService } from '@/services/api';
 import { firebaseService } from '@/services/firebase';
 import { MAX_ALERTS_DISPLAYED, ALERTS_REFRESH_INTERVAL } from '@/config';
 
 const deviceId = ref(localStorage.getItem('selectedDeviceId') || 'device_001');
 const activeAlerts = ref([]);
+let alertsInterval = null;
 
 onMounted(async () => {
   await fetchAlerts();
-  
+
   await firebaseService.initialize();
   firebaseService.subscribeToAlerts(deviceId.value, (alerts) => {
     activeAlerts.value = alerts;
   });
 
-  setInterval(fetchAlerts, ALERTS_REFRESH_INTERVAL);
+  // Set up polling interval
+  alertsInterval = setInterval(fetchAlerts, ALERTS_REFRESH_INTERVAL);
+});
+
+onUnmounted(() => {
+  if (alertsInterval) {
+    clearInterval(alertsInterval);
+  }
 });
 
 const fetchAlerts = async () => {

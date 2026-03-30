@@ -32,7 +32,7 @@ export const CONFIG = {
     API_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000", // Fallback for development
 
     // Default timeout for API requests (in milliseconds)
-    API_TIMEOUT: 10000,
+    API_TIMEOUT: 20000,
 
     // Refresh interval for sensor data (in milliseconds)
     SENSOR_REFRESH_INTERVAL: 30000, // 30 seconds

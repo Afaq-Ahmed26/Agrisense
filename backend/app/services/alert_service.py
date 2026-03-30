@@ -52,8 +52,12 @@ class AlertService:
     
     def __init__(self):
         self._thresholds_cache: Optional[AlertThresholds] = None
-        self._cache_expiry = timedelta(minutes=5)
+        self._cache_expiry = timedelta(hours=1)
         self._last_cache_time: Optional[datetime] = None
+        # NEW: Cache for device metadata to save reads
+        self._device_owner_cache = {} # device_id -> owner_id
+        self._user_prefs_cache = {}   # owner_id -> NotificationPreferences
+        self._cache_clear_time = datetime.utcnow()
 
     def _get_thresholds(self) -> AlertThresholds:
         """
@@ -168,60 +172,70 @@ class AlertService:
         """
         Save an alert to the database and create a notification based on user preferences.
         """
+        now = datetime.utcnow()
+        # Periodic cache clear (every hour)
+        if (now - self._cache_clear_time) > timedelta(hours=1):
+            self._device_owner_cache.clear()
+            self._user_prefs_cache.clear()
+            self._cache_clear_time = now
+
         # Save alert to Firestore
         firebase_service.db.collection('alerts').document(alert.id).set(alert.model_dump())
         print(f"Saved alert to Firestore: {alert.message}")
 
-        # Fetch device owner to create a notification
-        device_ref = firebase_service.db.collection('devices').document(alert.device_id)
-        device_doc = device_ref.get()
+        # Fetch device owner (using cache if available)
+        owner_id = self._device_owner_cache.get(alert.device_id)
+        if not owner_id:
+            device_ref = firebase_service.db.collection('devices').document(alert.device_id)
+            device_doc = device_ref.get()
+            if device_doc.exists:
+                device_data = device_doc.to_dict()
+                owner_id = device_data.get("owner_id")
+                if owner_id:
+                    self._device_owner_cache[alert.device_id] = owner_id
 
-        if device_doc.exists:
-            device_data = device_doc.to_dict()
-            owner_id = device_data.get("owner_id")
-            if owner_id:
-                # Fetch user's notification preferences
+        if owner_id:
+            # Fetch user's notification preferences (using cache if available)
+            prefs = self._user_prefs_cache.get(owner_id)
+            if not prefs:
                 prefs_ref = firebase_service.db.collection('notification_preferences').document(owner_id)
                 prefs_doc = prefs_ref.get()
                 prefs = NotificationPreferences(**prefs_doc.to_dict()) if prefs_doc.exists else NotificationPreferences()
+                self._user_prefs_cache[owner_id] = prefs
 
-                # Determine which channel to use based on severity
-                channel_map = {
-                    AlertSeverity.CRITICAL: prefs.on_critical_alert,
-                    AlertSeverity.HIGH: prefs.on_high_alert,
-                    AlertSeverity.MEDIUM: prefs.on_medium_alert,
-                    AlertSeverity.LOW: prefs.on_low_alert,
-                }
-                channel = channel_map.get(alert.severity)
+            # Determine which channel to use based on severity
+            channel_map = {
+                AlertSeverity.CRITICAL: prefs.on_critical_alert,
+                AlertSeverity.HIGH: prefs.on_high_alert,
+                AlertSeverity.MEDIUM: prefs.on_medium_alert,
+                AlertSeverity.LOW: prefs.on_low_alert,
+            }
+            channel = channel_map.get(alert.severity)
 
-                if channel == 'in_app':
-                    notification_data = NotificationCreate(
-                        user_id=owner_id,
-                        message=alert.message,
-                        type=alert.severity.value
-                    )
-                    notification_service.create_notification(notification_data, owner_id)
-                    print(f"Created in-app notification for user {owner_id}")
-                elif channel == 'email':
-                    # Placeholder for email sending logic
-                    # You would integrate with a service like SendGrid, Mailgun, etc.
-                    user_doc = firebase_service.db.collection('users').document(owner_id).get()
-                    if user_doc.exists:
-                        user_email = user_doc.to_dict().get('email')
-                        if user_email:
-                            print(f"INFO: Would send email alert to {user_email}: {alert.message}")
-                        else:
-                            print(f"WARNING: User {owner_id} has no email address for email notification.")
-                elif channel == 'none':
-                    print(f"INFO: Notification for user {owner_id} suppressed by user preference.")
+            if channel == 'in_app':
+                notification_data = NotificationCreate(
+                    user_id=owner_id,
+                    message=alert.message,
+                    type=alert.severity.value
+                )
+                notification_service.create_notification(notification_data, owner_id)
+                print(f"Created in-app notification for user {owner_id}")
+            elif channel == 'email':
+                user_doc = firebase_service.db.collection('users').document(owner_id).get()
+                if user_doc.exists:
+                    user_email = user_doc.to_dict().get('email')
+                    if user_email:
+                        print(f"INFO: Would send email alert to {user_email}: {alert.message}")
+            elif channel == 'none':
+                print(f"INFO: Notification for user {owner_id} suppressed by user preference.")
     
     async def get_device_alerts(self, device_id: str, status: Optional[AlertStatus] = None) -> List[Alert]:
         """
         Retrieve alerts for a specific device.
         """
-        query = firebase_service.db.collection('alerts').where("device_id", "==", device_id)
+        query = firebase_service.db.collection('alerts').where(filter=FieldFilter("device_id", "==", device_id))
         if status:
-            query = query.where("status", "==", status.value)
+            query = query.where(filter=FieldFilter("status", "==", status.value))
         
         alerts = [Alert(**doc.to_dict()) for doc in query.stream()]
         return alerts
@@ -230,7 +244,7 @@ class AlertService:
         """
         Retrieve all open alerts across all devices.
         """
-        query = firebase_service.db.collection('alerts').where("status", "==", AlertStatus.OPEN.value)
+        query = firebase_service.db.collection('alerts').where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
         alerts = [Alert(**doc.to_dict()) for doc in query.stream()]
         return alerts
     

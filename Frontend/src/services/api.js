@@ -32,11 +32,10 @@ class ApiService {
     async request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
 
+        const token = localStorage.getItem('accessToken');
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
-                // Always get the latest token from localStorage
-                ...(localStorage.getItem('accessToken') && { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` })
             },
             timeout: this.timeout
         };
@@ -49,6 +48,10 @@ class ApiService {
                 ...options.headers
             }
         };
+
+        if (token) {
+            requestOptions.headers['Authorization'] = `Bearer ${token}`;
+        }
 
         try {
             const controller = new AbortController();
@@ -134,12 +137,17 @@ class ApiService {
             return await response.json();
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.warn('Request timeout, falling back to mock data:', endpoint);
+                console.warn(`🛑 API Timeout [${this.timeout}ms]: ${endpoint}.`);
             } else {
-                console.warn('API request failed, falling back to mock data:', error.message, endpoint);
+                console.error(`❌ API Request Failed: ${endpoint}`, error.message);
             }
 
-            // Import mock API service and use it as fallback
+            // ONLY fall back to mock data if we are in a development environment 
+            // and the real server is unreachable.
+            const isDev = import.meta.env.DEV;
+            if (!isDev) throw error; 
+
+            console.info('ℹ️ Attempting mock data fallback...');
             const { mockApiService } = await import('@/services/mock-api.js');
 
             // Map endpoints to mock API methods

@@ -95,12 +95,12 @@ import { apiService } from '@/services/api'; // Import apiService
 const props = defineProps({
   deviceId: {
     type: String,
-    required: true
+    default: ''
   },
   // New props for external triggering from DashboardView
   externalIrrigationTriggered: {
-    type: Boolean,
-    default: false
+    type: Number,
+    default: 0
   },
   externalIrrigationDurationSeconds: {
     type: Number,
@@ -137,7 +137,7 @@ watch(mode, (newMode) => {
 
 // Watch for external irrigation trigger
 watch(() => props.externalIrrigationTriggered, (newVal) => {
-  if (newVal && props.externalIrrigationDurationSeconds > 0) {
+  if (newVal > 0 && props.externalIrrigationDurationSeconds > 0) {
     // Convert seconds to minutes for startIrrigation function
     const durationMin = Math.ceil(props.externalIrrigationDurationSeconds / 60);
     // Don't call API again, just start local state management

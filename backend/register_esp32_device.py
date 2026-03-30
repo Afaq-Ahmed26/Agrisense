@@ -1,84 +1,57 @@
-#!/usr/bin/env python3
-"""
-Register the ESP32 device in Firebase Firestore.
-This allows the frontend to discover and display data from the ESP32.
-"""
-
+import os
 import sys
-sys.path.insert(0, '/home/afaq-ahmed/Desktop/Agriscense/backend')
-
-from app.services.firebase_service import firebase_service
 from datetime import datetime
 
-# The ESP32 device ID from your actual hardware
-# This is generated from the ESP32's chip ID
-ESP32_DEVICE_ID = "esp32-b47cb8"
+# Add the current directory to sys.path to import app modules
+sys.path.append(os.path.dirname(__file__))
 
-def register_esp32_device():
-    """Register ESP32 device in Firebase Firestore devices collection"""
-    
-    print("\n" + "="*60)
-    print(" Registering ESP32 Device in Firebase")
-    print("="*60 + "\n")
-    
+from app.services.firebase_service import firebase_service
+from app.services.sensor_service import sensor_service
+from app.models.sensor import DeviceCreate
+
+async def register_device():
+    print("Connecting to Firebase...")
     db = firebase_service.db
-    
-    if firebase_service.is_mock:
-        print("⚠️  WARNING: Using mock Firebase!")
-        print("   Data will not persist.")
-        return False
-    
-    device_data = {
-        "id": ESP32_DEVICE_ID,
-        "name": "ESP32 Soil Moisture Sensor",
-        "location": "Demo Plant (Indoor)",
-        "owner_id": "afaqahmad16007@gmail.com",
-        "type": "soil_moisture_sensor",
-        "zone_id": "zone_1",
-        "crop_type": "Potted Plant",
-        "area_size": 1.0,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-        "is_active": True,
-        "firmware_version": "2.0-demo",
-        "last_seen": datetime.utcnow()
-    }
-    
-    try:
-        # Check if device already exists
-        existing_device = db.collection('devices').document(ESP32_DEVICE_ID).get()
-        
-        if existing_device.exists:
-            print(f"ℹ️  Device {ESP32_DEVICE_ID} already exists!")
-            print("   Updating last_seen timestamp...")
-            db.collection('devices').document(ESP32_DEVICE_ID).update({
-                "last_seen": datetime.utcnow()
-            })
-        else:
-            print(f"Registering new device: {ESP32_DEVICE_ID}")
-            db.collection('devices').document(ESP32_DEVICE_ID).set(device_data)
-            print("✅ Device registered successfully!")
-        
-        print("\n" + "="*60)
-        print(" Device Details:")
-        print("="*60)
-        print(f"  Device ID: {ESP32_DEVICE_ID}")
-        print(f"  Name: {device_data['name']}")
-        print(f"  Location: {device_data['location']}")
-        print(f"  Type: {device_data['type']}")
-        print(f"  Status: {'Active' if device_data['is_active'] else 'Inactive'}")
-        print("="*60)
-        print("\n🎉 You can now see this device in the frontend dashboard!")
-        print(f"   Go to: http://localhost:5173/dashboard")
-        print("="*60 + "\n")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ ERROR: {e}")
-        print("   Check your Firebase credentials and network connection.")
-        return False
+    auth = firebase_service.auth
 
+    target_email = "afaqahmad16007@gmail.com"
+    device_id = "esp32-b47cb8"
+
+    print(f"Looking for user: {target_email}")
+    try:
+        user = auth.get_user_by_email(target_email)
+        user_id = user.uid
+        print(f"Found user {target_email} with UID: {user_id}")
+    except Exception as e:
+        print(f"Error finding user: {e}")
+        return
+
+    print(f"Checking if device {device_id} already exists...")
+    device_ref = db.collection('devices').document(device_id)
+    doc = device_ref.get()
+
+    if doc.exists:
+        print(f"Device {device_id} already exists. Updating owner to {user_id}...")
+        device_ref.update({
+            "owner_id": user_id,
+            "updated_at": datetime.utcnow()
+        })
+        print("Device owner updated successfully.")
+    else:
+        print(f"Creating new device {device_id} for owner {user_id}...")
+        new_device = {
+            "id": device_id,
+            "name": "ESP32 AgriSense Node",
+            "location": "Main Field",
+            "owner_id": user_id,
+            "type": "irrigation_device",
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        db.collection('devices').document(device_id).set(new_device)
+        print("Device created successfully.")
 
 if __name__ == "__main__":
-    register_esp32_device()
+    import asyncio
+    asyncio.run(register_device())

@@ -69,7 +69,7 @@ Recent efforts have focused heavily on debugging and refining the authentication
     *   **User ID Extraction:** Backend endpoints across `users.py`, `notifications.py`, and `activity_logs.py` were corrected to use `"user_id"` instead of `"uid"` when extracting the user identifier from Firebase token payloads.
 
 *   **Identified Pending Issues:**
-    *   **Missing Firestore Composite Indexes:** Several backend queries (e.g., for `activity-logs` and `notifications`) are currently failing with `FailedPrecondition: 400 The query requires an index.` due to the absence of necessary composite indexes in the Firebase project. These need to be created manually in the Firebase Console.
+    *   **ML Features Temporarily Disabled:** The machine learning prediction features have been temporarily disabled in the frontend (`DashboardView.vue`) to focus on ensuring stable single-sensor data integration and display. The current focus is on correctly displaying soil moisture sensor data.
     *   **`sensor_data_generator.py` Firebase Sign-in:** The `sensor_data_generator.py` script is reportedly experiencing issues signing into Firebase.
     *   **CORS Errors:** While some CORS issues were implicitly resolved, ongoing CORS errors are considered a symptom of deeper backend query failures (related to missing Firestore indexes).
 
@@ -78,3 +78,4 @@ Recent efforts have focused heavily on debugging and refining the authentication
 *   **Python (Backend & ML):** Dependencies managed via `backend/requirements.txt` and installed in virtual environments (e.g., `venv/`, `source/`).
 *   **JavaScript/Node.js (Frontend):** Dependencies managed via `Frontend/package.json` and installed in `node_modules/`.
 *   **Configuration:** Environment variables, particularly in `backend/.env`, are critical for configuring Firebase, JWTs, and other application settings.
+Session ID: 2026-03-08T17:15:30Z

@@ -273,6 +273,43 @@ class FirebaseService:
         self.db = MockFirestoreDB()
         self.auth = MockFirebaseAuth()
         self.is_mock = True
+        
+        # Seed default user
+        admin_email = "afaqahmad16007@gmail.com"
+        admin_uid = "qsmULXbieEdDtufceT4SrkbA3tH2"
+        self.auth.users[admin_email] = {
+            'uid': admin_uid,
+            'email': admin_email,
+            'display_name': "Afaq Ahmed",
+            'password': "password",
+            'user_metadata': MockUserMetadata(),
+            'role': 'admin'
+        }
+        
+        # Seed Firestore user profile
+        self.db.collection('users').document(admin_uid).set({
+            'id': admin_uid,
+            'email': admin_email,
+            'username': "Afaq Ahmed",
+            'role': 'admin',
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+            'is_deleted': False
+        })
+
+        # Seed the ESP32 device
+        device_id = "esp32-b47cb8"
+        self.db.collection('devices').document(device_id).set({
+            'id': device_id,
+            'name': "ESP32 AgriSense Node",
+            'location': "Main Field",
+            'owner_id': admin_uid,
+            'type': "irrigation_device",
+            'is_active': True,
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        })
+        print(f"DEBUG: Mock Firebase seeded with user {admin_email} and device {device_id}")
 
     def get_firestore_client(self):
         return self.db

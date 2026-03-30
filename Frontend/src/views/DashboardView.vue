@@ -43,13 +43,21 @@
       <div class="row">
         <div class="col-lg-12" v-for="widget in dashboardLayout" :key="widget.id" v-show="widget.visible">
           <div class="position-relative">
+            <!-- Ensure components that NEED a device ID only render when it exists -->
             <component 
+              v-if="widget.id !== 'PredictionChart' && (widget.id !== 'SensorDisplay' && widget.id !== 'IrrigationControl' || currentDeviceId)"
               :is="getComponent(widget.id)" 
-              :device-id="widget.id === 'PredictionChart' || widget.id === 'SensorDisplay' || widget.id === 'IrrigationControl' ? currentDeviceId : undefined"
-              :sensor-data="widget.id === 'SensorDisplay' ? sensorData : undefined"
-              :device-status="widget.id === 'SensorDisplay' ? deviceStatus : undefined"
-              :external-irrigation-triggered="widget.id === 'IrrigationControl' ? externalTriggerForIrrigationControl : 0"
-              :external-irrigation-duration-seconds="widget.id === 'IrrigationControl' ? irrigationRecommendation?.predicted_valve_duration_s : 0"
+              v-bind="widget.id === 'SensorDisplay' ? { 
+                'device-id': currentDeviceId,
+                'sensor-data': sensorData || undefined,
+                'device-status': deviceStatus || undefined
+              } : (widget.id === 'IrrigationControl' ? {
+                'device-id': currentDeviceId,
+                'external-irrigation-triggered': externalTriggerForIrrigationControl,
+                'external-irrigation-duration-seconds': irrigationRecommendation?.predicted_valve_duration_s
+              } : (widget.id === 'PredictionChart' ? {
+                'device-id': currentDeviceId
+              } : {}))"
               @irrigation-started="handleIrrigationStarted"
               @irrigation-stopped="handleIrrigationStopped"
             ></component>
@@ -119,6 +127,7 @@ const externalTriggerForIrrigationControl = ref(0);
 const sensorData = ref(null); // This will hold the latest sensor data
 const deviceStatus = ref(null); // This will hold the latest device status
 let sensorDataInterval = null; // To store the interval for polling sensor data
+let irrigationPending = false; // Guard to prevent infinite irrigation fetch loops
 
 const availableWidgets = {
   AlertsBanner: AlertsBanner,
@@ -167,7 +176,14 @@ const fetchLatestSensorData = async (deviceId) => {
     };
   } catch (error) {
     console.error(`Failed to fetch latest sensor data for device ${deviceId}:`, error);
-    sensorData.value = null;
+    // Set default sensor data instead of null to prevent crashes
+    sensorData.value = {
+      soil_moisture: 0,
+      temperature: 0,
+      humidity: 0,
+      light_level: 0,
+      last_updated: new Date().toISOString()
+    };
     deviceStatus.value = {
       online: false,
       last_heartbeat: new Date().toISOString(),
@@ -178,19 +194,26 @@ const fetchLatestSensorData = async (deviceId) => {
 
 // Function to set up polling for sensor data
 const setupSensorDataPolling = (deviceId) => {
-  // Clear any existing interval
+  // 🛑 SAFETY FIRST: Clear ANY existing interval before starting a new one
   if (sensorDataInterval) {
     clearInterval(sensorDataInterval);
+    sensorDataInterval = null;
   }
 
   if (deviceId) {
     // Fetch immediately
     fetchLatestSensorData(deviceId);
-    // Set up polling every 5 seconds
-    sensorDataInterval = setInterval(() => fetchLatestSensorData(deviceId), 5000);
-  } else {
-    sensorData.value = null;
-    deviceStatus.value = null;
+    
+    // Set up polling every 10 seconds for demo responsiveness
+    // 10,000ms = 10 seconds
+    sensorDataInterval = setInterval(() => {
+      // Only fetch if the tab is actually visible to the user
+      if (!document.hidden) {
+        fetchLatestSensorData(deviceId);
+      }
+    }, 10000); 
+    
+    console.log(`📡 Started polling for device: ${deviceId} (Interval: 10s)`);
   }
 };
 
@@ -237,15 +260,15 @@ onMounted(async () => {
       currentDeviceId.value = devices[0].id;
       setupSensorDataPolling(currentDeviceId.value);
     } else {
-      // Fallback: Use known device ID if no devices returned
+      // Fallback: Use ESP32 device ID if no devices returned
       console.warn('No devices found, using fallback device ID');
-      currentDeviceId.value = 'device_ba15671065d89b2a';
+      currentDeviceId.value = 'esp32-b47cb8';  // Your actual ESP32 device ID
       setupSensorDataPolling(currentDeviceId.value);
     }
   } catch (error) {
     console.error('Failed to fetch devices:', error);
-    // Fallback: Use known device ID on error
-    currentDeviceId.value = 'device_ba15671065d89b2a';
+    // Fallback: Use ESP32 device ID on error
+    currentDeviceId.value = 'esp32-b47cb8';  // Your actual ESP32 device ID
     setupSensorDataPolling(currentDeviceId.value);
   }
 });
@@ -259,17 +282,25 @@ watch(currentDeviceId, (newVal) => {
   }
 }, { immediate: true });
 
-// Watch for changes in sensorData to fetch new recommendations
-watch(sensorData, (newVal) => {
-  if (newVal && currentDeviceId.value) {
-    fetchIrrigationRecommendation(currentDeviceId.value);
-  }
-});
+// Watch for changes in sensorData to fetch new irrigation recommendations
+// Guard added to prevent infinite loop when sensorData updates every 5 seconds
+// watch(sensorData, async (newVal) => {
+//   if (irrigationPending || !newVal || !currentDeviceId.value) return;
+  
+//   irrigationPending = true;
+//   try {
+//     await fetchIrrigationRecommendation(currentDeviceId.value);
+//   } finally {
+//     irrigationPending = false;
+//   }
+// });
 
 onUnmounted(() => {
   if (sensorDataInterval) {
     clearInterval(sensorDataInterval);
   }
+  // Clear any pending irrigation flag
+  irrigationPending = false;
 });
 
 const toggleCustomizeMode = () => {
