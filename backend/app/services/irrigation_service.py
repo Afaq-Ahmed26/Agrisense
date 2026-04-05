@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import List, Optional
 from app.services.firebase_service import firebase_service
@@ -8,7 +9,7 @@ class IrrigationService:
     def __init__(self):
         self.db = firebase_service.db
 
-    def create_irrigation_schedule(self, schedule_create: IrrigationScheduleCreate) -> IrrigationSchedule:
+    async def create_irrigation_schedule(self, schedule_create: IrrigationScheduleCreate) -> IrrigationSchedule:
         schedule_id = f"schedule_{datetime.utcnow().timestamp()}"
         new_schedule = IrrigationSchedule(
             id=schedule_id,
@@ -21,14 +22,16 @@ class IrrigationService:
             updated_at=datetime.utcnow(),
             is_active=True
         )
-        self.db.collection('irrigation_schedules').document(schedule_id).set(new_schedule.dict())
+        doc_ref = self.db.collection('irrigation_schedules').document(schedule_id)
+        await asyncio.to_thread(doc_ref.set, new_schedule.dict())
         return new_schedule
     
-    def get_irrigation_schedules(self, device_id: Optional[str] = None) -> List[IrrigationSchedule]:
+    async def get_irrigation_schedules(self, device_id: Optional[str] = None) -> List[IrrigationSchedule]:
         query = self.db.collection('irrigation_schedules')
         if device_id:
             query = query.where('device_id', '==', device_id)
-        docs = query.get()
+        
+        docs = await asyncio.to_thread(lambda: query.get())
         return [IrrigationSchedule(**doc.to_dict()) for doc in docs]
 
     async def create_irrigation_event(self, event_create: IrrigationEventCreate) -> IrrigationEvent:
@@ -47,7 +50,8 @@ class IrrigationService:
             user_triggered=event_create.user_triggered, # Added user_triggered
             created_at=datetime.utcnow()
         )
-        self.db.collection('irrigation_events').document(event_id).set(new_event.dict())
+        doc_ref = self.db.collection('irrigation_events').document(event_id)
+        await asyncio.to_thread(doc_ref.set, new_event.dict())
 
         # --- NEW CODE: Simulate irrigation effect ---
         if new_event.duration_actual_seconds is not None and new_event.duration_actual_seconds > 0:
@@ -58,12 +62,13 @@ class IrrigationService:
 
         return new_event
 
-    def get_irrigation_events(self, device_id: Optional[str] = None, limit: int = 100) -> List[IrrigationEvent]:
+    async def get_irrigation_events(self, device_id: Optional[str] = None, limit: int = 100) -> List[IrrigationEvent]:
         query = self.db.collection('irrigation_events')
         if device_id:
             query = query.where('device_id', '==', device_id)
         query = query.order_by('created_at', direction='DESCENDING').limit(limit)
-        docs = query.get()
+        
+        docs = await asyncio.to_thread(lambda: query.get())
         return [IrrigationEvent(**doc.to_dict()) for doc in docs]
 
     async def stop_irrigation_event(self, device_id: str) -> Optional[IrrigationEvent]:
@@ -76,7 +81,7 @@ class IrrigationService:
             .order_by('start_time', direction='DESCENDING') \
             .limit(1)
         
-        docs = query.get()
+        docs = await asyncio.to_thread(lambda: query.get())
         
         if not docs:
             return None # No active event found
@@ -90,9 +95,10 @@ class IrrigationService:
             "updated_at": datetime.utcnow() # Assuming updated_at field exists in model
         }
         
-        self.db.collection('irrigation_events').document(event_id).update(update_data)
+        doc_ref = self.db.collection('irrigation_events').document(event_id)
+        await asyncio.to_thread(doc_ref.update, update_data)
         
-        updated_event_doc = self.db.collection('irrigation_events').document(event_id).get()
+        updated_event_doc = await asyncio.to_thread(doc_ref.get)
         return IrrigationEvent(**updated_event_doc.to_dict())
 
 

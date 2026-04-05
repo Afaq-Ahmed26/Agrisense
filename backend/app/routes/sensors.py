@@ -77,59 +77,11 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate):
         "timestamp": sensor_reading.timestamp
     }
 
-    alerts = alert_service.evaluate_sensor_data(sensor_data_for_alert)
+    alerts = await alert_service.evaluate_sensor_data(sensor_data_for_alert)
     for alert in alerts:
         await alert_service.create_alert(alert)
 
     # ML Auto-Trigger Logic - COMMENTED OUT (Not testing ML today)
-    # Only soil moisture sensor display on frontend is the goal
-    """
-    if sensor_reading.soil_moisture < settings.SOIL_MOISTURE_THRESHOLD:
-        print(f"Soil moisture {sensor_reading.soil_moisture}% is below threshold {settings.SOIL_MOISTURE_THRESHOLD}%. Triggering ML prediction for device {device_id}.")
-
-        # Prepare data for ML model
-        ml_input_data = {
-            "soil_moisture": sensor_reading.soil_moisture,
-            "temperature": sensor_reading.temperature,
-            "humidity": sensor_reading.humidity,
-            "light_level": sensor_reading.light_level,
-        }
-
-        # Get ML prediction
-        ml_prediction = await ml_service.predict_irrigation_need(ml_input_data)
-
-        if ml_prediction and ml_prediction.get("predicted_valve_duration_s") is not None:
-            predicted_duration = ml_prediction["predicted_valve_duration_s"]
-            print(f"ML predicted valve duration for device {device_id}: {predicted_duration} seconds.")
-
-            # --- NEW CODE: Connect ML Output Directly to Irrigation Events ---
-            if predicted_duration > 0: # Only create event if irrigation is predicted
-                duration_minutes = max(1, round(predicted_duration / 60)) # Convert to minutes, min 1 minute
-                print(f"Creating irrigation event for {device_id} for {duration_minutes} minutes.")
-
-                # We need the current sensor readings for the event details
-                current_sensor_data = {
-                    "temperature": sensor_reading.temperature,
-                    "humidity": sensor_reading.humidity,
-                    "soil_moisture": sensor_reading.soil_moisture,
-                    "light_level": sensor_reading.light_level,
-                }
-
-                irrigation_event_create = IrrigationEventCreate(
-                    device_id=device_id,
-                    start_time=datetime.utcnow(),
-                    end_time=datetime.utcnow() + timedelta(minutes=duration_minutes),
-                    duration_actual_minutes=duration_minutes,
-                    status="pending", # Will be 'active' by hardware, then 'completed'
-                    **current_sensor_data
-                )
-
-                # Use the irrigation_service to create the event
-                await irrigation_service.create_irrigation_event(irrigation_event_create)
-                print(f"Successfully created irrigation event for device {device_id}.")
-    """
-    # End ML Auto-Trigger Logic (commented out)
-
     return sensor_reading
 
 
@@ -142,7 +94,7 @@ async def get_sensor_readings(
     limit: int = 100, 
     token: str = Depends(security)
 ):
-    readings = sensor_service.get_sensor_readings(
+    readings = await sensor_service.get_sensor_readings(
         device_id=device_id,
         start_time=start_time,
         end_time=end_time,
@@ -154,7 +106,7 @@ async def get_sensor_readings(
 
 @router.get("/{device_id}/latest-reading", response_model=SensorReading)
 async def get_latest_reading(device_id: str, token: str = Depends(security)):
-    latest_reading = sensor_service.get_latest_sensor_reading(device_id)
+    latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
     if not latest_reading:
         raise HTTPException(status_code=404, detail="No sensor readings found for this device")
     return latest_reading
@@ -162,7 +114,7 @@ async def get_latest_reading(device_id: str, token: str = Depends(security)):
 
 @router.get("/{device_id}/hourly-average", response_model=HourlyAverageReadings)
 async def get_hourly_average_readings_route(device_id: str, token: str = Depends(security)):
-    hourly_averages = sensor_service.get_hourly_average_readings(device_id)
+    hourly_averages = await sensor_service.get_hourly_average_readings(device_id)
     if not hourly_averages["count"]:
         raise HTTPException(status_code=404, detail="No sensor readings found for this device in the last hour")
     return hourly_averages
@@ -174,7 +126,7 @@ async def get_daily_summary_readings_route(
     date: Optional[date] = Query(None), # Optional date parameter
     token: str = Depends(security)
 ):
-    daily_summary = sensor_service.get_daily_summary_readings(device_id, date)
+    daily_summary = await sensor_service.get_daily_summary_readings(device_id, date)
     if not daily_summary["count"]:
         raise HTTPException(status_code=404, detail="No sensor readings found for this device on the specified date")
     return daily_summary

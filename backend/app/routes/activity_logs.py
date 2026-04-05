@@ -26,14 +26,14 @@ async def get_all_activity_logs(
     user_payload = request.state.user
     acting_user_uid = user_payload.get('user_id')
 
-    acting_user = get_user_from_firestore(acting_user_uid)
+    acting_user = await get_user_from_firestore(acting_user_uid)
     if not acting_user or acting_user.role != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can view activity logs"
         )
-        
-    return get_activity_logs(
+
+    return await get_activity_logs(
         skip=skip,
         limit=limit,
         user_id=user_id,

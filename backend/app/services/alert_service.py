@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional
@@ -58,6 +59,9 @@ class AlertService:
         self._device_owner_cache = {} # device_id -> owner_id
         self._user_prefs_cache = {}   # owner_id -> NotificationPreferences
         self._cache_clear_time = datetime.utcnow()
+        # NEW: Cache for current active alert statuses to prevent duplicate alerts
+        # Stores the last known severity for a (device_id, alert_type) pair
+        self._active_alert_statuses: Dict[str, Dict[AlertType, AlertSeverity]] = {} 
 
     def _get_thresholds(self) -> AlertThresholds:
         """
@@ -79,94 +83,176 @@ class AlertService:
         self._last_cache_time = now
         return self._thresholds_cache
     
-    def evaluate_sensor_data(self, sensor_data: Dict) -> List[Alert]:
+    async def evaluate_sensor_data(self, sensor_data: Dict) -> List[Alert]:
         """
         Evaluate sensor data against thresholds and generate alerts if needed.
+        Only creates new alerts if the state has changed.
         """
-        alerts = []
         device_id = sensor_data.get("device_id")
         timestamp = sensor_data.get("timestamp", datetime.utcnow())
-        thresholds = self._get_thresholds()
+        thresholds = await asyncio.to_thread(self._get_thresholds)
         
-        # Check soil moisture levels
+        generated_alerts = []
+        
+        # Initialize device's alert status in cache if not present
+        if device_id not in self._active_alert_statuses:
+            self._active_alert_statuses[device_id] = {}
+
+        # --- Evaluate Soil Moisture ---
         soil_moisture = sensor_data.get("soil_moisture")
+        current_moisture_severity = None
         if soil_moisture is not None:
             if soil_moisture < thresholds.soil_moisture_critical:
-                alerts.append(
-                    Alert(
-                        id=f"alert_{timestamp.timestamp()}_{device_id}_moisture_critical",
-                        device_id=device_id,
-                        alert_type=AlertType.SOIL_MOISTURE_LOW,
-                        severity=AlertSeverity.CRITICAL,
-                        message=f"Soil moisture critically low: {soil_moisture}%",
-                        timestamp=timestamp
-                    )
-                )
+                current_moisture_severity = AlertSeverity.CRITICAL
             elif soil_moisture < thresholds.soil_moisture_low:
-                alerts.append(
-                    Alert(
-                        id=f"alert_{timestamp.timestamp()}_{device_id}_moisture_low",
+                current_moisture_severity = AlertSeverity.HIGH
+        
+        previous_moisture_severity = self._active_alert_statuses[device_id].get(AlertType.SOIL_MOISTURE_LOW)
+
+        if current_moisture_severity != previous_moisture_severity:
+            # State has changed, create/resolve alert
+            if current_moisture_severity:
+                # NEW CHECK: Check if an identical open alert already exists in Firestore
+                existing_open_alerts_query = (
+                    firebase_service.db.collection('alerts')
+                    .where(filter=FieldFilter("device_id", "==", device_id))
+                    .where(filter=FieldFilter("alert_type", "==", AlertType.SOIL_MOISTURE_LOW.value))
+                    .where(filter=FieldFilter("severity", "==", current_moisture_severity.value))
+                    .where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
+                    .limit(1)
+                )
+                existing_alerts = await asyncio.to_thread(lambda: [doc for doc in existing_open_alerts_query.stream()])
+
+                if not existing_alerts: # Only create if no identical open alert exists
+                    # New alert state
+                    alert = Alert(
+                        id=f"alert_{timestamp.timestamp()}_{device_id}_moisture_{current_moisture_severity.value}",
                         device_id=device_id,
                         alert_type=AlertType.SOIL_MOISTURE_LOW,
-                        severity=AlertSeverity.HIGH,
-                        message=f"Soil moisture low: {soil_moisture}%",
+                        severity=current_moisture_severity,
+                        message=f"Soil moisture {current_moisture_severity.value.lower()}: {soil_moisture}%",
                         timestamp=timestamp
                     )
-                )
-        
-        # Check temperature levels
+                    generated_alerts.append(alert)
+                    self._active_alert_statuses[device_id][AlertType.SOIL_MOISTURE_LOW] = current_moisture_severity
+                else:
+                    # An identical open alert already exists, so don't create a new one.
+                    # Just ensure the local cache reflects this.
+                    self._active_alert_statuses[device_id][AlertType.SOIL_MOISTURE_LOW] = current_moisture_severity
+                    print(f"DEBUG: Suppressing duplicate open alert for device {device_id}, type {AlertType.SOIL_MOISTURE_LOW.value}, severity {current_moisture_severity.value}")
+            else:
+                # Condition cleared (returned to normal)
+                if previous_moisture_severity:
+                    await self._resolve_latest_alert_by_type(device_id, AlertType.SOIL_MOISTURE_LOW)
+                    self._active_alert_statuses[device_id].pop(AlertType.SOIL_MOISTURE_LOW, None)
+
+        # --- Evaluate Temperature ---
         temperature = sensor_data.get("temperature")
+        current_temp_severity = None
         if temperature is not None:
             if temperature > thresholds.temperature_critical:
-                alerts.append(
-                    Alert(
-                        id=f"alert_{timestamp.timestamp()}_{device_id}_temp_critical",
-                        device_id=device_id,
-                        alert_type=AlertType.DEVICE_ERROR,
-                        severity=AlertSeverity.CRITICAL,
-                        message=f"Temperature critically high: {temperature}°C",
-                        timestamp=timestamp
-                    )
-                )
+                current_temp_severity = AlertSeverity.CRITICAL
             elif temperature > thresholds.temperature_high:
-                alerts.append(
-                    Alert(
-                        id=f"alert_{timestamp.timestamp()}_{device_id}_temp_high",
+                current_temp_severity = AlertSeverity.MEDIUM
+        
+        previous_temp_severity = self._active_alert_statuses[device_id].get(AlertType.DEVICE_ERROR)
+
+        if current_temp_severity != previous_temp_severity:
+            if current_temp_severity:
+                # NEW CHECK: Check if an identical open alert already exists in Firestore
+                existing_open_alerts_query = (
+                    firebase_service.db.collection('alerts')
+                    .where(filter=FieldFilter("device_id", "==", device_id))
+                    .where(filter=FieldFilter("alert_type", "==", AlertType.DEVICE_ERROR.value))
+                    .where(filter=FieldFilter("severity", "==", current_temp_severity.value))
+                    .where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
+                    .limit(1)
+                )
+                existing_alerts = await asyncio.to_thread(lambda: [doc for doc in existing_open_alerts_query.stream()])
+
+                if not existing_alerts: # Only create if no identical open alert exists
+                    alert = Alert(
+                        id=f"alert_{timestamp.timestamp()}_{device_id}_temp_{current_temp_severity.value}",
                         device_id=device_id,
                         alert_type=AlertType.DEVICE_ERROR,
-                        severity=AlertSeverity.MEDIUM,
-                        message=f"Temperature high: {temperature}°C",
+                        severity=current_temp_severity,
+                        message=f"Temperature {current_temp_severity.value.lower()}: {temperature}°C",
                         timestamp=timestamp
                     )
-                )
-        
-        # Check humidity levels
+                    generated_alerts.append(alert)
+                    self._active_alert_statuses[device_id][AlertType.DEVICE_ERROR] = current_temp_severity
+                else:
+                    self._active_alert_statuses[device_id][AlertType.DEVICE_ERROR] = current_temp_severity
+                    print(f"DEBUG: Suppressing duplicate open alert for device {device_id}, type {AlertType.DEVICE_ERROR.value}, severity {current_temp_severity.value}")
+            else:
+                if previous_temp_severity:
+                    await self._resolve_latest_alert_by_type(device_id, AlertType.DEVICE_ERROR)
+                    self._active_alert_statuses[device_id].pop(AlertType.DEVICE_ERROR, None)
+
+        # --- Evaluate Humidity ---
         humidity = sensor_data.get("humidity")
+        current_humidity_severity = None
         if humidity is not None:
             if humidity < thresholds.humidity_low:
-                alerts.append(
-                    Alert(
-                        id=f"alert_{timestamp.timestamp()}_{device_id}_humidity_low",
-                        device_id=device_id,
-                        alert_type=AlertType.UNUSUAL_READING,
-                        severity=AlertSeverity.MEDIUM,
-                        message=f"Humidity unusually low: {humidity}%",
-                        timestamp=timestamp
-                    )
-                )
+                current_humidity_severity = AlertSeverity.MEDIUM
             elif humidity > thresholds.humidity_high:
-                alerts.append(
-                    Alert(
-                        id=f"alert_{timestamp.timestamp()}_{device_id}_humidity_high",
+                current_humidity_severity = AlertSeverity.MEDIUM
+        
+        previous_humidity_severity = self._active_alert_statuses[device_id].get(AlertType.UNUSUAL_READING)
+
+        if current_humidity_severity != previous_humidity_severity:
+            if current_humidity_severity:
+                # NEW CHECK: Check if an identical open alert already exists in Firestore
+                existing_open_alerts_query = (
+                    firebase_service.db.collection('alerts')
+                    .where(filter=FieldFilter("device_id", "==", device_id))
+                    .where(filter=FieldFilter("alert_type", "==", AlertType.UNUSUAL_READING.value))
+                    .where(filter=FieldFilter("severity", "==", current_humidity_severity.value))
+                    .where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
+                    .limit(1)
+                )
+                existing_alerts = await asyncio.to_thread(lambda: [doc for doc in existing_open_alerts_query.stream()])
+
+                if not existing_alerts: # Only create if no identical open alert exists
+                    alert = Alert(
+                        id=f"alert_{timestamp.timestamp()}_{device_id}_humidity_{current_humidity_severity.value}",
                         device_id=device_id,
                         alert_type=AlertType.UNUSUAL_READING,
-                        severity=AlertSeverity.MEDIUM,
-                        message=f"Humidity unusually high: {humidity}%",
+                        severity=current_humidity_severity,
+                        message=f"Humidity {current_humidity_severity.value.lower()}: {humidity}%",
                         timestamp=timestamp
                     )
-                )
+                    generated_alerts.append(alert)
+                    self._active_alert_statuses[device_id][AlertType.UNUSUAL_READING] = current_humidity_severity
+                else:
+                    self._active_alert_statuses[device_id][AlertType.UNUSUAL_READING] = current_humidity_severity
+                    print(f"DEBUG: Suppressing duplicate open alert for device {device_id}, type {AlertType.UNUSUAL_READING.value}, severity {current_humidity_severity.value}")
+            else:
+                if previous_humidity_severity:
+                    await self._resolve_latest_alert_by_type(device_id, AlertType.UNUSUAL_READING)
+                    self._active_alert_statuses[device_id].pop(AlertType.UNUSUAL_READING, None)
         
-        return alerts
+        return generated_alerts
+    
+    async def _resolve_latest_alert_by_type(self, device_id: str, alert_type: AlertType):
+        """
+        Resolves the latest open alert of a specific type for a device in Firestore.
+        """
+        query = (
+            firebase_service.db.collection('alerts')
+            .where(filter=FieldFilter("device_id", "==", device_id))
+            .where(filter=FieldFilter("alert_type", "==", alert_type.value))
+            .where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
+            .order_by("timestamp", direction="DESCENDING")
+            .limit(1)
+        )
+        # Use to_thread for the blocking query stream
+        docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
+        if docs:
+            latest_alert_doc = docs[0]
+            alert_ref = firebase_service.db.collection('alerts').document(latest_alert_doc.id)
+            await asyncio.to_thread(alert_ref.update, {"status": AlertStatus.RESOLVED.value, "resolved_at": datetime.utcnow()})
+            print(f"Resolved alert {latest_alert_doc.id} for device {device_id}, type {alert_type.value}")
     
     async def create_alert(self, alert: Alert):
         """
@@ -180,14 +266,15 @@ class AlertService:
             self._cache_clear_time = now
 
         # Save alert to Firestore
-        firebase_service.db.collection('alerts').document(alert.id).set(alert.model_dump())
+        alert_ref = firebase_service.db.collection('alerts').document(alert.id)
+        await asyncio.to_thread(alert_ref.set, alert.model_dump())
         print(f"Saved alert to Firestore: {alert.message}")
 
         # Fetch device owner (using cache if available)
         owner_id = self._device_owner_cache.get(alert.device_id)
         if not owner_id:
             device_ref = firebase_service.db.collection('devices').document(alert.device_id)
-            device_doc = device_ref.get()
+            device_doc = await asyncio.to_thread(device_ref.get)
             if device_doc.exists:
                 device_data = device_doc.to_dict()
                 owner_id = device_data.get("owner_id")
@@ -199,7 +286,7 @@ class AlertService:
             prefs = self._user_prefs_cache.get(owner_id)
             if not prefs:
                 prefs_ref = firebase_service.db.collection('notification_preferences').document(owner_id)
-                prefs_doc = prefs_ref.get()
+                prefs_doc = await asyncio.to_thread(prefs_ref.get)
                 prefs = NotificationPreferences(**prefs_doc.to_dict()) if prefs_doc.exists else NotificationPreferences()
                 self._user_prefs_cache[owner_id] = prefs
 
@@ -218,10 +305,10 @@ class AlertService:
                     message=alert.message,
                     type=alert.severity.value
                 )
-                notification_service.create_notification(notification_data, owner_id)
+                await notification_service.create_notification(notification_data, owner_id)
                 print(f"Created in-app notification for user {owner_id}")
             elif channel == 'email':
-                user_doc = firebase_service.db.collection('users').document(owner_id).get()
+                user_doc = await asyncio.to_thread(firebase_service.db.collection('users').document(owner_id).get)
                 if user_doc.exists:
                     user_email = user_doc.to_dict().get('email')
                     if user_email:
@@ -237,7 +324,8 @@ class AlertService:
         if status:
             query = query.where(filter=FieldFilter("status", "==", status.value))
         
-        alerts = [Alert(**doc.to_dict()) for doc in query.stream()]
+        docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
+        alerts = [Alert(**doc.to_dict()) for doc in docs]
         return alerts
     
     async def get_open_alerts(self) -> List[Alert]:
@@ -245,7 +333,8 @@ class AlertService:
         Retrieve all open alerts across all devices.
         """
         query = firebase_service.db.collection('alerts').where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
-        alerts = [Alert(**doc.to_dict()) for doc in query.stream()]
+        docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
+        alerts = [Alert(**doc.to_dict()) for doc in docs]
         return alerts
     
     async def acknowledge_alert(self, alert_id: str, user_id: str):
@@ -253,7 +342,7 @@ class AlertService:
         Acknowledge an alert.
         """
         alert_ref = firebase_service.db.collection('alerts').document(alert_id)
-        alert_ref.update({
+        await asyncio.to_thread(alert_ref.update, {
             "status": AlertStatus.ACKNOWLEDGED.value,
             "acknowledged_by": user_id,
             "acknowledged_at": datetime.utcnow()
@@ -264,12 +353,11 @@ class AlertService:
         Resolve an alert.
         """
         alert_ref = firebase_service.db.collection('alerts').document(alert_id)
-        alert_ref.update({
+        await asyncio.to_thread(alert_ref.update, {
             "status": AlertStatus.RESOLVED.value,
             "resolved_by": user_id,
             "resolved_at": datetime.utcnow()
         })
-
 
 
 # Global instance

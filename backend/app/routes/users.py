@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from typing import List, Optional
 from app.middleware.auth import JWTBearer
@@ -17,7 +18,7 @@ security = JWTBearer()
 
 @router.get("/", response_model=List[User])
 async def get_users(skip: int = 0, limit: int = 100, include_deleted: bool = False, token: str = Depends(security)): # Added include_deleted
-    all_users = get_all_users_from_firestore(skip=skip, limit=limit, include_deleted=include_deleted)
+    all_users = await get_all_users_from_firestore(skip=skip, limit=limit, include_deleted=include_deleted)
     
     # Filter out deleted users if not explicitly requested
     if not include_deleted:
@@ -40,7 +41,7 @@ async def get_current_user(request: Request, token: str = Depends(security)):
 
     # Fetch the complete user profile from Firestore
     print(f"DEBUG: /me - calling get_user_from_firestore with UID: {uid}")
-    user_from_firestore = get_user_from_firestore(uid)
+    user_from_firestore = await get_user_from_firestore(uid)
     
     if not user_from_firestore:
         print(f"DEBUG: /me - get_user_from_firestore returned None for UID: {uid}")
@@ -56,7 +57,7 @@ async def get_current_user(request: Request, token: str = Depends(security)):
 
 @router.get("/{user_id}", response_model=User)
 async def get_user(user_id: str, include_deleted: bool = False, token: str = Depends(security)): # Added include_deleted
-    user_from_firestore = get_user_from_firestore(user_id, include_deleted=include_deleted)
+    user_from_firestore = await get_user_from_firestore(user_id, include_deleted=include_deleted)
     
     if not user_from_firestore:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -76,7 +77,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         raise HTTPException(status_code=403, detail="Could not validate user credentials.")
 
     # Fetch the full profile of the user performing the action to check their role
-    acting_user = get_user_from_firestore(acting_user_uid)
+    acting_user = await get_user_from_firestore(acting_user_uid)
     if not acting_user:
         raise HTTPException(status_code=404, detail="Acting user not found.")
 
@@ -108,7 +109,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         firestore_updates['is_active'] = user_update.is_active
     
     # Get current user data for logging changes
-    target_user_current_data = get_user_from_firestore(user_id)
+    target_user_current_data = await get_user_from_firestore(user_id)
     if not target_user_current_data:
         raise HTTPException(status_code=404, detail="Target user not found for logging.")
 
@@ -132,13 +133,14 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
     try:
         # Update Firebase Auth if there are changes
         if firebase_auth_updates:
-            updated_fb_user = firebase_service.update_firebase_user(user_id, **firebase_auth_updates)
+            # Note: firebase_service.update_firebase_user is not explicitly async but we should treat it as blocking I/O
+            updated_fb_user = await asyncio.to_thread(firebase_service.update_firebase_user, user_id, **firebase_auth_updates)
             if not updated_fb_user:
                 raise HTTPException(status_code=404, detail="User not found in Firebase Auth or update failed.")
 
         # Update Firestore
         if firestore_updates:
-            update_user_in_firestore(user_id, firestore_updates)
+            await update_user_in_firestore(user_id, firestore_updates)
 
         # Log activity if there were changes
         if changes:
@@ -149,7 +151,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
             )
 
         # Fetch the updated user from Firestore to return the complete and latest profile
-        updated_user = get_user_from_firestore(user_id)
+        updated_user = await get_user_from_firestore(user_id)
         if not updated_user:
             raise HTTPException(status_code=404, detail="User not found after update.")
 
@@ -169,10 +171,10 @@ async def delete_user(user_id: str, request: Request, token: str = Depends(secur
 
     try:
         # Perform soft delete in Firestore
-        update_user_in_firestore(user_id, {"is_deleted": True, "deleted_at": datetime.utcnow()})
+        await update_user_in_firestore(user_id, {"is_deleted": True, "deleted_at": datetime.utcnow()})
         
         # Hard delete user in Firebase Auth
-        firebase_service.delete_firebase_user(user_id)
+        await asyncio.to_thread(firebase_service.delete_firebase_user, user_id)
         
         return {"message": "User deleted permanently from Firebase Auth and marked as deleted in Firestore."}
     except Exception as e:
@@ -186,7 +188,7 @@ async def get_user_preferences(user_id: str, token: str = Depends(security)):
     If no preferences are set, return the default preferences.
     """
     prefs_ref = firebase_service.db.collection('user_preferences').document(user_id)
-    doc = prefs_ref.get()
+    doc = await asyncio.to_thread(prefs_ref.get)
     if doc.exists:
         return UserPreferences(**doc.to_dict())
     return UserPreferences()
@@ -199,10 +201,10 @@ async def update_user_preferences(user_id: str, preferences: UserPreferences, re
     Only the user themselves or an admin can update preferences.
     """
     user_payload = request.state.user
-    acting_user_uid = user_payload.get('uid')
+    acting_user_uid = user_payload.get('user_id') or user_payload.get('uid')
     
     # To get the role, we need to fetch the user's profile from Firestore
-    acting_user = get_user_from_firestore(acting_user_uid)
+    acting_user = await get_user_from_firestore(acting_user_uid)
     if not acting_user:
         raise HTTPException(status_code=404, detail="Acting user not found.")
 
@@ -212,11 +214,11 @@ async def update_user_preferences(user_id: str, preferences: UserPreferences, re
     prefs_ref = firebase_service.db.collection('user_preferences').document(user_id)
     
     # For logging, get old preferences
-    old_prefs_doc = prefs_ref.get()
+    old_prefs_doc = await asyncio.to_thread(prefs_ref.get)
     old_prefs = UserPreferences(**old_prefs_doc.to_dict()) if old_prefs_doc.exists else UserPreferences()
 
     # Set the new preferences
-    prefs_ref.set(preferences.model_dump())
+    await asyncio.to_thread(prefs_ref.set, preferences.model_dump())
 
     # Log the activity
     changes = {k: {"old": getattr(old_prefs, k), "new": getattr(preferences, k)} for k in preferences.model_dump().keys() if getattr(old_prefs, k) != getattr(preferences, k)}
@@ -236,7 +238,7 @@ async def get_user_notification_preferences(user_id: str, token: str = Depends(s
     Retrieve a user's notification preferences.
     """
     prefs_ref = firebase_service.db.collection('notification_preferences').document(user_id)
-    doc = prefs_ref.get()
+    doc = await asyncio.to_thread(prefs_ref.get)
     if doc.exists:
         return NotificationPreferences(**doc.to_dict())
     return NotificationPreferences()
@@ -248,9 +250,9 @@ async def update_user_notification_preferences(user_id: str, preferences: Notifi
     Update a user's notification preferences.
     """
     user_payload = request.state.user
-    acting_user_uid = user_payload.get('uid')
+    acting_user_uid = user_payload.get('user_id') or user_payload.get('uid')
     
-    acting_user = get_user_from_firestore(acting_user_uid)
+    acting_user = await get_user_from_firestore(acting_user_uid)
     if not acting_user:
         raise HTTPException(status_code=404, detail="Acting user not found.")
 
@@ -259,10 +261,10 @@ async def update_user_notification_preferences(user_id: str, preferences: Notifi
 
     prefs_ref = firebase_service.db.collection('notification_preferences').document(user_id)
     
-    old_prefs_doc = prefs_ref.get()
+    old_prefs_doc = await asyncio.to_thread(prefs_ref.get)
     old_prefs = NotificationPreferences(**old_prefs_doc.to_dict()) if old_prefs_doc.exists else NotificationPreferences()
 
-    prefs_ref.set(preferences.model_dump())
+    await asyncio.to_thread(prefs_ref.set, preferences.model_dump())
 
     changes = {k: {"old": getattr(old_prefs, k), "new": getattr(preferences, k)} for k in preferences.model_dump().keys() if getattr(old_prefs, k) != getattr(preferences, k)}
     if changes:

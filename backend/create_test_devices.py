@@ -8,7 +8,7 @@ from typing import Dict, Any
 load_dotenv()
 
 # Assuming the backend is running on http://localhost:8000
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://192.168.43.120:8000"
 
 # --- Admin User Credentials for obtaining a JWT token ---
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
@@ -17,53 +17,37 @@ FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY") # Read from .env
 
 async def get_admin_token() -> str:
     """
-    Authenticates as an admin user with Firebase, gets an ID token,
-    then uses that ID token to get a backend JWT token.
+    Authenticates as an admin user with Firebase to get an ID token.
+    The backend is configured to accept Firebase ID tokens as JWTs.
     """
     if not FIREBASE_API_KEY:
-        raise Exception("FIREBASE_API_KEY not set. Please add it to your .env file in the backend directory.")
-    if ADMIN_EMAIL == "admin@example.com" and ADMIN_PASSWORD == "admin":
-        print("WARNING: Using default admin credentials. Ensure admin@example.com is registered in Firebase Auth and has password 'admin'.")
+        print("ERROR: FIREBASE_API_KEY not found in environment variables.")
+        raise Exception("FIREBASE_API_KEY not set.")
 
-    # 1. Sign in with Email/Password to Firebase to get an ID Token
+    # Sign in with Email/Password to Firebase to get an ID Token
     firebase_signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
     firebase_login_payload = {
         "email": ADMIN_EMAIL,
         "password": ADMIN_PASSWORD,
         "returnSecureToken": True
     }
-    print("Attempting to get Firebase ID token...")
+    
+    print(f"Attempting to get Firebase ID token for {ADMIN_EMAIL}...")
     try:
         response = requests.post(firebase_signin_url, json=firebase_login_payload)
-        response.raise_for_status()
-        firebase_id_token = response.json().get("idToken")
-        if not firebase_id_token:
-            raise Exception("Failed to retrieve Firebase ID token.")
-        print("Successfully obtained Firebase ID token.")
-    except requests.exceptions.RequestException as e:
-        print(f"Error signing in with email/password to get ID token from Firebase: {e}")
-        if e.response:
-            print(f"Firebase response: {e.response.text}")
-        raise
-
-    # 2. Use Firebase ID Token to get the backend's JWT token
-    login_url = f"{BASE_URL}/auth/login"
-    backend_login_payload = {
-        "id_token": firebase_id_token
-    }
-    print("Attempting to get backend JWT token...")
-    try:
-        response = requests.post(login_url, json=backend_login_payload)
-        response.raise_for_status() # Raise an exception for HTTP errors
-        token = response.json().get("access_token")
+        if response.status_code != 200:
+            print(f"ERROR: Firebase sign-in failed with status {response.status_code}")
+            print(f"Response: {response.text}")
+            raise Exception(f"Firebase sign-in failed: {response.text}")
+            
+        token = response.json().get("idToken")
         if not token:
-            raise Exception("Failed to retrieve backend access token.")
-        print(f"Successfully obtained backend JWT token.")
+            raise Exception("Failed to retrieve Firebase ID token.")
+            
+        print("Successfully obtained Firebase ID token.")
         return token
     except requests.exceptions.RequestException as e:
-        print(f"Error getting backend JWT token from /auth/login: {e}")
-        if e.response:
-            print(f"Backend response: {e.response.text}")
+        print(f"Error signing in to Firebase: {e}")
         raise
 
 async def create_test_device(device_data: Dict[str, Any], token: str) -> Dict[str, Any]:

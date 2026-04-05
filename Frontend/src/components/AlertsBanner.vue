@@ -45,8 +45,8 @@ onMounted(async () => {
     activeAlerts.value = alerts;
   });
 
-  // Set up polling interval
-  alertsInterval = setInterval(fetchAlerts, ALERTS_REFRESH_INTERVAL);
+  // Set up polling interval - Removed as Firebase subscription handles real-time updates
+  // alertsInterval = setInterval(fetchAlerts, ALERTS_REFRESH_INTERVAL);
 });
 
 onUnmounted(() => {

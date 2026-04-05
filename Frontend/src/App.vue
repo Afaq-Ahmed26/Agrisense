@@ -77,7 +77,7 @@ const unreadCount = computed(() => notificationsStore.unreadCount);
 onMounted(() => {
   if (isAuthenticated.value) {
     notificationsStore.fetchNotifications();
-    notificationsStore.startPolling();
+    notificationsStore.startPolling(180000); // Poll every 3 minutes (180,000ms)
   }
 });
 

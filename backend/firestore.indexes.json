@@ -22,6 +22,16 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "device_id", "order": "ASCENDING" },
+        { "fieldPath": "alert_type", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "alerts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "device_id", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },

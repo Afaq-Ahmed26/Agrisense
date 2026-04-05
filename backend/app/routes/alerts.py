@@ -61,7 +61,7 @@ async def acknowledge_alert(alert_id: str, request: Request, token: str = Depend
     await alert_service.acknowledge_alert(alert_id, acting_user_uid or "unknown_user")
 
     # Log the alert acknowledgment
-    log_activity(
+    await log_activity(
         user_id=acting_user_uid,
         action="Alert Acknowledged",
         details={"alert_id": alert_id}
@@ -81,7 +81,7 @@ async def resolve_alert(alert_id: str, request: Request, token: str = Depends(se
     await alert_service.resolve_alert(alert_id, acting_user_uid or "unknown_user")
     
     # Log the alert resolution
-    log_activity(
+    await log_activity(
         user_id=acting_user_uid,
         action="Alert Resolved",
         details={"alert_id": alert_id}

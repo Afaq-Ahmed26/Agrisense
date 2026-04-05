@@ -96,7 +96,7 @@ class MLService:
         current_time = datetime.now(timezone.utc)
 
         # Get the latest actual sensor reading as a starting point
-        latest_actual_reading = sensor_service.get_latest_sensor_reading(device_id)
+        latest_actual_reading = await sensor_service.get_latest_sensor_reading(device_id)
 
         if not latest_actual_reading:
             print(f"WARNING: No latest sensor reading found for device {device_id}. Cannot predict future.")

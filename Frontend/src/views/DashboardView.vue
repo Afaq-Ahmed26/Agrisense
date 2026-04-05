@@ -128,6 +128,7 @@ const sensorData = ref(null); // This will hold the latest sensor data
 const deviceStatus = ref(null); // This will hold the latest device status
 let sensorDataInterval = null; // To store the interval for polling sensor data
 let irrigationPending = false; // Guard to prevent infinite irrigation fetch loops
+let consecutiveFailures = 0; // For backoff mechanism
 
 const availableWidgets = {
   AlertsBanner: AlertsBanner,
@@ -165,17 +166,24 @@ const fetchLatestSensorData = async (deviceId) => {
     return;
   }
   try {
-    const latestReading = await apiService.getLatestSensorReadings(deviceId);
-    sensorData.value = latestReading;
+    const data = await apiService.getLatestSensorReadings(deviceId);
+    consecutiveFailures = 0;  // reset on success
+    sensorData.value = data;
     // Placeholder for device status, as the backend latest-reading only returns SensorReading
     // You might want a separate API for device status or include it in SensorReading if available
     deviceStatus.value = {
       online: true,
-      last_heartbeat: latestReading.timestamp, // Use sensor reading timestamp as heartbeat
+      last_heartbeat: data.timestamp, // Use sensor reading timestamp as heartbeat
       battery_level: 100 // Placeholder
     };
   } catch (error) {
     console.error(`Failed to fetch latest sensor data for device ${deviceId}:`, error);
+    consecutiveFailures++;
+    if (consecutiveFailures >= 3) {
+      // Stop hammering — show offline state
+      clearInterval(sensorDataInterval);
+      console.warn('Backend unreachable, stopping polls');
+    }
     // Set default sensor data instead of null to prevent crashes
     sensorData.value = {
       soil_moisture: 0,
@@ -204,16 +212,16 @@ const setupSensorDataPolling = (deviceId) => {
     // Fetch immediately
     fetchLatestSensorData(deviceId);
     
-    // Set up polling every 10 seconds for demo responsiveness
-    // 10,000ms = 10 seconds
+    // Set up polling every 30 seconds
+    // 30,000ms = 30 seconds
     sensorDataInterval = setInterval(() => {
       // Only fetch if the tab is actually visible to the user
       if (!document.hidden) {
         fetchLatestSensorData(deviceId);
       }
-    }, 10000); 
+    }, 2000); 
     
-    console.log(`📡 Started polling for device: ${deviceId} (Interval: 10s)`);
+    console.log(`📡 Started polling for device: ${deviceId} (Interval: 30s)`);
   }
 };
 
@@ -255,16 +263,22 @@ onMounted(async () => {
 
   // Fetch devices and set currentDeviceId
   try {
-    const devices = await apiService.getDevices();
-    if (devices && devices.length > 0) {
+    const devicesResponse = await apiService.getDevices();
+    // Ensure devicesResponse is an array before using .find
+    const devices = Array.isArray(devicesResponse) ? devicesResponse : [];
+    const esp32Device = devices.find(d => d.id === 'esp32-b47cb8');
+    
+    if (esp32Device) {
+      currentDeviceId.value = esp32Device.id;
+      console.log('✅ Found ESP32 device, setting as current');
+    } else if (devices && devices.length > 0) {
       currentDeviceId.value = devices[0].id;
-      setupSensorDataPolling(currentDeviceId.value);
     } else {
       // Fallback: Use ESP32 device ID if no devices returned
-      console.warn('No devices found, using fallback device ID');
-      currentDeviceId.value = 'esp32-b47cb8';  // Your actual ESP32 device ID
-      setupSensorDataPolling(currentDeviceId.value);
+      console.warn('No devices found, using fallback device ID: esp32-b47cb8');
+      currentDeviceId.value = 'esp32-b47cb8';
     }
+    setupSensorDataPolling(currentDeviceId.value);
   } catch (error) {
     console.error('Failed to fetch devices:', error);
     // Fallback: Use ESP32 device ID on error

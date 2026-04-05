@@ -18,33 +18,13 @@ security = JWTBearer()
 
 @router.post("/register", response_model=User)
 async def register(user: UserCreate):
-    print(f"DEBUG: Register endpoint - Received user data: {user.model_dump_json()}")
-
-    # Validate email format
-    try:
-        EmailValidator(email=user.email)
-    except ValueError:
-        print(f"DEBUG: Register endpoint - Invalid email format for {user.email}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid email format"
-        )
-    
-    # Validate password strength
-    try:
-        PasswordValidator(password=user.password)
-    except ValueError as e:
-        print(f"DEBUG: Register endpoint - Invalid password for {user.email}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    print(f"DEBUG: Register endpoint - Received user data for {user.email}")
     
     # Check if user already exists in Firebase (Auth and Firestore)
     existing_firebase_user = firebase_service.get_user_by_email(user.email)
     if existing_firebase_user:
         # Check if the user exists in Firestore and is not soft-deleted
-        firestore_user = get_user_from_firestore(existing_firebase_user.uid, include_deleted=True) # Corrected function call
+        firestore_user = await get_user_from_firestore(existing_firebase_user.uid, include_deleted=True)
         if firestore_user and not firestore_user.is_deleted:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -52,25 +32,19 @@ async def register(user: UserCreate):
             )
         elif firestore_user and firestore_user.is_deleted:
             # User exists but is soft-deleted, allow re-registration
-            # Potentially re-enable the Firebase Auth user if disabled
-            # This needs a new function in firebase_service.py: enable_firebase_user
-            # For now, we'll assume the user will be re-enabled if they re-register.
-            # If firebase_user is disabled, enable it
             fb_user_details = firebase_service.get_user_by_uid(existing_firebase_user.uid)
             if fb_user_details and fb_user_details.disabled:
                 firebase_service.enable_firebase_user(existing_firebase_user.uid)
             
             # Update existing firestore user and mark as not deleted
-            # This logic will be handled when we implement update user endpoint,
-            # but for re-registration, we want to immediately reactivate in Firestore.
             from app.services.user_service import update_user_in_firestore
-            update_user_in_firestore(existing_firebase_user.uid, {"is_deleted": False, "deleted_at": None})
+            await update_user_in_firestore(existing_firebase_user.uid, {"is_deleted": False, "deleted_at": None})
             
             # After reactivating, we should update their display name if provided and return them
             if user.username:
                 firebase_service.update_firebase_user(existing_firebase_user.uid, display_name=user.username)
             
-            reactivated_user = get_user_from_firestore(existing_firebase_user.uid)
+            reactivated_user = await get_user_from_firestore(existing_firebase_user.uid)
             if reactivated_user:
                 return reactivated_user
             else:
@@ -91,7 +65,7 @@ async def register(user: UserCreate):
     
     if not firebase_user:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, # Changed to 500 as Firebase user creation failed
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user in Firebase Authentication"
         )
     
@@ -101,20 +75,18 @@ async def register(user: UserCreate):
         id=firebase_user.uid,
         email=user.email,
         username=user.username,
-        role=user.role, # Use role from request
+        role=user.role,
         created_at=now,
         updated_at=now,
+        is_active=True,
         is_deleted=False,
         deleted_at=None
     )
     
     try:
-        create_user_in_firestore(new_user_doc)
+        await create_user_in_firestore(new_user_doc)
     except Exception as e:
-        # If Firestore creation fails, consider rolling back Firebase Auth user creation
-        # For simplicity, we'll just log and raise an error for now
         print(f"Error creating user in Firestore: {e}")
-        # Optionally, delete the Firebase Auth user if Firestore creation fails
         firebase_service.delete_firebase_user(firebase_user.uid)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -140,7 +112,7 @@ async def login(id_token: str = Body(..., embed=True)): # Accept id_token from r
     email = decoded_token.get("email")
 
     # Get user role from Firestore
-    user_from_firestore = get_user_from_firestore(uid)
+    user_from_firestore = await get_user_from_firestore(uid)
     if not user_from_firestore or user_from_firestore.is_deleted:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -149,7 +121,7 @@ async def login(id_token: str = Body(..., embed=True)): # Accept id_token from r
         )
 
     # Log the login activity
-    log_activity(
+    await log_activity(
         user_id=uid,
         action="User Login",
         details={"email": email}

@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 # Load environment variables from .env file
 load_dotenv()
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://192.168.43.120:8000"
 
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
@@ -24,23 +24,15 @@ SENSOR_READING_INTERVAL_SECONDS = 5 * 60 # 5 minutes
 
 async def get_admin_token() -> str:
     """
-    Authenticates as an admin user with Firebase, gets an ID token,
-    then uses that ID token to get a backend JWT token.
+    Authenticates as an admin user with Firebase, gets an ID token.
     """
     if not FIREBASE_API_KEY:
-        raise Exception(
-            "FIREBASE_API_KEY not set. "
-            "Please add your Firebase Web API Key to the 'FIREBASE_API_KEY' "
-            "variable in your backend/.env file. "
-            "You can find this in your Firebase project settings -> Project settings -> General -> Web API Key."
-        )
+        print("ERROR: FIREBASE_API_KEY not found in environment variables.")
+        print("Please check your .env file and ensure FIREBASE_API_KEY is set.")
+        raise Exception("FIREBASE_API_KEY not set.")
+
     if ADMIN_EMAIL == "admin@example.com" or ADMIN_PASSWORD == "admin":
-        print(
-            "WARNING: Using default ADMIN_EMAIL or ADMIN_PASSWORD. "
-            "Ensure the user 'admin@example.com' with password 'admin' exists in your Firebase Authentication, "
-            "or update ADMIN_EMAIL and ADMIN_PASSWORD in your backend/.env file "
-            "with valid Firebase Authentication user credentials."
-        )
+        print("WARNING: Using default ADMIN_EMAIL or ADMIN_PASSWORD.")
 
     # 1. Sign in with Email/Password to Firebase to get an ID Token
     firebase_signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
@@ -49,19 +41,23 @@ async def get_admin_token() -> str:
         "password": ADMIN_PASSWORD,
         "returnSecureToken": True
     }
-    print("Attempting to get Firebase ID token...")
+    
+    print(f"Attempting to get Firebase ID token for {ADMIN_EMAIL}...")
     try:
         response = requests.post(firebase_signin_url, json=firebase_login_payload)
-        response.raise_for_status()
+        if response.status_code != 200:
+            print(f"ERROR: Firebase sign-in failed with status {response.status_code}")
+            print(f"Response: {response.text}")
+            raise Exception(f"Firebase sign-in failed: {response.text}")
+            
         token = response.json().get("idToken")
         if not token:
-            raise Exception("Failed to retrieve Firebase ID token.")
+            raise Exception("Failed to retrieve Firebase ID token from response.")
+            
         print("Successfully obtained Firebase ID token.")
         return token
     except requests.exceptions.RequestException as e:
-        print(f"Error signing in with email/password to get ID token from Firebase: {e}")
-        if e.response:
-            print(f"Firebase response: {e.response.text}")
+        print(f"Request Error: {e}")
         raise
 
 async def get_all_devices(token: str) -> List[Dict[str, Any]]:

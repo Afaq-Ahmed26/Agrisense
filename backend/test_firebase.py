@@ -22,11 +22,11 @@ async def test_firebase_connection():
         }
 
         # Write test data
-        await test_doc_ref.set(test_data)
+        test_doc_ref.set(test_data)
         print("✓ Successfully wrote test data to Firestore")
 
         # Read test data back
-        doc_snapshot = await test_doc_ref.get()
+        doc_snapshot = test_doc_ref.get()
         if doc_snapshot.exists:
             print("✓ Successfully read test data from Firestore")
             print(f"  Retrieved data: {doc_snapshot.to_dict()}")
@@ -34,7 +34,7 @@ async def test_firebase_connection():
             print("✗ Failed to read test data from Firestore")
 
         # Clean up test data
-        await test_doc_ref.delete()
+        test_doc_ref.delete()
         print("✓ Cleaned up test data")
 
         print("\nFirebase connection test completed successfully!")

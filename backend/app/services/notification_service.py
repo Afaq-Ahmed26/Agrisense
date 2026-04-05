@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, List
 from google.cloud.firestore_v1.base_query import FieldFilter
 
@@ -8,7 +9,7 @@ import uuid
 
 db = firebase_service.db # Using the Firestore client from firebase_service
 
-def create_notification(notification_data: NotificationCreate, user_id: str):
+async def create_notification(notification_data: NotificationCreate, user_id: str):
     """
     Creates a new notification in Firestore.
     """
@@ -22,10 +23,11 @@ def create_notification(notification_data: NotificationCreate, user_id: str):
         is_read=False,
         is_archived=False # Default to not archived
     )
-    db.collection('notifications').document(notification_id).set(notification.model_dump())
+    doc_ref = db.collection('notifications').document(notification_id)
+    await asyncio.to_thread(doc_ref.set, notification.model_dump())
     return notification
 
-def get_notifications_for_user(
+async def get_notifications_for_user(
     user_id: str,
     limit: int = 100,
     skip: int = 0,
@@ -44,8 +46,11 @@ def get_notifications_for_user(
     # Apply skip and limit for pagination
     query = query.offset(skip).limit(limit)
 
+    # Use to_thread for blocking stream operation
+    docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
+    
     notifications = []
-    for doc in query.stream():
+    for doc in docs:
         try:
             notifications.append(Notification(**doc.to_dict()))
         except Exception as e:
@@ -54,13 +59,13 @@ def get_notifications_for_user(
     return notifications
 
 
-def mark_notification_as_read(notification_id: str, user_id: str) -> Optional[Notification]:
+async def mark_notification_as_read(notification_id: str, user_id: str) -> Optional[Notification]:
     """
     Marks a specific notification as read.
     Ensures that a user can only mark their own notifications as read.
     """
     notification_ref = db.collection('notifications').document(notification_id)
-    notification_doc = notification_ref.get()
+    notification_doc = await asyncio.to_thread(notification_ref.get)
 
     if not notification_doc.exists:
         return None
@@ -70,17 +75,17 @@ def mark_notification_as_read(notification_id: str, user_id: str) -> Optional[No
     if notification.user_id != user_id:
         return None
 
-    notification_ref.update({"is_read": True, "updated_at": datetime.utcnow()})
-    updated_doc = notification_ref.get()
+    await asyncio.to_thread(notification_ref.update, {"is_read": True, "updated_at": datetime.utcnow()})
+    updated_doc = await asyncio.to_thread(notification_ref.get)
     return Notification(**updated_doc.to_dict())
 
-def archive_notification(notification_id: str, user_id: str) -> Optional[Notification]:
+async def archive_notification(notification_id: str, user_id: str) -> Optional[Notification]:
     """
     Archives a specific notification.
     Ensures that a user can only archive their own notifications.
     """
     notification_ref = db.collection('notifications').document(notification_id)
-    notification_doc = notification_ref.get()
+    notification_doc = await asyncio.to_thread(notification_ref.get)
 
     if not notification_doc.exists:
         return None
@@ -90,18 +95,18 @@ def archive_notification(notification_id: str, user_id: str) -> Optional[Notific
     if notification.user_id != user_id:
         return None
 
-    notification_ref.update({"is_archived": True, "updated_at": datetime.utcnow()})
-    updated_doc = notification_ref.get()
+    await asyncio.to_thread(notification_ref.update, {"is_archived": True, "updated_at": datetime.utcnow()})
+    updated_doc = await asyncio.to_thread(notification_ref.get)
     return Notification(**updated_doc.to_dict())
 
 
-def unarchive_notification(notification_id: str, user_id: str) -> Optional[Notification]:
+async def unarchive_notification(notification_id: str, user_id: str) -> Optional[Notification]:
     """
     Unarchives a specific notification.
     Ensures that a user can only unarchive their own notifications.
     """
     notification_ref = db.collection('notifications').document(notification_id)
-    notification_doc = notification_ref.get()
+    notification_doc = await asyncio.to_thread(notification_ref.get)
 
     if not notification_doc.exists:
         return None
@@ -111,6 +116,6 @@ def unarchive_notification(notification_id: str, user_id: str) -> Optional[Notif
     if notification.user_id != user_id:
         return None
 
-    notification_ref.update({"is_archived": False, "updated_at": datetime.utcnow()})
-    updated_doc = notification_ref.get()
+    await asyncio.to_thread(notification_ref.update, {"is_archived": False, "updated_at": datetime.utcnow()})
+    updated_doc = await asyncio.to_thread(notification_ref.get)
     return Notification(**updated_doc.to_dict())

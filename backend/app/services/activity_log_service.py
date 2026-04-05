@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import Optional, Dict, List
 import uuid
@@ -6,7 +7,7 @@ from app.services.firebase_service import firebase_service
 from app.models.activity_log import ActivityLog
 
 
-def log_activity(user_id: str, action: str, details: Optional[Dict] = None):
+async def log_activity(user_id: str, action: str, details: Optional[Dict] = None):
     """
     Logs an activity to the Firestore 'activity_logs' collection.
     """
@@ -17,10 +18,11 @@ def log_activity(user_id: str, action: str, details: Optional[Dict] = None):
         action=action,
         details=details
     )
-    firebase_service.db.collection('activity_logs').document(log_entry.id).set(log_entry.model_dump())
+    doc_ref = firebase_service.db.collection('activity_logs').document(log_entry.id)
+    await asyncio.to_thread(doc_ref.set, log_entry.model_dump())
     print(f"Activity Logged: User {user_id}, Action: {action}, Details: {details}")
 
-def get_activity_logs(
+async def get_activity_logs(
     limit: int = 100, 
     skip: int = 0, 
     user_id: Optional[str] = None, 
@@ -43,8 +45,10 @@ def get_activity_logs(
     # Apply ordering and pagination
     query = query.order_by('timestamp', direction='DESCENDING').offset(skip).limit(limit)
     
+    docs = await asyncio.to_thread(lambda: query.get())
+    
     logs = []
-    for doc in query.stream():
+    for doc in docs:
         try:
             log_data = doc.to_dict()
             log_data['id'] = doc.id

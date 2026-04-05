@@ -24,7 +24,7 @@ async def get_my_notifications(
     if not user_id:
         raise HTTPException(status_code=403, detail="Could not validate user credentials.")
         
-    notifications = notification_service.get_notifications_for_user(
+    notifications = await notification_service.get_notifications_for_user(
         user_id,
         limit=limit,
         skip=skip,
@@ -43,7 +43,7 @@ async def mark_as_read(notification_id: str, request: Request, token: str = Depe
     if not user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate user credentials.")
 
-    updated_notification = notification_service.mark_notification_as_read(notification_id, user_id)
+    updated_notification = await notification_service.mark_notification_as_read(notification_id, user_id)
 
     if not updated_notification:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found or you do not have permission to modify it.")
@@ -61,7 +61,7 @@ async def archive_notification_route(notification_id: str, request: Request, tok
     if not user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate user credentials.")
     
-    archived_notification = notification_service.archive_notification(notification_id, user_id)
+    archived_notification = await notification_service.archive_notification(notification_id, user_id)
 
     if not archived_notification:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found or you do not have permission to modify it.")
@@ -79,10 +79,9 @@ async def unarchive_notification_route(notification_id: str, request: Request, t
     if not user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate user credentials.")
     
-    unarchived_notification = notification_service.unarchive_notification(notification_id, user_id)
+    unarchived_notification = await notification_service.unarchive_notification(notification_id, user_id)
 
     if not unarchived_notification:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found or you do not have permission to modify it.")
     
     return unarchived_notification
-

@@ -7,7 +7,7 @@ from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, 
 from app.services.ml_service import ml_service
 from app.services.firebase_service import firebase_service
 from app.services.irrigation_service import irrigation_service
-
+from app.services.sensor_service import sensor_service
 
 
 router = APIRouter()
@@ -16,13 +16,13 @@ security = JWTBearer()
 
 @router.post("/schedule", response_model=IrrigationSchedule)
 async def create_irrigation_schedule(schedule: IrrigationScheduleCreate, token: str = Depends(security)):
-    new_schedule = irrigation_service.create_irrigation_schedule(schedule)
+    new_schedule = await irrigation_service.create_irrigation_schedule(schedule)
     return new_schedule
 
 
 @router.get("/schedule", response_model=List[IrrigationSchedule])
 async def get_irrigation_schedules(skip: int = 0, limit: int = 100, token: str = Depends(security)):
-    schedules = irrigation_service.get_irrigation_schedules()
+    schedules = await irrigation_service.get_irrigation_schedules()
     return schedules[skip : skip + limit]
 
 
@@ -56,7 +56,7 @@ async def create_irrigation_event(event: IrrigationEventCreate, token: str = Dep
 
 @router.get("/events", response_model=List[IrrigationEvent])
 async def get_irrigation_events(device_id: Optional[str] = None, limit: int = 100, token: str = Depends(security)):
-    events = irrigation_service.get_irrigation_events(device_id=device_id, limit=limit)
+    events = await irrigation_service.get_irrigation_events(device_id=device_id, limit=limit)
     return events
 
 
@@ -76,7 +76,7 @@ async def trigger_irrigation(
     
     # If duration is not provided, use ML prediction
     if duration_seconds is None:
-        latest_reading = sensor_service.get_latest_sensor_reading(device_id)
+        latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
         
         if not latest_reading:
             raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}. Cannot predict irrigation duration.")
@@ -153,7 +153,7 @@ async def get_irrigation_recommendations(device_id: str, token: str = Depends(se
     Get irrigation recommendations for a specific device based on sensor data and ML predictions.
     This endpoint integrates with the ML service to provide intelligent recommendations.
     """
-    latest_reading = sensor_service.get_latest_sensor_reading(device_id)
+    latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
     
     if not latest_reading:
         raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}.")

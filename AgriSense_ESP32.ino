@@ -37,7 +37,7 @@ BH1750 lightMeter;
 // =============================================================================
 const char* WIFI_SSID     = "Agrisense";
 const char* WIFI_PASSWORD = "passwordd";
-const char* API_BASE_URL  = "http://192.168.100.253:8000";
+const char* API_BASE_URL  = "http://192.168.43.120:8000";
 
 // =============================================================================
 // Calibration Values
@@ -48,7 +48,7 @@ const int SOIL_MOISTURE_WET = 1250;
 // =============================================================================
 // Timing
 // =============================================================================
-const unsigned long SENSOR_READ_INTERVAL_MS = 10000;
+const unsigned long SENSOR_READ_INTERVAL_MS = 2000;
 unsigned long lastReadTime = 0;
 
 // =============================================================================
