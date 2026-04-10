@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from datetime import datetime, timedelta
-import random
 from app.middleware.auth import JWTBearer
-from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, IrrigationScheduleUpdate, IrrigationEvent, IrrigationEventCreate
-from app.services.ml_service import ml_service
+from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, IrrigationScheduleUpdate, IrrigationEvent, IrrigationEventCreate, ControlState, ControlStateUpdate
 from app.services.firebase_service import firebase_service
 from app.services.irrigation_service import irrigation_service
 from app.services.sensor_service import sensor_service
@@ -76,26 +74,32 @@ async def trigger_irrigation(
     
     # If duration is not provided, use ML prediction
     if duration_seconds is None:
-        latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
+        # =========================
+        # ML DISABLED (PHASE 2)
+        # latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
         
-        if not latest_reading:
-            raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}. Cannot predict irrigation duration.")
+        # if not latest_reading:
+        #     raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}. Cannot predict irrigation duration.")
 
-        sensor_data_for_ml = {
-            "soil_moisture": latest_reading.soil_moisture,
-            "temperature": latest_reading.temperature,
-            "humidity": latest_reading.humidity,
-            "light_level": latest_reading.light_level,
-            "device_id": device_id
-        }
+        # sensor_data_for_ml = {
+        #     "soil_moisture": latest_reading.soil_moisture,
+        #     "temperature": latest_reading.temperature,
+        #     "humidity": latest_level.humidity,
+        #     "light_level": latest_reading.light_level,
+        #     "device_id": device_id
+        # }
         
-        prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
+        # prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
         
-        if prediction_result.get("error"):
-            raise HTTPException(status_code=500, detail=f"ML prediction failed: {prediction_result['error']}")
+        # if prediction_result.get("error"):
+        #     raise HTTPException(status_code=500, detail=f"ML prediction failed: {prediction_result['error']}")
         
-        predicted_duration_s = prediction_result.get("predicted_valve_duration_s", 0)
-        duration_seconds = max(0, round(predicted_duration_s)) # Use predicted seconds, ensure non-negative
+        # predicted_duration_s = prediction_result.get("predicted_valve_duration_s", 0)
+        # duration_seconds = max(0, round(predicted_duration_s)) # Use predicted seconds, ensure non-negative
+        # =========================
+        # For now, if duration is not provided and ML is disabled, default to a sensible duration or raise error
+        raise HTTPException(status_code=400, detail="Duration must be provided explicitly when ML is disabled.")
+
 
     if duration_seconds <= 0:
         # If duration is 0 or negative, it means no irrigation is needed/possible
@@ -104,7 +108,7 @@ async def trigger_irrigation(
         return {
             "message": f"No irrigation triggered for device {device_id} as predicted duration was 0 or less seconds.",
             "device_id": device_id,
-            "predicted_duration_s": predicted_duration_s if 'predicted_duration_s' in locals() else 0, # If this was based on ML
+            "predicted_duration_s": 0, # Since ML is disabled
             "start_time": start_time, # Add start_time for consistency
             "end_time": start_time, # End time same as start time for 0 duration
             "duration_actual_seconds": 0,
@@ -114,9 +118,9 @@ async def trigger_irrigation(
 
     end_time = start_time + timedelta(seconds=duration_seconds)
     
-    # Fetch latest sensor data again for recording in the event (if not already fetched for ML)
-    # Or reuse the one fetched for ML if it was just done
-    sensor_data_to_record = latest_reading.dict() if 'latest_reading' in locals() and latest_reading else {}
+    # Fetch latest sensor data for recording in the event
+    latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
+    sensor_data_to_record = latest_reading.dict() if latest_reading else {}
 
     event_create = IrrigationEventCreate(
         device_id=device_id,
@@ -147,42 +151,78 @@ async def stop_irrigation(device_id: str, token: str = Depends(security)):
     return stopped_event
 
 
-@router.get("/recommendations/{device_id}")
-async def get_irrigation_recommendations(device_id: str, token: str = Depends(security)):
-    """
-    Get irrigation recommendations for a specific device based on sensor data and ML predictions.
-    This endpoint integrates with the ML service to provide intelligent recommendations.
-    """
-    latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
+# @router.get("/recommendations/{device_id}")
+# async def get_irrigation_recommendations(device_id: str, token: str = Depends(security)):
+#     """
+#     Get irrigation recommendations for a specific device based on sensor data and ML predictions.
+#     This endpoint integrates with the ML service to provide intelligent recommendations.
+#     """
+#     # =========================
+#     # ML DISABLED (PHASE 2)
+#     # latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
     
-    if not latest_reading:
-        raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}.")
+#     # if not latest_reading:
+#     #     raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}.")
 
-    sensor_data_for_ml = {
-        "device_id": device_id,
-        "soil_moisture": latest_reading.soil_moisture,
-        "temperature": latest_reading.temperature,
-        "humidity": latest_reading.humidity,
-        "light_level": latest_reading.light_level,
-        "timestamp": datetime.utcnow().isoformat()
-    }
+#     # sensor_data_for_ml = {
+#     #     "device_id": device_id,
+#     #     "soil_moisture": latest_reading.soil_moisture,
+#     #     "temperature": latest_reading.temperature,
+#     #     "humidity": latest_reading.humidity,
+#     #     "light_level": latest_reading.light_level,
+#     #     "timestamp": datetime.utcnow().isoformat()
+#     # }
     
-    prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
+#     # prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
     
-    # Check for errors from the ML service
-    if prediction_result.get("error"):
-        raise HTTPException(status_code=500, detail=prediction_result["error"])
+#     # # Check for errors from the ML service
+#     # if prediction_result.get("error"):
+#     #     raise HTTPException(status_code=500, detail=prediction_result["error"])
 
-    predicted_duration = prediction_result.get("predicted_valve_duration_s", 0)
+#     # predicted_duration = prediction_result.get("predicted_valve_duration_s", 0)
     
-    recommendation_text = "No irrigation recommended at this time."
-    if predicted_duration > 0.5: # If predicted duration is significant
-        recommendation_text = f"Irrigate for approximately {predicted_duration:.2f} seconds."
+#     # recommendation_text = "No irrigation recommended at this time."
+#     # if predicted_duration > 0.5: # If predicted duration is significant
+#     #     recommendation_text = f"Irrigate for approximately {predicted_duration:.2f} seconds."
     
-    return {
-        "device_id": device_id,
-        "recommendation": recommendation_text,
-        "predicted_valve_duration_s": predicted_duration,
-        "predicted_at": prediction_result.get("predicted_at", datetime.utcnow().isoformat()),
-        "current_conditions": latest_reading.dict() # Use actual latest reading
-    }
+#     # return {
+#     #     "device_id": device_id,
+#     #     "recommendation": recommendation_text,
+#     #     "predicted_valve_duration_s": predicted_duration,
+#     #     "predicted_at": prediction_result.get("predicted_at", datetime.utcnow().isoformat()),
+#     #     "current_conditions": latest_reading.dict() # Use actual latest reading
+#     # }
+#     # =========================
+# When ML is disabled, recommendations are not available.
+# raise HTTPException(status_code=501, detail="ML-based irrigation recommendations are currently disabled.")
+
+
+# --- CONTROL STATE ROUTES ---
+
+@router.get("/control/{device_id}", response_model=ControlState)
+async def get_control_state(device_id: str, token: str = Depends(security)):
+    """
+    Get the current irrigation control state (mode, pump_state, threshold) for a device.
+    """
+    return await irrigation_service.get_control_state(device_id)
+
+
+@router.put("/control/{device_id}", response_model=ControlState)
+async def update_control_state(
+device_id: str, 
+control_update: ControlStateUpdate, 
+token: str = Depends(security)
+):
+    """
+    Update the irrigation control state for a device.
+    """
+    current_state = await irrigation_service.get_control_state(device_id)
+
+    if control_update.mode is not None:
+        current_state.mode = control_update.mode
+    if control_update.pump_state is not None:
+        current_state.pump_state = control_update.pump_state
+    if control_update.threshold is not None:
+        current_state.threshold = control_update.threshold
+
+    return await irrigation_service.update_control_state(current_state)

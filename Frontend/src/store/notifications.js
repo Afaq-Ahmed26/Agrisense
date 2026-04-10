@@ -84,7 +84,7 @@ export const notificationsStore = reactive({
     }
   },
 
-  startPolling(interval = 30000) { // Poll every 30 seconds
+  startPolling(interval = 300000) { // Poll every 5 minutes (300,000 ms)
     if (this.pollingId) {
       this.stopPolling();
     }

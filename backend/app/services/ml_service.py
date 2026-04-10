@@ -102,11 +102,11 @@ class MLService:
             print(f"WARNING: No latest sensor reading found for device {device_id}. Cannot predict future.")
             return []
 
-        # Initialize simulated sensor values with the latest actual reading
-        simulated_soil_moisture = latest_actual_reading.soil_moisture
-        simulated_temperature = latest_actual_reading.temperature
-        simulated_humidity = latest_actual_reading.humidity
-        simulated_light_level = latest_actual_reading.light_level
+        # Initialize simulated sensor values with the latest actual reading (with defaults)
+        simulated_soil_moisture = latest_actual_reading.soil_moisture if latest_actual_reading.soil_moisture is not None else 30.0
+        simulated_temperature = latest_actual_reading.temperature if latest_actual_reading.temperature is not None else 25.0
+        simulated_humidity = latest_actual_reading.humidity if latest_actual_reading.humidity is not None else 50.0
+        simulated_light_level = latest_actual_reading.light_level if latest_actual_reading.light_level is not None else 500.0
 
         for i in range(1, hours_ahead + 1):
             future_time = current_time + timedelta(hours=i)

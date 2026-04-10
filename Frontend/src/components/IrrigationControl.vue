@@ -110,9 +110,9 @@ const props = defineProps({
 
 const emit = defineEmits(['irrigation-started', 'irrigation-stopped']); // New emit for events
 
-const isLoading = ref(false); // New: Loading state for API calls
-const isRunning = ref(false);
-const mode = ref('auto'); // 'auto' or 'manual'
+const isLoading = ref(false);
+const isRunning = ref(false); // This will sync with pump_state from backend
+const mode = ref('auto'); // Sync with backend mode
 const durationMinutes = ref(15);
 const lastIrrigationTime = ref('N/A');
 const countdown = ref('');
@@ -123,16 +123,44 @@ let modalInstance = null;
 const modalMessage = ref('');
 let confirmedAction = null;
 
-onMounted(() => {
-  mode.value = localStorage.getItem('irrigationModePreference') || 'auto';
+const fetchControlState = async () => {
+  if (!props.deviceId) return;
+  isLoading.value = true;
+  try {
+    const state = await apiService.request(`/irrigation/control/${props.deviceId}`, { method: 'GET' });
+    mode.value = state.mode.toLowerCase();
+    isRunning.value = state.pump_state;
+  } catch (error) {
+    console.error('Failed to fetch control state:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const updateControlState = async (updates) => {
+  if (!props.deviceId) return;
+  try {
+    await apiService.request(`/irrigation/control/${props.deviceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+    // Refresh local state after successful update
+    await fetchControlState();
+  } catch (error) {
+    console.error('Failed to update control state:', error);
+  }
+};
+
+onMounted(async () => {
+  await fetchControlState();
   const modalEl = document.getElementById('irrigationConfirmationModal');
   if (window.bootstrap && modalEl) {
     modalInstance = new window.bootstrap.Modal(modalEl);
   }
 });
 
-watch(mode, (newMode) => {
-  localStorage.setItem('irrigationModePreference', newMode);
+watch(mode, async (newMode) => {
+  await updateControlState({ mode: newMode.toUpperCase() });
 });
 
 // Watch for external irrigation trigger

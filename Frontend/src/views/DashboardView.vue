@@ -45,7 +45,7 @@
           <div class="position-relative">
             <!-- Ensure components that NEED a device ID only render when it exists -->
             <component 
-              v-if="widget.id !== 'PredictionChart' && (widget.id !== 'SensorDisplay' && widget.id !== 'IrrigationControl' || currentDeviceId)"
+              v-if="(widget.id !== 'SensorDisplay' && widget.id !== 'IrrigationControl' && widget.id !== 'PredictionChart') || currentDeviceId"
               :is="getComponent(widget.id)" 
               v-bind="widget.id === 'SensorDisplay' ? { 
                 'device-id': currentDeviceId,
@@ -212,16 +212,16 @@ const setupSensorDataPolling = (deviceId) => {
     // Fetch immediately
     fetchLatestSensorData(deviceId);
     
-    // Set up polling every 30 seconds
-    // 30,000ms = 30 seconds
+    // Set up polling every 10 seconds
+    // 10,000ms = 10 seconds
     sensorDataInterval = setInterval(() => {
       // Only fetch if the tab is actually visible to the user
       if (!document.hidden) {
         fetchLatestSensorData(deviceId);
       }
-    }, 2000); 
+    }, 10000); 
     
-    console.log(`📡 Started polling for device: ${deviceId} (Interval: 30s)`);
+    console.log(`📡 Started polling for device: ${deviceId} (Interval: 10s)`);
   }
 };
 
@@ -297,17 +297,17 @@ watch(currentDeviceId, (newVal) => {
 }, { immediate: true });
 
 // Watch for changes in sensorData to fetch new irrigation recommendations
-// Guard added to prevent infinite loop when sensorData updates every 5 seconds
-// watch(sensorData, async (newVal) => {
-//   if (irrigationPending || !newVal || !currentDeviceId.value) return;
+// Guard added to prevent infinite loop when sensorData updates every 10 seconds
+watch(sensorData, async (newVal) => {
+  if (irrigationPending || !newVal || !currentDeviceId.value) return;
   
-//   irrigationPending = true;
-//   try {
-//     await fetchIrrigationRecommendation(currentDeviceId.value);
-//   } finally {
-//     irrigationPending = false;
-//   }
-// });
+  irrigationPending = true;
+  try {
+    await fetchIrrigationRecommendation(currentDeviceId.value);
+  } finally {
+    irrigationPending = false;
+  }
+});
 
 onUnmounted(() => {
   if (sensorDataInterval) {

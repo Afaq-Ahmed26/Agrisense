@@ -6,8 +6,30 @@
 //
 // Description:
 // Automatically detects which sensors are connected.
-// Connected sensors send real values, disconnected ones send null.
-// No code changes needed when swapping sensors - just plug and play.
+// Connected sensors send real values, disconnected ones send default values.
+//
+// PIN CONFIGURATION:
+// Soil Moisture Sensor:
+//   VCC  -> 3V3
+//   GND  -> GND
+//   AOUT -> GPIO34
+//
+// DHT22 Sensor:
+//   +    -> 3V3
+//   -    -> GND
+//   OUT  -> GPIO4
+//
+// BH1750 Light Sensor:
+//   VCC  -> 3V3
+//   GND  -> GND
+//   SCL  -> GPIO22
+//   SDA  -> GPIO21
+//   ADDR -> GND
+//
+// Relay Module:
+//   VCC  -> VIN (5V)
+//   GND  -> GND
+//   IN   -> GPIO25
 // =============================================================================
 
 #include <Arduino.h>
@@ -16,14 +38,16 @@
 #include <HTTPClient.h>
 #include <Wire.h>
 #include <BH1750.h>
+#include <ArduinoJson.h>
 
 // =============================================================================
 // Pin Definitions
 // =============================================================================
 const int SOIL_MOISTURE_PIN = 34;
-const int DHT_PIN            = 4;
-const int I2C_SDA            = 21;  // BH1750 SDA
-const int I2C_SCL            = 22;  // BH1750 SCL
+const int DHT_PIN           = 4;
+const int I2C_SDA           = 21;
+const int I2C_SCL           = 22;
+const int RELAY_PIN         = 25;
 
 // =============================================================================
 // DHT & BH1750 Setup
@@ -37,7 +61,7 @@ BH1750 lightMeter;
 // =============================================================================
 const char* WIFI_SSID     = "Agrisense";
 const char* WIFI_PASSWORD = "passwordd";
-const char* API_BASE_URL  = "http://192.168.43.120:8000";
+const char* API_BASE_URL  = "http://192.168.100.13:8000";
 
 // =============================================================================
 // Calibration Values
@@ -52,7 +76,7 @@ const unsigned long SENSOR_READ_INTERVAL_MS = 2000;
 unsigned long lastReadTime = 0;
 
 // =============================================================================
-// Sensor State Flags (auto-detected at startup)
+// Sensor State Flags
 // =============================================================================
 bool soilSensorConnected  = false;
 bool dhtSensorConnected   = false;
@@ -87,9 +111,8 @@ void setupWifi() {
 // Generate Device ID
 // =============================================================================
 void generateDeviceId() {
-  // Hardcoded for development consistency with frontend/mock-backend
   deviceId = "esp32-b47cb8";
-  Serial.print("Device ID (Fixed): ");
+  Serial.print("Device ID: ");
   Serial.println(deviceId);
 }
 
@@ -99,58 +122,54 @@ void generateDeviceId() {
 void detectSensors() {
   Serial.println("\n--- Detecting Sensors ---");
 
-  // --- Soil Moisture ---
-  // Read a few times to check if it gives a valid analog range
+  // Soil Moisture
   int rawValue = analogRead(SOIL_MOISTURE_PIN);
-  // If pin is floating it usually reads 0 or 4095 consistently
-  // A connected sensor reads somewhere in between
   if (rawValue > 100 && rawValue < 4000) {
     soilSensorConnected = true;
-    Serial.println("✅ Soil Moisture Sensor: CONNECTED");
+    Serial.println("[OK] Soil Moisture Sensor: CONNECTED");
   } else {
     soilSensorConnected = false;
-    Serial.println("❌ Soil Moisture Sensor: NOT CONNECTED");
+    Serial.println("[--] Soil Moisture Sensor: NOT CONNECTED");
   }
 
-  // --- DHT22 ---
+  // DHT22
   dht.begin();
-  delay(2000); // DHT22 needs 2 seconds after power-on
+  delay(2000);
   float testHumidity    = dht.readHumidity();
   float testTemperature = dht.readTemperature();
   if (!isnan(testHumidity) && !isnan(testTemperature)) {
     dhtSensorConnected = true;
-    Serial.println("✅ DHT22 Sensor: CONNECTED");
+    Serial.println("[OK] DHT22 Sensor: CONNECTED");
   } else {
     dhtSensorConnected = false;
-    Serial.println("❌ DHT22 Sensor: NOT CONNECTED");
+    Serial.println("[--] DHT22 Sensor: NOT CONNECTED");
   }
 
-  // --- BH1750 Light Sensor ---
+  // BH1750
   Wire.begin(I2C_SDA, I2C_SCL);
   if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
-    // Try reading to confirm it's actually there
     delay(200);
     float testLight = lightMeter.readLightLevel();
     if (testLight >= 0) {
       lightSensorConnected = true;
-      Serial.println("✅ BH1750 Light Sensor: CONNECTED");
+      Serial.println("[OK] BH1750 Light Sensor: CONNECTED");
     } else {
       lightSensorConnected = false;
-      Serial.println("❌ BH1750 Light Sensor: NOT CONNECTED");
+      Serial.println("[--] BH1750 Light Sensor: NOT CONNECTED");
     }
   } else {
     lightSensorConnected = false;
-    Serial.println("❌ BH1750 Light Sensor: NOT CONNECTED");
+    Serial.println("[--] BH1750 Light Sensor: NOT CONNECTED");
   }
 
   Serial.println("-------------------------\n");
 }
 
 // =============================================================================
-// Read Sensors (only reads connected ones)
+// Read Sensors
 // =============================================================================
 void readSensors() {
-  // --- Soil Moisture ---
+  // Soil Moisture
   if (soilSensorConnected) {
     int rawValue   = analogRead(SOIL_MOISTURE_PIN);
     int percentage = map(rawValue, SOIL_MOISTURE_DRY, SOIL_MOISTURE_WET, 0, 100);
@@ -159,32 +178,31 @@ void readSensors() {
     soilMoisture = NAN;
   }
 
-  // --- DHT22 ---
+  // DHT22
   if (dhtSensorConnected) {
     float h = dht.readHumidity();
     float t = dht.readTemperature();
-    // Re-check in case sensor disconnected after startup
     if (!isnan(h) && !isnan(t)) {
       humidity    = h;
       temperature = t;
     } else {
       humidity    = NAN;
       temperature = NAN;
-      Serial.println("⚠️  DHT22 lost connection!");
+      Serial.println("WARNING: DHT22 lost connection!");
     }
   } else {
     humidity    = NAN;
     temperature = NAN;
   }
 
-  // --- BH1750 ---
+  // BH1750
   if (lightSensorConnected) {
     float lux = lightMeter.readLightLevel();
     if (lux >= 0) {
       lightLevel = lux;
     } else {
       lightLevel = NAN;
-      Serial.println("⚠️  BH1750 lost connection!");
+      Serial.println("WARNING: BH1750 lost connection!");
     }
   } else {
     lightLevel = NAN;
@@ -192,44 +210,32 @@ void readSensors() {
 }
 
 // =============================================================================
-// Print Sensor Status to Serial Monitor
+// Print Sensor Status
 // =============================================================================
 void printSensorStatus() {
   Serial.println("--- Sensor Readings ---");
 
-  if (!isnan(soilMoisture)) {
-    Serial.print("🌱 Soil Moisture : "); Serial.print(soilMoisture); Serial.println("%");
-  } else {
-    Serial.println("🌱 Soil Moisture : OFFLINE");
-  }
+  Serial.print("Soil Moisture : ");
+  Serial.println(!isnan(soilMoisture) ? String(soilMoisture) + "%" : "OFFLINE");
 
-  if (!isnan(temperature)) {
-    Serial.print("🌡️  Temperature   : "); Serial.print(temperature); Serial.println("°C");
-  } else {
-    Serial.println("🌡️  Temperature   : OFFLINE");
-  }
+  Serial.print("Temperature   : ");
+  Serial.println(!isnan(temperature) ? String(temperature) + "C" : "OFFLINE");
 
-  if (!isnan(humidity)) {
-    Serial.print("💧 Humidity      : "); Serial.print(humidity); Serial.println("%");
-  } else {
-    Serial.println("💧 Humidity      : OFFLINE");
-  }
+  Serial.print("Humidity      : ");
+  Serial.println(!isnan(humidity) ? String(humidity) + "%" : "OFFLINE");
 
-  if (!isnan(lightLevel)) {
-    Serial.print("☀️  Light Level   : "); Serial.print(lightLevel); Serial.println(" lux");
-  } else {
-    Serial.println("☀️  Light Level   : OFFLINE");
-  }
+  Serial.print("Light Level   : ");
+  Serial.println(!isnan(lightLevel) ? String(lightLevel) + " lux" : "OFFLINE");
 
   Serial.println("-----------------------");
 }
 
 // =============================================================================
-// Build JSON value helper
+// Float or Default (backend requires non-null values)
 // =============================================================================
-String floatOrNull(float value) {
-  if (isnan(value)) return "null";
-  return String(value, 2); // 2 decimal places
+String floatOrDefault(float value, float defaultVal) {
+  if (isnan(value)) return String(defaultVal, 2);
+  return String(value, 2);
 }
 
 // =============================================================================
@@ -237,7 +243,7 @@ String floatOrNull(float value) {
 // =============================================================================
 void sendDataToBackend() {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠️  WiFi disconnected, skipping send.");
+    Serial.println("WARNING: WiFi disconnected, skipping send.");
     return;
   }
 
@@ -248,19 +254,42 @@ void sendDataToBackend() {
   http.addHeader("Content-Type", "application/json");
 
   String jsonPayload = "{";
-  jsonPayload += "\"device_id\":\""  + deviceId          + "\",";
-  jsonPayload += "\"soil_moisture\":" + floatOrNull(soilMoisture) + ",";
-  jsonPayload += "\"temperature\":"   + floatOrNull(temperature)  + ",";
-  jsonPayload += "\"humidity\":"      + floatOrNull(humidity)     + ",";
-  jsonPayload += "\"light_level\":"   + floatOrNull(lightLevel);
+  jsonPayload += "\"device_id\":\""   + deviceId                           + "\",";
+  jsonPayload += "\"soil_moisture\":" + floatOrDefault(soilMoisture, 0.0)  + ",";
+  jsonPayload += "\"temperature\":"   + floatOrDefault(temperature,  25.0) + ",";
+  jsonPayload += "\"humidity\":"      + floatOrDefault(humidity,     50.0) + ",";
+  jsonPayload += "\"light_level\":"   + floatOrDefault(lightLevel,   300.0);
   jsonPayload += "}";
 
-  Serial.print("📤 Sending: ");
+  Serial.print("Sending: ");
   Serial.println(jsonPayload);
 
   int httpResponseCode = http.POST(jsonPayload);
-  Serial.print("📥 Response: ");
+  Serial.print("Response: ");
   Serial.println(httpResponseCode);
+  http.end();
+}
+
+// =============================================================================
+// Poll Control State
+// =============================================================================
+void pollControlState() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  String url = String(API_BASE_URL) + "/irrigation/control/" + deviceId;
+  http.begin(url);
+  int httpResponseCode = http.GET();
+
+  if (httpResponseCode == 200) {
+    String payload = http.getString();
+    JsonDocument doc;                    // fixed: was DynamicJsonDocument
+    deserializeJson(doc, payload);
+    bool pumpState = doc["pump_state"];
+    Serial.print("Backend pump_state: ");
+    Serial.println(pumpState ? "ON" : "OFF");
+    digitalWrite(RELAY_PIN, pumpState ? HIGH : LOW);
+  }
   http.end();
 }
 
@@ -269,11 +298,13 @@ void sendDataToBackend() {
 // =============================================================================
 void setup() {
   Serial.begin(115200);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
   delay(1000);
-  Serial.println("\n=== AgriSense V4 Starting ===");
+  Serial.println("\n=== AgriSense Starting ===");
   setupWifi();
   generateDeviceId();
-  detectSensors(); // Auto-detect once at startup
+  detectSensors();
 }
 
 // =============================================================================
@@ -286,5 +317,6 @@ void loop() {
     readSensors();
     printSensorStatus();
     sendDataToBackend();
+    pollControlState();
   }
 }

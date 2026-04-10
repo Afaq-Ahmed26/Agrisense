@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 import random # Added
 from firebase_admin import firestore
@@ -11,6 +12,8 @@ class SensorService:
     def __init__(self):
         self.db = firebase_service.db
         self._latest_sensor_data_cache: Dict[str, SensorReading] = {} # In-memory cache for latest readings
+        self._last_firestore_save: Dict[str, float] = {} # Tracking last save time per device
+        self.FIRESTORE_SAVE_INTERVAL = 600 # 10 minutes in seconds
 
     async def create_device(self, device_create: DeviceCreate) -> Device:
         device_id = generate_device_id()
@@ -48,6 +51,7 @@ class SensorService:
         return [Device(**doc.to_dict()) for doc in docs]
 
     async def create_sensor_reading(self, device_id: str, reading_create: SensorReadingCreate) -> SensorReading:
+        now = time.time()
         sensor_reading_id = f"reading_{datetime.utcnow().timestamp()}"
         new_reading = SensorReading(
             id=sensor_reading_id,
@@ -58,11 +62,23 @@ class SensorService:
             light_level=reading_create.light_level,
             timestamp=reading_create.timestamp or datetime.utcnow()
         )
-        doc_ref = self.db.collection('sensor_readings').document(sensor_reading_id)
-        await asyncio.to_thread(doc_ref.set, new_reading.model_dump())
         
-        # Update in-memory cache
+        # Update in-memory cache IMMEDIATELY (for live dashboard)
         self._latest_sensor_data_cache[device_id] = new_reading
+
+        # Only save to Firestore if the interval has passed (periodic backup)
+        last_save = self._last_firestore_save.get(device_id, 0)
+        if now - last_save >= self.FIRESTORE_SAVE_INTERVAL:
+            try:
+                doc_ref = self.db.collection('sensor_readings').document(sensor_reading_id)
+                await asyncio.to_thread(doc_ref.set, new_reading.model_dump())
+                self._last_firestore_save[device_id] = now
+                print(f"✅ [SensorService] Periodic Firestore backup for {device_id} successful.")
+            except Exception as e:
+                print(f"❌ [SensorService] Firestore backup failed for {device_id}: {e}")
+        else:
+            # Skip Firestore save to conserve quota
+            pass
         
         return new_reading
 

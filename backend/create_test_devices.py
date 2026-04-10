@@ -8,11 +8,11 @@ from typing import Dict, Any
 load_dotenv()
 
 # Assuming the backend is running on http://localhost:8000
-BASE_URL = "http://192.168.43.120:8000"
+BASE_URL = "http://localhost:8000"
 
 # --- Admin User Credentials for obtaining a JWT token ---
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin") # Replace with actual admin password if different
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "afaqahmad16007@gmail.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "afaqahmad16007@gmail.com") # Replace with actual admin password if different
 FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY") # Read from .env
 
 async def get_admin_token() -> str:

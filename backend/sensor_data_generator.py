@@ -10,10 +10,11 @@ from typing import Dict, Any, List
 # Load environment variables from .env file
 load_dotenv()
 
-BASE_URL = "http://192.168.43.120:8000"
+# Assuming the backend is running on http://localhost:8000
+BASE_URL = "http://localhost:8000"
 
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "afaqahmad16007@gmail.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "afaqahmad16007@gmail.com")
 FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
 
 print(f"DEBUG: ADMIN_EMAIL from .env: {ADMIN_EMAIL}")

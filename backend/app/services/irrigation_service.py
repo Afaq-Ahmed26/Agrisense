@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 from app.services.firebase_service import firebase_service
 from app.services.sensor_service import sensor_service # Added
-from app.models.irrigation import IrrigationEvent, IrrigationEventCreate, IrrigationSchedule, IrrigationScheduleCreate
+from app.models.irrigation import IrrigationEvent, IrrigationEventCreate, IrrigationSchedule, IrrigationScheduleCreate, ControlState
 
 class IrrigationService:
     def __init__(self):
@@ -100,6 +100,26 @@ class IrrigationService:
         
         updated_event_doc = await asyncio.to_thread(doc_ref.get)
         return IrrigationEvent(**updated_event_doc.to_dict())
+
+    # --- NEW CODE: Control State Management ---
+    CONTROL_STATE_COLLECTION = "irrigation_control"
+    CONTROL_STATE_DOCUMENT_ID_PREFIX = "control_state_"
+
+    async def get_control_state(self, device_id: str) -> ControlState:
+        doc_ref = self.db.collection(self.CONTROL_STATE_COLLECTION).document(f"{self.CONTROL_STATE_DOCUMENT_ID_PREFIX}{device_id}")
+        doc = await asyncio.to_thread(doc_ref.get)
+        if doc.exists:
+            return ControlState(**doc.to_dict())
+        # Return a default state if no document exists
+        return ControlState(device_id=device_id)
+
+    async def update_control_state(self, control_state: ControlState) -> ControlState:
+        doc_ref = self.db.collection(self.CONTROL_STATE_COLLECTION).document(f"{self.CONTROL_STATE_DOCUMENT_ID_PREFIX}{control_state.device_id}")
+        # Update last_change_time whenever the state is updated
+        control_state.last_change_time = datetime.utcnow()
+        await asyncio.to_thread(doc_ref.set, control_state.model_dump())
+        return control_state
+    # --- END NEW CODE ---
 
 
 # Initialize the service
