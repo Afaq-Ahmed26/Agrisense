@@ -1,12 +1,24 @@
 import asyncio
+import time
 from typing import Optional, List
 from datetime import datetime
 import pytz
 from app.models.user import User
 from app.services.firebase_service import firebase_service
 
+# User cache to reduce Firestore reads
+_user_cache = {}
+_user_cache_time = {}
+USER_CACHE_EXPIRY = 3600  # 1 hour in seconds
 
 async def get_user_from_firestore(uid: str, include_deleted: bool = False) -> Optional[User]:
+    now = time.time()
+    
+    # Return from cache if fresh
+    if uid in _user_cache and (now - _user_cache_time.get(uid, 0)) < USER_CACHE_EXPIRY:
+        # print(f"DEBUG: get_user_from_firestore - returning CACHED user with UID: {uid}")
+        return _user_cache[uid]
+
     print(f"DEBUG: get_user_from_firestore - trying to fetch user with UID: {uid}")
     user_ref = firebase_service.db.collection('users').document(uid)
     
@@ -16,15 +28,17 @@ async def get_user_from_firestore(uid: str, include_deleted: bool = False) -> Op
     if doc.exists:
         print(f"DEBUG: get_user_from_firestore - document found for UID: {uid}")
         user_data = doc.to_dict()
-        print(f"DEBUG: get_user_from_firestore - user_data from DB: {user_data}")
         if not include_deleted and user_data.get('is_deleted', False):
-            print(f"DEBUG: get_user_from_firestore - user {uid} is deleted and include_deleted is False.")
             return None
         
         try:
             user_data['id'] = doc.id # Add the document ID to the data
             user = User(**user_data)
-            print(f"DEBUG: get_user_from_firestore - successfully parsed user data for UID: {uid}")
+            
+            # Update cache
+            _user_cache[uid] = user
+            _user_cache_time[uid] = now
+            
             return user
         except Exception as e:
             print(f"ERROR: get_user_from_firestore - Pydantic validation error for UID {uid}: {e}")

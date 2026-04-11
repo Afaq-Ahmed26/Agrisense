@@ -1,6 +1,7 @@
 import { CONFIG } from '@/config';
 import { firebaseService } from './firebase'; // Import firebaseService
 import { logout as storeLogout, setUser } from '@/store/auth'; // Import setUser and storeLogout
+import { firebaseAuthReadyPromise } from './auth'; // Import the promise
 
 // API Service for AgriSense - handles all backend communication
 class ApiService {
@@ -36,49 +37,35 @@ class ApiService {
         this.failedQueue = []; // Clear the queue after processing
     }
 
-    // Helper to proactively refresh the token if it's nearing expiration
-    async proactiveRefreshToken() {
-        const user = firebaseService.auth.currentUser;
-        if (user && !this.isRefreshing) {
-            const metadata = user.metadata;
-            // lastSignInTime and creationTime are in milliseconds since epoch
-            // Firebase ID tokens are typically valid for 1 hour (3600 seconds)
-            // We'll proactively refresh if it's within 5 minutes (300 seconds) of expiry
-            const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
-            const now = Date.now();
 
-            // getIdTokenResult(true) forces a refresh and gives us access to token details
-            const tokenResult = await user.getIdTokenResult(true);
-            const expirationTimeMs = tokenResult.expirationTime ? new Date(tokenResult.expirationTime).getTime() : 0;
-
-            if (expirationTimeMs - now < FIVE_MINUTES) {
-                console.log("Proactively refreshing token...");
-                this.isRefreshing = true;
-                try {
-                    const refreshedToken = await user.getIdToken(true);
-                    setUser(user, refreshedToken);
-                    console.log("Token proactively refreshed.");
-                } catch (error) {
-                    console.error("Proactive token refresh failed:", error);
-                    storeLogout();
-                } finally {
-                    this.isRefreshing = false;
-                }
-            }
-        }
-    }
 
     // Generic API request method with token refresh logic
     async request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
 
-        // Proactively refresh token before making the request
-        if (!isRetry) { // Don't proactively refresh on a retry, to avoid infinite loops if refresh itself fails
-            await this.proactiveRefreshToken();
+        // Ensure Firebase Auth state is ready before proceeding with authenticated requests.
+        // This prevents race conditions where requests are sent before currentUser is populated.
+        const tokenFromLocalStorage = localStorage.getItem('accessToken');
+        if (tokenFromLocalStorage && !firebaseService.auth.currentUser) {
+            console.log("Waiting for Firebase Auth to be ready...");
+            await firebaseAuthReadyPromise;
+            console.log("Firebase Auth is ready, continuing request.");
+        }
+        
+        // At this point, firebaseService.auth.currentUser should be populated if a user is logged in
+        // or confirmed null if no user is logged in.
+        
+        // Fetch the token *after* Firebase Auth is ready
+        let token = null;
+        if (firebaseService.auth.currentUser) {
+             token = await firebaseService.auth.currentUser.getIdToken(true); // Force refresh token
+        } else if (tokenFromLocalStorage) {
+            // Fallback for cases where firebase.auth.currentUser might still be null despite `firebaseAuthReadyPromise` resolving,
+            // but a token existed in local storage. This ensures we at least send the last known token.
+            // This scenario should be rare with firebaseAuthReadyPromise, but provides a safeguard.
+            token = tokenFromLocalStorage;
         }
 
-        // Fetch the token *after* proactive refresh (if any) to ensure it's the latest
-        const token = localStorage.getItem('accessToken');
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
@@ -279,29 +266,26 @@ class ApiService {
         return events.filter(event => event.device_id === deviceId).slice(0, limit);
     }
 
-    // async getIrrigationPredictions(deviceId, hoursAhead = 48) {
-    //     // Get recommendations for the device
-    //     const params = new URLSearchParams({ hours_ahead: hoursAhead });
-    //     return this.request(`/ml/future_predictions/${deviceId}?${params}`);
-    // }
+    async getIrrigationPredictions(deviceId, hoursAhead = 48) {
+        // ML-based irrigation recommendations are currently disabled in backend.
+        // Return a dummy response to avoid frontend errors.
+        return {
+            device_id: deviceId,
+            predictions: [],
+            message: "ML-based irrigation recommendations are currently disabled."
+        };
+    }
 
     // ML model methods
-    // async getMLPrediction(soil_moisture, temperature, humidity, light_level, device_id = null) {
-    //     try {
-    //         const data = { soil_moisture, temperature, humidity, light_level };
-    //         if (device_id) {
-    //             data.device_id = device_id;
-    //         }
-    //         return await this.request('/ml/predict', {
-    //             method: 'POST',
-    //             body: JSON.stringify(data)
-    //         });
-    //     } catch (error) {
-    //         console.warn('ML predict failed, falling back to mock data:', error.message);
-    //         const { mockApiService } = await import('@/services/mock-api.js');
-    //         return mockApiService.getModelPredictions({ soil_moisture, temperature, humidity, light_level, device_id });
-    //     }
-    // }
+    async getMLPrediction(soil_moisture, temperature, humidity, light_level, device_id = null) {
+        // ML-based irrigation recommendations are currently disabled in backend.
+        // Return a dummy response to avoid frontend errors.
+        return {
+            recommendation: "ML predictions disabled.",
+            predicted_valve_duration_s: 0,
+            status: "disabled"
+        };
+    }
 
     async retrainModel(datasetStartDate, datasetEndDate) {
         // The backend doesn't have a retrain endpoint, so we'll return a mock response

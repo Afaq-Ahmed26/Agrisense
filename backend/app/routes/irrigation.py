@@ -5,6 +5,7 @@ from app.middleware.auth import JWTBearer
 from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, IrrigationScheduleUpdate, IrrigationEvent, IrrigationEventCreate, ControlState, ControlStateUpdate
 from app.services.firebase_service import firebase_service
 from app.services.irrigation_service import irrigation_service
+from app.services.ml_service import ml_service
 from app.services.sensor_service import sensor_service
 
 
@@ -137,6 +138,14 @@ async def trigger_irrigation(
 
     new_event = await irrigation_service.create_irrigation_event(event_create)
     
+    # Fetch current control state to preserve settings (like threshold)
+    current_control = await irrigation_service.get_control_state(device_id)
+    current_control.pump_state = True
+    current_control.mode = "MANUAL" if user_triggered else "AUTO"
+    
+    # Update control state to turn pump ON
+    await irrigation_service.update_control_state(current_control)
+    
     return new_event
 
 
@@ -148,6 +157,12 @@ async def stop_irrigation(device_id: str, token: str = Depends(security)):
     stopped_event = await irrigation_service.stop_irrigation_event(device_id)
     if not stopped_event:
         raise HTTPException(status_code=404, detail=f"No active irrigation event found for device {device_id} to stop.")
+    
+    # Update control state to turn pump OFF
+    current_control = await irrigation_service.get_control_state(device_id)
+    current_control.pump_state = False
+    await irrigation_service.update_control_state(current_control)
+    
     return stopped_event
 
 
@@ -200,7 +215,7 @@ async def stop_irrigation(device_id: str, token: str = Depends(security)):
 # --- CONTROL STATE ROUTES ---
 
 @router.get("/control/{device_id}", response_model=ControlState)
-async def get_control_state(device_id: str, token: str = Depends(security)):
+async def get_control_state(device_id: str):
     """
     Get the current irrigation control state (mode, pump_state, threshold) for a device.
     """

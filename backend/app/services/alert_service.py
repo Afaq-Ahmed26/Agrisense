@@ -115,7 +115,7 @@ class AlertService:
                 # RAM CACHE CHECK: Only create if the severity has actually changed
                 # This avoids the expensive Firestore query on every 2s POST
                 alert = Alert(
-                    id=f"alert_{timestamp.timestamp()}_{device_id}_moisture_{current_moisture_severity.value}",
+                    id=f"active_alert_{device_id}_{AlertType.SOIL_MOISTURE_LOW.value}",
                     device_id=device_id,
                     alert_type=AlertType.SOIL_MOISTURE_LOW,
                     severity=current_moisture_severity,
@@ -144,7 +144,7 @@ class AlertService:
         if current_temp_severity != previous_temp_severity:
             if current_temp_severity:
                 alert = Alert(
-                    id=f"alert_{timestamp.timestamp()}_{device_id}_temp_{current_temp_severity.value}",
+                    id=f"active_alert_{device_id}_{AlertType.DEVICE_ERROR.value}",
                     device_id=device_id,
                     alert_type=AlertType.DEVICE_ERROR,
                     severity=current_temp_severity,
@@ -172,7 +172,7 @@ class AlertService:
         if current_humidity_severity != previous_humidity_severity:
             if current_humidity_severity:
                 alert = Alert(
-                    id=f"alert_{timestamp.timestamp()}_{device_id}_humidity_{current_humidity_severity.value}",
+                    id=f"active_alert_{device_id}_{AlertType.UNUSUAL_READING.value}",
                     device_id=device_id,
                     alert_type=AlertType.UNUSUAL_READING,
                     severity=current_humidity_severity,
@@ -280,6 +280,7 @@ class AlertService:
         if status:
             query = query.where(filter=FieldFilter("status", "==", status.value))
         
+        query = query.limit(50)
         docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
         alerts = [Alert(**doc.to_dict()) for doc in docs]
         return alerts
@@ -289,6 +290,7 @@ class AlertService:
         Retrieve all open alerts across all devices.
         """
         query = firebase_service.db.collection('alerts').where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
+        query = query.limit(50)
         docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
         alerts = [Alert(**doc.to_dict()) for doc in docs]
         return alerts

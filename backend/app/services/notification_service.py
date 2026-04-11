@@ -44,7 +44,7 @@ async def get_notifications_for_user(
     query = query.order_by("created_at", direction="DESCENDING")
     
     # Apply skip and limit for pagination
-    query = query.offset(skip).limit(limit)
+    query = query.offset(skip).limit(limit if limit <= 50 else 50)
 
     # Use to_thread for blocking stream operation
     docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])

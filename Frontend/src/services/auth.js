@@ -11,6 +11,14 @@ import { authStore, fetchUser, setUser, logout as storeLogout, isAuthenticated }
 import { firebaseService } from './firebase'; // Import firebaseService
 import { apiService } from './api'; // Import apiService
 
+// Promise that resolves once Firebase Auth state has been initialized.
+// This is crucial for components/services that need to wait for the
+// initial authentication check to complete before making API calls.
+let _resolveFirebaseAuthReady;
+export const firebaseAuthReadyPromise = new Promise(resolve => {
+    _resolveFirebaseAuthReady = resolve;
+});
+
 // Authentication Service for AgriSense
 class AuthService {
     constructor() {
@@ -35,6 +43,8 @@ class AuthService {
                 // User is signed out.
                 storeLogout();
             }
+            // Resolve the promise once the initial auth state has been determined
+            _resolveFirebaseAuthReady();
         });
     }
 

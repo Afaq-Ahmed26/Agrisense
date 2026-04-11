@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, onSnapshot, query, where, orderBy, updateDoc, setDoc, serverTimestamp, getDoc, FieldValue } from "firebase/firestore";
+import { getFirestore, collection, doc, onSnapshot, query, where, orderBy, updateDoc, setDoc, serverTimestamp, getDoc, FieldValue, limit, getDocs } from "firebase/firestore";
 import { getDatabase, ref, onValue, off, update } from "firebase/database";
 // ServerValue is accessed via the database object in newer Firebase versions
 const ServerValue = {
@@ -114,7 +114,8 @@ class FirebaseService {
             const alertsQuery = query(
                 alertsCollection,
                 where('acknowledged', '==', false),
-                orderBy('created_at', 'desc')
+                orderBy('created_at', 'desc'),
+                limit(20)
             );
 
             if (this.listeners['alerts']) {
@@ -145,7 +146,8 @@ class FirebaseService {
             alertsCollection,
             where('device_id', '==', deviceId),
             where('acknowledged', '==', false),
-            orderBy('created_at', 'desc')
+            orderBy('created_at', 'desc'),
+            limit(20)
         );
 
         this.listeners[path] = onSnapshot(alertsQuery, (snapshot) => {
@@ -244,10 +246,10 @@ class FirebaseService {
         }
 
         const sensorReadingsCollection = collection(this.db, 'sensor_readings');
-        let q = query(sensorReadingsCollection, orderBy('timestamp', 'desc'));
+        let q = query(sensorReadingsCollection, orderBy('timestamp', 'desc'), limit(20));
 
         if (deviceId) {
-            q = query(sensorReadingsCollection, where('device_id', '==', deviceId), orderBy('timestamp', 'desc'));
+            q = query(sensorReadingsCollection, where('device_id', '==', deviceId), orderBy('timestamp', 'desc'), limit(20));
         }
 
         const path = `live_sensor_data/${deviceId || 'all'}`;

@@ -283,12 +283,23 @@ void pollControlState() {
 
   if (httpResponseCode == 200) {
     String payload = http.getString();
-    JsonDocument doc;                    // fixed: was DynamicJsonDocument
+    JsonDocument doc;
     deserializeJson(doc, payload);
     bool pumpState = doc["pump_state"];
     Serial.print("Backend pump_state: ");
     Serial.println(pumpState ? "ON" : "OFF");
-    digitalWrite(RELAY_PIN, pumpState ? HIGH : LOW);
+    
+    // Debugging print for the actual signal being sent
+    Serial.print("Sending signal to RELAY_PIN (GPIO");
+    Serial.print(RELAY_PIN);
+    Serial.print("): ");
+    Serial.println(pumpState ? "LOW (Active-Low ON)" : "HIGH (Active-Low OFF)");
+
+    // Invert HIGH/LOW to test for active-low relay
+    digitalWrite(RELAY_PIN, pumpState ? LOW : HIGH);
+  } else {
+    Serial.print("Failed to get control state. HTTP Response code: ");
+    Serial.println(httpResponseCode);
   }
   http.end();
 }
@@ -299,7 +310,7 @@ void pollControlState() {
 void setup() {
   Serial.begin(115200);
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH); // Initialize to OFF (Active-Low)
   delay(1000);
   Serial.println("\n=== AgriSense Starting ===");
   setupWifi();

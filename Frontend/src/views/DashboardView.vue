@@ -212,16 +212,16 @@ const setupSensorDataPolling = (deviceId) => {
     // Fetch immediately
     fetchLatestSensorData(deviceId);
     
-    // Set up polling every 10 seconds
-    // 10,000ms = 10 seconds
+    // Set up polling every 2 seconds
+    // 2000ms = 2 seconds
     sensorDataInterval = setInterval(() => {
       // Only fetch if the tab is actually visible to the user
       if (!document.hidden) {
         fetchLatestSensorData(deviceId);
       }
-    }, 10000); 
+    }, 2000); 
     
-    console.log(`📡 Started polling for device: ${deviceId} (Interval: 10s)`);
+    console.log(`📡 Started polling for device: ${deviceId} (Interval: 2s)`);
   }
 };
 

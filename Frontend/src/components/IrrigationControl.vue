@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { formatDuration } from '@/utils/helpers';
 import { formatWithUserPreferences } from '@/utils/unitConverter';
 import { authStore } from '@/store/auth';
@@ -118,6 +118,7 @@ const lastIrrigationTime = ref('N/A');
 const countdown = ref('');
 let irrigationTimer = null;
 let countdownInterval = null;
+let pollInterval = null;
 
 let modalInstance = null;
 const modalMessage = ref('');
@@ -125,15 +126,13 @@ let confirmedAction = null;
 
 const fetchControlState = async () => {
   if (!props.deviceId) return;
-  isLoading.value = true;
+  // Don't set isLoading true for background polling to avoid flicker
   try {
     const state = await apiService.request(`/irrigation/control/${props.deviceId}`, { method: 'GET' });
     mode.value = state.mode.toLowerCase();
     isRunning.value = state.pump_state;
   } catch (error) {
     console.error('Failed to fetch control state:', error);
-  } finally {
-    isLoading.value = false;
   }
 };
 
@@ -151,12 +150,29 @@ const updateControlState = async (updates) => {
   }
 };
 
+// Function to manage local state and countdown
+const startLocalIrrigationFeedback = (duration) => {
+  isRunning.value = true;
+  startCountdown(duration);
+
+  irrigationTimer = setTimeout(() => {
+    stopIrrigation(true); // Now calls the async stopIrrigation
+  }, duration * 60 * 1000);
+};
+
 onMounted(async () => {
   await fetchControlState();
   const modalEl = document.getElementById('irrigationConfirmationModal');
   if (window.bootstrap && modalEl) {
     modalInstance = new window.bootstrap.Modal(modalEl);
   }
+  // Poll for pump state changes every 5 seconds
+  pollInterval = setInterval(fetchControlState, 5000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+  clearTimers();
 });
 
 watch(mode, async (newMode) => {
@@ -175,15 +191,15 @@ watch(() => props.externalIrrigationTriggered, (newVal) => {
 });
 
 const confirmStart = () => {
-  modalMessage.value = `Start irrigation for ${durationMinutes.value} minutes?`;
-  confirmedAction = () => startIrrigationAPI(durationMinutes.value); // Use new API-calling function
-  if (modalInstance) modalInstance.show();
+  if (confirm(`Start irrigation for ${durationMinutes.value} minutes?`)) {
+    startIrrigationAPI(durationMinutes.value);
+  }
 };
 
 const confirmStop = () => {
-  modalMessage.value = 'Are you sure you want to stop the irrigation?';
-  confirmedAction = stopIrrigation; // This will trigger the local stop first
-  if (modalInstance) modalInstance.show();
+  if (confirm('Are you sure you want to stop the irrigation?')) {
+    stopIrrigation();
+  }
 };
 
 const executeConfirmedAction = () => {
@@ -202,41 +218,54 @@ const startIrrigationAPI = async (duration) => {
   }
   isLoading.value = true;
   try {
-    await apiService.startIrrigation(props.deviceId, duration); // Use the correct apiService method
-    alert(`Irrigation command sent successfully for ${duration} minutes!`);
+    // 1. Update the backend control state to turn pump ON AND set mode to MANUAL
+    // This prevents the auto-logic from immediately turning it back off
+    await updateControlState({ 
+      pump_state: true,
+      mode: 'MANUAL' 
+    });
+    
+    // Update local mode state to reflect the change
+    mode.value = 'manual';
+    
+    // 2. Log an event for history/tracking
+    await apiService.startIrrigation(props.deviceId, duration * 60);
+    
+    alert(`Irrigation started for ${duration} minutes!`);
     
     // Start local countdown for visual feedback
     startLocalIrrigationFeedback(duration);
     emit('irrigation-started', { deviceId: props.deviceId, duration: duration });
 
   } catch (error) {
-    console.error('Failed to trigger irrigation via API:', error);
+    console.error('Failed to start irrigation:', error);
     alert('Failed to start irrigation. Check console for details.');
   } finally {
     isLoading.value = false;
   }
 };
 
-// Function to manage local state and countdown
-const startLocalIrrigationFeedback = (duration) => {
-  isRunning.value = true;
-  startCountdown(duration);
+const stopIrrigation = async (wasAutomatic = false) => {
+  isLoading.value = true;
+  try {
+    // 1. Update backend to turn pump OFF
+    await updateControlState({ pump_state: false });
+    
+    // 2. Tell backend to stop event tracking
+    await apiService.stopIrrigation(props.deviceId);
 
-  irrigationTimer = setTimeout(() => {
-    stopIrrigation(true); // Automatically stop local timer after duration
-  }, duration * 60 * 1000);
-};
-
-
-const stopIrrigation = (wasAutomatic = false) => {
-  // For now, stopping is purely local as backend /trigger endpoint completes immediately.
-  // A real "stop" would require another API call to interrupt an ongoing physical irrigation.
-  isRunning.value = false;
-  lastIrrigationTime.value = new Date().toLocaleString();
-  clearTimers();
-  if (!wasAutomatic) {
-    // If stopped manually, we might want to show a notification or log a partial event
-    emit('irrigation-stopped', { deviceId: props.deviceId });
+    isRunning.value = false;
+    lastIrrigationTime.value = new Date().toLocaleString();
+    clearTimers();
+    
+    if (!wasAutomatic) {
+      alert('Irrigation stopped.');
+      emit('irrigation-stopped', { deviceId: props.deviceId });
+    }
+  } catch (error) {
+    console.error('Failed to stop irrigation:', error);
+  } finally {
+    isLoading.value = false;
   }
 };
 

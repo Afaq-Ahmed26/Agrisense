@@ -1,0 +1,837 @@
+INFO:     Started server process [18099]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Successfully loaded model from /home/afaq-ahmed/Desktop/Agriscense/backend/app/services/../../../model/irrigation_model.pkl
+INFO: Fetched new Firebase public keys and updated cache.
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934598, 'exp': 1775938198, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: /me - user_payload from token: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934598, 'exp': 1775938198, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: /me - extracted UID: qsmULXbieEdDtufceT4SrkbA3tH2
+DEBUG: /me - calling get_user_from_firestore with UID: qsmULXbieEdDtufceT4SrkbA3tH2
+DEBUG: get_user_from_firestore - trying to fetch user with UID: qsmULXbieEdDtufceT4SrkbA3tH2
+DEBUG: get_user_from_firestore - document found for UID: qsmULXbieEdDtufceT4SrkbA3tH2
+DEBUG: /me - successfully found user: afaqahmad
+INFO:     192.168.100.13:53344 - "GET /users/me HTTP/1.1" 200 OK
+✅ [SensorService] Periodic Firestore backup for esp32-b47cb8 successful.
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934600, 'exp': 1775938200, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: /me - user_payload from token: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934600, 'exp': 1775938200, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: /me - extracted UID: qsmULXbieEdDtufceT4SrkbA3tH2
+DEBUG: /me - calling get_user_from_firestore with UID: qsmULXbieEdDtufceT4SrkbA3tH2
+DEBUG: /me - successfully found user: afaqahmad
+INFO:     192.168.100.13:53344 - "GET /users/me HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934600, 'exp': 1775938200, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934600, 'exp': 1775938200, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934601, 'exp': 1775938201, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.6:53691 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53356 - "GET /alerts/ HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934601, 'exp': 1775938201, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+Saved alert to Firestore: Soil moisture high: 20.0%
+INFO:     192.168.100.13:53366 - "GET /notifications/?is_archived=false&skip=0&limit=10 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "GET /sensors/ HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53356 - "GET /alerts/ HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934602, 'exp': 1775938202, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53356 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934602, 'exp': 1775938202, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53366 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53692 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934604, 'exp': 1775938204, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934604, 'exp': 1775938204, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53366 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53693 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Created in-app notification for user afaqahmad16007@gmail.com
+INFO:     192.168.100.6:53694 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "PUT /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934606, 'exp': 1775938206, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53344 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53695 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53696 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934608, 'exp': 1775938208, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53344 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53697 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934610, 'exp': 1775938210, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53344 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53698 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53699 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53700 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934612, 'exp': 1775938212, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53344 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53701 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53702 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53703 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934616, 'exp': 1775938216, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53344 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:36922 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934616, 'exp': 1775938216, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934616, 'exp': 1775938216, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:36922 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53704 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "PUT /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934618, 'exp': 1775938218, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:36922 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53705 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53344 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:36922 - "OPTIONS /irrigation/trigger?device_id=esp32-b47cb8&duration_seconds=60 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934619, 'exp': 1775938219, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+Saved alert to Firestore: Soil moisture critical: 19.0%
+INFO:     192.168.100.13:53344 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934620, 'exp': 1775938220, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53344 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+Irrigation event created for device esp32-b47cb8. Simulating effect for 60 seconds.
+Simulating irrigation effect for device esp32-b47cb8: moisture increased from 19.00% to 22.90% over 60 seconds.
+INFO:     192.168.100.6:53706 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "POST /irrigation/trigger?device_id=esp32-b47cb8&duration_seconds=60 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53707 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture high: 20.0%
+Created in-app notification for user afaqahmad16007@gmail.com
+INFO:     192.168.100.6:53708 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934622, 'exp': 1775938222, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934625, 'exp': 1775938225, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42652 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53709 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934626, 'exp': 1775938226, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53710 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53711 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934628, 'exp': 1775938228, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53712 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934630, 'exp': 1775938230, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53713 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53714 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934632, 'exp': 1775938232, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53715 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53716 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934634, 'exp': 1775938234, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:35598 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53717 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934636, 'exp': 1775938236, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53718 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53719 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53720 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934638, 'exp': 1775938238, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53721 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934640, 'exp': 1775938240, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53722 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53723 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934642, 'exp': 1775938242, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53724 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53725 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934644, 'exp': 1775938244, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:52550 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Resolved alert active_alert_esp32-b47cb8_soil_moisture_low for device esp32-b47cb8, type soil_moisture_low
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934646, 'exp': 1775938246, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53726 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53727 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934648, 'exp': 1775938248, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53728 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53729 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934650, 'exp': 1775938250, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:52156 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53730 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53731 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934652, 'exp': 1775938252, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53732 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53733 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934654, 'exp': 1775938254, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:52156 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53734 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53735 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934656, 'exp': 1775938256, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53736 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53737 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934658, 'exp': 1775938258, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53738 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53739 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934660, 'exp': 1775938260, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53740 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53741 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934662, 'exp': 1775938262, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53742 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53743 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934664, 'exp': 1775938264, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42838 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53744 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53745 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934666, 'exp': 1775938266, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53746 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53747 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934668, 'exp': 1775938268, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53748 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53749 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934670, 'exp': 1775938270, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53750 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53751 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934672, 'exp': 1775938272, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53752 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53753 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934674, 'exp': 1775938274, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:55350 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53754 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53755 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934676, 'exp': 1775938276, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53756 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53757 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934678, 'exp': 1775938278, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53758 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53759 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934680, 'exp': 1775938280, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53760 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53761 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934682, 'exp': 1775938282, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53762 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53763 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934684, 'exp': 1775938284, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:44324 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53764 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53765 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934685, 'exp': 1775938285, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934686, 'exp': 1775938286, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:44324 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "PUT /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53766 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53767 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "OPTIONS /irrigation/stop/esp32-b47cb8/ HTTP/1.1" 200 OK
+INFO:     192.168.100.13:44324 - "POST /irrigation/stop/esp32-b47cb8/ HTTP/1.1" 307 Temporary Redirect
+INFO:     192.168.100.13:42640 - "OPTIONS /irrigation/stop/esp32-b47cb8 HTTP/1.1" 200 OK
+/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/cloud/firestore_v1/base_collection.py:316: UserWarning: Detected filter using positional arguments. Prefer using the 'filter' keyword argument instead.
+  return query.where(field_path, op_string, value)
+/home/afaq-ahmed/Desktop/Agriscense/backend/app/services/irrigation_service.py:80: UserWarning: Detected filter using positional arguments. Prefer using the 'filter' keyword argument instead.
+  .where('status', '==', 'active') \
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934687, 'exp': 1775938287, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:44324 - "POST /irrigation/stop/esp32-b47cb8 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 426, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/fastapi/applications.py", line 1106, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/applications.py", line 122, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 184, in __call__
+    raise exc
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 162, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 91, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 146, in simple_response
+    await self.app(scope, receive, send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 79, in __call__
+    raise exc
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 68, in __call__
+    await self.app(scope, receive, sender)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 20, in __call__
+    raise e
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 17, in __call__
+    await self.app(scope, receive, send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/routing.py", line 718, in __call__
+    await route.handle(scope, receive, send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/starlette/routing.py", line 66, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/fastapi/routing.py", line 274, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/fastapi/routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/app/routes/irrigation.py", line 157, in stop_irrigation
+    stopped_event = await irrigation_service.stop_irrigation_event(device_id)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/app/services/irrigation_service.py", line 84, in stop_irrigation_event
+    docs = await asyncio.to_thread(lambda: query.get())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/app/services/irrigation_service.py", line 84, in <lambda>
+    docs = await asyncio.to_thread(lambda: query.get())
+                                           ^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/cloud/firestore_v1/query.py", line 210, in get
+    result_list = list(result)
+                  ^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/cloud/firestore_v1/stream_generator.py", line 58, in __next__
+    return self._generator.__next__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/cloud/firestore_v1/query.py", line 422, in _make_stream
+    response_iterator, expected_prefix = self._get_stream_iterator(
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/cloud/firestore_v1/query.py", line 267, in _get_stream_iterator
+    response_iterator = self._client._firestore_api.run_query(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/cloud/firestore_v1/services/firestore/client.py", line 1643, in run_query
+    response = rpc(
+               ^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+           ^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+             ^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/timeout.py", line 130, in func_with_timeout
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/afaq-ahmed/Desktop/Agriscense/backend/venv/lib/python3.12/site-packages/google/api_core/grpc_helpers.py", line 173, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.FailedPrecondition: 400 The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/agrisense-ue/firestore/indexes?create_composite=ClZwcm9qZWN0cy9hZ3Jpc2Vuc2UtdWUvZGF0YWJhc2VzLyhkZWZhdWx0KS9jb2xsZWN0aW9uR3JvdXBzL2lycmlnYXRpb25fZXZlbnRzL2luZGV4ZXMvXxABGg0KCWRldmljZV9pZBABGgoKBnN0YXR1cxABGg4KCnN0YXJ0X3RpbWUQAhoMCghfX25hbWVfXxAC
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934688, 'exp': 1775938288, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53768 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53769 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934690, 'exp': 1775938290, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53770 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53771 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934692, 'exp': 1775938292, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53772 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53773 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934694, 'exp': 1775938294, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:36120 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53774 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53775 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934696, 'exp': 1775938296, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53776 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53777 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934698, 'exp': 1775938298, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53778 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934701, 'exp': 1775938301, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:35138 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53779 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture high: 25.0%
+Created in-app notification for user afaqahmad16007@gmail.com
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934702, 'exp': 1775938302, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53780 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53781 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53782 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934704, 'exp': 1775938304, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:35138 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53783 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53784 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934706, 'exp': 1775938306, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53785 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53786 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934708, 'exp': 1775938308, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53787 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53788 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934710, 'exp': 1775938310, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934712, 'exp': 1775938312, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53789 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53790 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934714, 'exp': 1775938314, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42144 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53791 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53792 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934716, 'exp': 1775938316, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53793 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934718, 'exp': 1775938318, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934720, 'exp': 1775938320, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53794 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53795 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53796 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934722, 'exp': 1775938322, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53797 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53798 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934724, 'exp': 1775938324, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:52180 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53799 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934726, 'exp': 1775938326, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53800 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53801 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934728, 'exp': 1775938328, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+Resolved alert active_alert_esp32-b47cb8_soil_moisture_low for device esp32-b47cb8, type soil_moisture_low
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934732, 'exp': 1775938332, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53802 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934732, 'exp': 1775938332, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53803 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934734, 'exp': 1775938334, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58140 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53804 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53805 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934736, 'exp': 1775938336, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53806 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53807 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934738, 'exp': 1775938338, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53808 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934740, 'exp': 1775938340, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53809 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53810 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53811 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934742, 'exp': 1775938342, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture critical: 19.0%
+INFO:     192.168.100.6:53812 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934744, 'exp': 1775938344, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:49016 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53813 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934746, 'exp': 1775938346, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53814 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53815 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53816 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934748, 'exp': 1775938348, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53817 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934749, 'exp': 1775938349, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934750, 'exp': 1775938350, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53818 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "PUT /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934750, 'exp': 1775938350, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.6:53819 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:42640 - "PUT /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53820 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934752, 'exp': 1775938352, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53821 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934753, 'exp': 1775938353, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "PUT /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53822 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934754, 'exp': 1775938354, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:42640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53823 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53824 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934756, 'exp': 1775938356, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53825 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53826 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934758, 'exp': 1775938358, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53827 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53828 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934760, 'exp': 1775938360, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53829 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53830 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934762, 'exp': 1775938362, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53831 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53832 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934764, 'exp': 1775938364, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:60202 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53833 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53834 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934766, 'exp': 1775938366, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934768, 'exp': 1775938368, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53835 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934770, 'exp': 1775938370, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+Resolved alert active_alert_esp32-b47cb8_soil_moisture_low for device esp32-b47cb8, type soil_moisture_low
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53836 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53837 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53838 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934772, 'exp': 1775938372, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53839 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934774, 'exp': 1775938374, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:47358 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture high: 28.0%
+Created in-app notification for user afaqahmad16007@gmail.com
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53840 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53841 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934776, 'exp': 1775938376, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture critical: 19.0%
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53842 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53843 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934778, 'exp': 1775938378, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53844 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53845 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934780, 'exp': 1775938380, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53846 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53847 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934782, 'exp': 1775938382, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53848 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53849 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934785, 'exp': 1775938385, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:48044 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture high: 24.0%
+Created in-app notification for user afaqahmad16007@gmail.com
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53850 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934787, 'exp': 1775938387, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53851 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53852 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934788, 'exp': 1775938388, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53853 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934790, 'exp': 1775938390, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53854 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53855 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934792, 'exp': 1775938392, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:54510 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53856 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53857 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "OPTIONS /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:54510 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934796, 'exp': 1775938396, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58774 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53858 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:58764 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934796, 'exp': 1775938396, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53859 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53860 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53861 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934798, 'exp': 1775938398, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:58764 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture critical: 19.0%
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934801, 'exp': 1775938401, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53862 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934802, 'exp': 1775938402, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53863 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+Saved alert to Firestore: Soil moisture high: 21.0%
+Created in-app notification for user afaqahmad16007@gmail.com
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53864 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934804, 'exp': 1775938404, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:51612 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:58764 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53865 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53866 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934806, 'exp': 1775938406, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53867 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53868 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53869 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934808, 'exp': 1775938408, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53870 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:58764 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934810, 'exp': 1775938410, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53871 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934812, 'exp': 1775938412, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:58764 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53872 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:58764 - "OPTIONS /notifications/?is_archived=false&skip=0&limit=10 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934813, 'exp': 1775938413, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:56996 - "GET /notifications/?is_archived=false&skip=0&limit=10 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53873 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53874 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53875 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53876 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53877 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53878 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53879 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53880 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53881 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53882 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53883 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53884 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53885 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53886 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53887 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53888 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53889 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /alerts/ HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40208 - "OPTIONS /sensors/ HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934830, 'exp': 1775938430, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934830, 'exp': 1775938430, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40222 - "GET /alerts/ HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934830, 'exp': 1775938430, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/ HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53890 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934831, 'exp': 1775938431, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934831, 'exp': 1775938431, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40222 - "GET /alerts/ HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53891 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53892 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53893 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934833, 'exp': 1775938433, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53894 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53895 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934835, 'exp': 1775938435, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53896 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934837, 'exp': 1775938437, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:60848 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53897 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53898 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934839, 'exp': 1775938439, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53899 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53900 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934841, 'exp': 1775938441, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53901 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53902 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53903 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934843, 'exp': 1775938443, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53904 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934845, 'exp': 1775938445, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53905 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53906 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934847, 'exp': 1775938447, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:48640 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53907 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53908 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53909 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934849, 'exp': 1775938449, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53910 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934851, 'exp': 1775938451, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53911 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53912 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934853, 'exp': 1775938453, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53913 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53914 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934855, 'exp': 1775938455, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53915 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53650 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934857, 'exp': 1775938457, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53650 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53916 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53917 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934859, 'exp': 1775938459, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53918 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934861, 'exp': 1775938461, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53919 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53920 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934863, 'exp': 1775938463, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53921 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53922 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53923 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934865, 'exp': 1775938465, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53924 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:53376 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934867, 'exp': 1775938467, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:53376 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53925 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53926 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934869, 'exp': 1775938469, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53927 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53928 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934871, 'exp': 1775938471, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53929 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "OPTIONS /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53930 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.13:40196 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934873, 'exp': 1775938473, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53931 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53932 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+DEBUG: JWTBearer - verified user payload: {'name': 'Afaq Ahmed', 'iss': 'https://securetoken.google.com/agrisense-ue', 'aud': 'agrisense-ue', 'auth_time': 1775381797, 'user_id': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'sub': 'qsmULXbieEdDtufceT4SrkbA3tH2', 'iat': 1775934875, 'exp': 1775938475, 'email': 'afaqahmad16007@gmail.com', 'email_verified': True, 'firebase': {'identities': {'email': ['afaqahmad16007@gmail.com']}, 'sign_in_provider': 'password'}}
+INFO:     192.168.100.13:40196 - "GET /sensors/esp32-b47cb8/latest-reading HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53933 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53934 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53935 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53936 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53937 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53938 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53939 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53940 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53941 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53942 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53943 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53944 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53945 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53946 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53947 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK
+❌ [Irrigation Control] Error for device esp32-b47cb8: name 'asyncio' is not defined
+INFO:     192.168.100.6:53948 - "POST /sensors/esp32-b47cb8/readings HTTP/1.1" 200 OK
+INFO:     192.168.100.6:53949 - "GET /irrigation/control/esp32-b47cb8 HTTP/1.1" 200 OK

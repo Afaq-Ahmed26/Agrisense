@@ -12,7 +12,7 @@ const char* API_BASE_URL  = "http://192.168.43.120:8000";
 const int SOIL_MOISTURE_DRY = 2950;
 const int SOIL_MOISTURE_WET = 1250;
 
-const unsigned long SENSOR_READ_INTERVAL_MS = 10000;
+const unsigned long SENSOR_READ_INTERVAL_MS = 2000;
 unsigned long lastReadTime = 0;
 
 float soilMoisture = 0.0;

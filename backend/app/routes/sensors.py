@@ -10,6 +10,7 @@ from app.services.alert_service import alert_service
 from app.services.sensor_service import sensor_service
 from app.services.irrigation_service import irrigation_service
 from app.config import settings
+from app.services.ml_service import ml_service
 from app.utils.helpers import calculate_dew_point, calculate_heat_index
 
 
@@ -29,21 +30,33 @@ _last_state_change_time: Dict[str, float] = {}
 
 async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float]):
     """
-    Real-time auto irrigation control based on soil moisture threshold.
+    Real-time irrigation control based on soil moisture threshold (AUTO) or user command (MANUAL).
     Only updates if state actually changes + debounce prevents rapid toggling.
     """
-    if soil_moisture is None:
-        return  # Skip if no soil moisture data
-
     try:
         control = await irrigation_service.get_control_state(device_id)
 
-        # Only act in AUTO mode
-        if control.mode != "AUTO":
+        # In MANUAL mode, we don't override the pump_state automatically.
+        if control.mode == "MANUAL":
             return
 
+        # --- AUTO MODE LOGIC ---
+        if soil_moisture is None:
+            return  # Skip if no soil moisture data in AUTO mode
+
+        # Fetch system-wide thresholds for soil moisture
+        settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
+        doc = await asyncio.to_thread(settings_ref.get)
+        
+        # Use system threshold if available, else fallback to control-specific or 20.0
+        threshold = 20.0
+        if doc.exists:
+            threshold = doc.to_dict().get("soil_moisture_min", 20.0)
+        elif control.threshold:
+            threshold = control.threshold
+
         # Decision: pump ON if moisture below threshold
-        new_pump_state = soil_moisture < control.threshold
+        new_pump_state = soil_moisture < threshold
 
         # ✅ Only update if state actually changes
         if new_pump_state == control.pump_state:
@@ -62,12 +75,12 @@ async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float])
         # Track change time for debounce
         _last_state_change_time[device_id] = now
 
-        # Log only on actual state changes (production-safe logging)
+        # Log only on actual state changes
         state_str = "ON" if new_pump_state else "OFF"
-        print(f"💧 [Auto Irrigation] Device {device_id}: Pump turned {state_str} (moisture={soil_moisture:.1f}%, threshold={control.threshold:.1f}%)")
+        print(f"💧 [Auto Irrigation] Device {device_id}: Pump turned {state_str} (moisture={soil_moisture:.1f}%, threshold={threshold:.1f}%)")
 
     except Exception as e:
-        print(f"❌ [Auto Irrigation] Error for device {device_id}: {e}")
+        print(f"❌ [Irrigation Control] Error for device {device_id}: {e}")
 
 
 @router.post("/", response_model=Device)

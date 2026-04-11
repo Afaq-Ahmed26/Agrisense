@@ -7,11 +7,6 @@
       <div class="chart-area">
         <canvas ref="chartCanvas"></canvas>
       </div>
-      <div v-if="nextIrrigation" class="mt-2 text-center small">
-        <strong>Next recommended irrigation:</strong>
-        {{ nextIrrigation.time.toLocaleString() }}
-        ({{ nextIrrigation.waterLiters }} {{ nextIrrigation.unit }})
-      </div>
     </div>
   </div>
 </template>
