@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 import time  # For debounce timing
 from app.middleware.auth import JWTBearer
 from app.models.sensor import SensorReading, SensorReadingCreate, Device, DeviceCreate, DeviceUpdate, HourlyAverageReadings, DailySummaryReadings
-from app.models.irrigation import IrrigationEventCreate
+from app.models.irrigation import IrrigationEventCreate, ControlState
 from app.services.firebase_service import firebase_service
 from app.services.alert_service import alert_service
 from app.services.sensor_service import sensor_service
@@ -22,7 +22,7 @@ security = JWTBearer()
 # =============================================================================
 
 # Debounce configuration: minimum seconds between state changes
-DEBOUNCE_INTERVAL_SECONDS = 10
+DEBOUNCE_INTERVAL_SECONDS = 2
 
 # Track last state change time per device (in-memory)
 _last_state_change_time: Dict[str, float] = {}
@@ -48,19 +48,20 @@ async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float])
         settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
         doc = await asyncio.to_thread(settings_ref.get)
         
-        # Use system threshold if available, else fallback to control-specific or 20.0
-        threshold = 20.0
+        # Use system threshold if available, else fallback to control-specific or 30.0
+        threshold = 30.0
         if doc.exists:
-            threshold = doc.to_dict().get("soil_moisture_min", 20.0)
+            threshold = doc.to_dict().get("soil_moisture_critical", 30.0)
+            print(f"DEBUG: Found system-wide threshold: {threshold}")
         elif control.threshold:
             threshold = control.threshold
+            print(f"DEBUG: No system-wide threshold found, using device-specific: {threshold}")
+        else:
+            print(f"DEBUG: No threshold found, using default: {threshold}")
 
         # Decision: pump ON if moisture below threshold
         new_pump_state = soil_moisture < threshold
-
-        # ✅ Only update if state actually changes
-        if new_pump_state == control.pump_state:
-            return  # No change needed
+        print(f"DEBUG: Device {device_id} - Soil: {soil_moisture}%, Threshold: {threshold}%, Current Pump: {control.pump_state}, New Pump: {new_pump_state}")
 
         # ✅ Debounce: prevent rapid toggling
         now = time.time()

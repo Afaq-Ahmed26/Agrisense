@@ -253,8 +253,8 @@ class ApiService {
     }
 
     async stopIrrigation(deviceId) {
-        // Call the backend endpoint to stop irrigation
-        return this.request(`/irrigation/stop/${deviceId}/`, {
+        // Call the backend endpoint to stop irrigation - removed trailing slash
+        return this.request(`/irrigation/stop/${deviceId}`, {
             method: 'POST'
         });
     }
