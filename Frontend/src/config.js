@@ -28,8 +28,13 @@ export const CONFIG = {
         measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
     },
 
-    // API Base URL - adjust to your backend deployment
-    API_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000", // Fallback for development
+    // API Base URL(s) - frontend can fail over across these in order
+    API_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+    API_BASE_URLS: (
+        import.meta.env.VITE_API_BASE_URLS
+            ? import.meta.env.VITE_API_BASE_URLS.split(',').map(url => url.trim()).filter(Boolean)
+            : [import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"]
+    ),
 
     // Default timeout for API requests (in milliseconds)
     API_TIMEOUT: 20000,

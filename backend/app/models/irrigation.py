@@ -63,7 +63,7 @@ class ControlState(BaseModel):
     device_id: str
     mode: str = "AUTO"  # "AUTO" or "MANUAL"
     pump_state: bool = False  # True for ON, False for OFF
-    threshold: float = 20.0  # Soil moisture percentage threshold for AUTO mode
+    threshold: float = 30.0  # Soil moisture percentage threshold for AUTO mode
     last_change_time: Optional[datetime] = None # For debounce and failsafe
 
 

@@ -48,6 +48,7 @@ const int DHT_PIN           = 4;
 const int I2C_SDA           = 21;
 const int I2C_SCL           = 22;
 const int RELAY_PIN         = 25;
+const bool RELAY_ACTIVE_LOW = false; // Set true if your relay is active-LOW
 
 // =============================================================================
 // DHT & BH1750 Setup
@@ -61,7 +62,12 @@ BH1750 lightMeter;
 // =============================================================================
 const char* WIFI_SSID     = "Agrisense";
 const char* WIFI_PASSWORD = "passwordd";
-const char* API_BASE_URL  = "http://192.168.100.13:8000";
+const char* API_BASE_URLS[] = {
+  "http://192.168.100.13:8000", // Primary (home)
+  "http://10.96.45.218:8000"    // Secondary (university)
+};
+const int API_BASE_URL_COUNT = sizeof(API_BASE_URLS) / sizeof(API_BASE_URLS[0]);
+int activeApiIndex = 0;
 
 // =============================================================================
 // Calibration Values
@@ -73,7 +79,9 @@ const int SOIL_MOISTURE_WET = 1250;
 // Timing
 // =============================================================================
 const unsigned long SENSOR_READ_INTERVAL_MS = 2000;
+const unsigned long SENSOR_REDETECT_INTERVAL_MS = 10000;
 unsigned long lastReadTime = 0;
+unsigned long lastRedetectTime = 0;
 
 // =============================================================================
 // Sensor State Flags
@@ -91,6 +99,11 @@ float humidity     = NAN;
 float lightLevel   = NAN;
 
 String deviceId = "";
+
+void setPumpState(bool on) {
+  const int relayLevel = RELAY_ACTIVE_LOW ? (on ? LOW : HIGH) : (on ? HIGH : LOW);
+  digitalWrite(RELAY_PIN, relayLevel);
+}
 
 // =============================================================================
 // WiFi Setup
@@ -166,6 +179,36 @@ void detectSensors() {
 }
 
 // =============================================================================
+// Re-detect Offline Sensors During Runtime
+// =============================================================================
+void redetectOfflineSensors() {
+  unsigned long now = millis();
+  if (now - lastRedetectTime < SENSOR_REDETECT_INTERVAL_MS) return;
+  lastRedetectTime = now;
+
+  if (!dhtSensorConnected) {
+    dht.begin();
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    if (!isnan(h) && !isnan(t)) {
+      dhtSensorConnected = true;
+      Serial.println("[OK] DHT22 Sensor: RECONNECTED");
+    }
+  }
+
+  if (!lightSensorConnected) {
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+      delay(50);
+      float lux = lightMeter.readLightLevel();
+      if (lux >= 0) {
+        lightSensorConnected = true;
+        Serial.println("[OK] BH1750 Sensor: RECONNECTED");
+      }
+    }
+  }
+}
+
+// =============================================================================
 // Read Sensors
 // =============================================================================
 void readSensors() {
@@ -178,34 +221,29 @@ void readSensors() {
     soilMoisture = NAN;
   }
 
-  // DHT22
-  if (dhtSensorConnected) {
-    float h = dht.readHumidity();
-    float t = dht.readTemperature();
-    if (!isnan(h) && !isnan(t)) {
-      humidity    = h;
-      temperature = t;
-    } else {
-      humidity    = NAN;
-      temperature = NAN;
-      Serial.println("WARNING: DHT22 lost connection!");
-    }
+  // DHT22: always attempt read (prevents getting stuck in OFFLINE after one failed detect)
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  if (!isnan(h) && !isnan(t)) {
+    humidity    = h;
+    temperature = t;
+    dhtSensorConnected = true;
   } else {
     humidity    = NAN;
     temperature = NAN;
+    dhtSensorConnected = false;
+    Serial.println("WARNING: DHT22 read failed.");
   }
 
-  // BH1750
-  if (lightSensorConnected) {
-    float lux = lightMeter.readLightLevel();
-    if (lux >= 0) {
-      lightLevel = lux;
-    } else {
-      lightLevel = NAN;
-      Serial.println("WARNING: BH1750 lost connection!");
-    }
+  // BH1750: always attempt read and recover automatically when sensor comes back
+  float lux = lightMeter.readLightLevel();
+  if (lux >= 0) {
+    lightLevel = lux;
+    lightSensorConnected = true;
   } else {
     lightLevel = NAN;
+    lightSensorConnected = false;
+    Serial.println("WARNING: BH1750 read failed.");
   }
 }
 
@@ -231,11 +269,76 @@ void printSensorStatus() {
 }
 
 // =============================================================================
-// Float or Default (backend requires non-null values)
+// Float or Null (send null for disconnected sensors)
 // =============================================================================
-String floatOrDefault(float value, float defaultVal) {
-  if (isnan(value)) return String(defaultVal, 2);
+String floatOrNull(float value) {
+  if (isnan(value)) return "null";
   return String(value, 2);
+}
+
+bool postSensorDataToBackendAtIndex(int endpointIndex, const String& jsonPayload) {
+  HTTPClient http;
+  String apiUrl = String(API_BASE_URLS[endpointIndex]) + "/sensors/" + deviceId + "/readings";
+  http.begin(apiUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(jsonPayload);
+  http.end();
+
+  if (httpResponseCode > 0 && httpResponseCode < 300) {
+    return true;
+  }
+
+  Serial.print("Sensor POST failed on ");
+  Serial.print(API_BASE_URLS[endpointIndex]);
+  Serial.print(" with code ");
+  Serial.println(httpResponseCode);
+  return false;
+}
+
+bool fetchControlStateFromBackendAtIndex(int endpointIndex) {
+  HTTPClient http;
+  String url = String(API_BASE_URLS[endpointIndex]) + "/irrigation/control/" + deviceId;
+  http.begin(url);
+  int httpResponseCode = http.GET();
+
+  if (httpResponseCode != 200) {
+    http.end();
+    Serial.print("Control GET failed on ");
+    Serial.print(API_BASE_URLS[endpointIndex]);
+    Serial.print(" with code ");
+    Serial.println(httpResponseCode);
+    return false;
+  }
+
+  String payload = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, payload);
+  if (error) {
+    Serial.print("Control JSON parse failed on ");
+    Serial.print(API_BASE_URLS[endpointIndex]);
+    Serial.print(": ");
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  bool pumpState = doc["pump_state"];
+
+  Serial.print("Pump state from backend: ");
+  Serial.println(pumpState ? "ON" : "OFF");
+
+  setPumpState(pumpState);
+  
+  Serial.print("Relay signal sent: ");
+  if (RELAY_ACTIVE_LOW) {
+    Serial.println(pumpState ? "LOW (Pump ON)" : "HIGH (Pump OFF)");
+  } else {
+    Serial.println(pumpState ? "HIGH (Pump ON)" : "LOW (Pump OFF)");
+  }
+
+  return true;
 }
 
 // =============================================================================
@@ -247,27 +350,30 @@ void sendDataToBackend() {
     return;
   }
 
-  HTTPClient http;
-  String apiUrl = String(API_BASE_URL) + "/sensors/" + deviceId + "/readings";
-
-  http.begin(apiUrl);
-  http.addHeader("Content-Type", "application/json");
-
   String jsonPayload = "{";
-  jsonPayload += "\"device_id\":\""   + deviceId                           + "\",";
-  jsonPayload += "\"soil_moisture\":" + floatOrDefault(soilMoisture, 0.0)  + ",";
-  jsonPayload += "\"temperature\":"   + floatOrDefault(temperature,  25.0) + ",";
-  jsonPayload += "\"humidity\":"      + floatOrDefault(humidity,     50.0) + ",";
-  jsonPayload += "\"light_level\":"   + floatOrDefault(lightLevel,   300.0);
+  jsonPayload += "\"device_id\":\""   + deviceId              + "\",";
+  jsonPayload += "\"soil_moisture\":" + floatOrNull(soilMoisture) + ",";
+  jsonPayload += "\"temperature\":"   + floatOrNull(temperature)  + ",";
+  jsonPayload += "\"humidity\":"      + floatOrNull(humidity)     + ",";
+  jsonPayload += "\"light_level\":"   + floatOrNull(lightLevel);
   jsonPayload += "}";
 
   Serial.print("Sending: ");
   Serial.println(jsonPayload);
 
-  int httpResponseCode = http.POST(jsonPayload);
-  Serial.print("Response: ");
-  Serial.println(httpResponseCode);
-  http.end();
+  for (int offset = 0; offset < API_BASE_URL_COUNT; offset++) {
+    int endpointIndex = (activeApiIndex + offset) % API_BASE_URL_COUNT;
+    if (postSensorDataToBackendAtIndex(endpointIndex, jsonPayload)) {
+      if (endpointIndex != activeApiIndex) {
+        Serial.print("Switched active API endpoint to: ");
+        Serial.println(API_BASE_URLS[endpointIndex]);
+      }
+      activeApiIndex = endpointIndex;
+      return;
+    }
+  }
+
+  Serial.println("ERROR: Sensor data send failed on all configured API endpoints.");
 }
 
 // =============================================================================
@@ -276,32 +382,19 @@ void sendDataToBackend() {
 void pollControlState() {
   if (WiFi.status() != WL_CONNECTED) return;
 
-  HTTPClient http;
-  String url = String(API_BASE_URL) + "/irrigation/control/" + deviceId;
-  http.begin(url);
-  int httpResponseCode = http.GET();
-
-  if (httpResponseCode == 200) {
-    String payload = http.getString();
-    JsonDocument doc;
-    deserializeJson(doc, payload);
-    bool pumpState = doc["pump_state"];
-    Serial.print("Backend pump_state: ");
-    Serial.println(pumpState ? "ON" : "OFF");
-    
-    // Debugging print for the actual signal being sent
-    Serial.print("Sending signal to RELAY_PIN (GPIO");
-    Serial.print(RELAY_PIN);
-    Serial.print("): ");
-    Serial.println(pumpState ? "LOW (Active-Low ON)" : "HIGH (Active-Low OFF)");
-
-    // Invert HIGH/LOW to test for active-low relay
-    digitalWrite(RELAY_PIN, pumpState ? LOW : HIGH);
-  } else {
-    Serial.print("Failed to get control state. HTTP Response code: ");
-    Serial.println(httpResponseCode);
+  for (int offset = 0; offset < API_BASE_URL_COUNT; offset++) {
+    int endpointIndex = (activeApiIndex + offset) % API_BASE_URL_COUNT;
+    if (fetchControlStateFromBackendAtIndex(endpointIndex)) {
+      if (endpointIndex != activeApiIndex) {
+        Serial.print("Switched active API endpoint to: ");
+        Serial.println(API_BASE_URLS[endpointIndex]);
+      }
+      activeApiIndex = endpointIndex;
+      return;
+    }
   }
-  http.end();
+
+  Serial.println("ERROR: Control state fetch failed on all configured API endpoints.");
 }
 
 // =============================================================================
@@ -310,9 +403,10 @@ void pollControlState() {
 void setup() {
   Serial.begin(115200);
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // Initialize to OFF (Active-Low)
+  setPumpState(false); // Always boot with pump OFF to avoid startup pulse
+
   delay(1000);
-  Serial.println("\n=== AgriSense Starting ===");
+  Serial.println("=== AgriSense Starting ===");
   setupWifi();
   generateDeviceId();
   detectSensors();
@@ -325,6 +419,7 @@ void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - lastReadTime >= SENSOR_READ_INTERVAL_MS) {
     lastReadTime = currentMillis;
+    redetectOfflineSensors();
     readSensors();
     printSensorStatus();
     sendDataToBackend();

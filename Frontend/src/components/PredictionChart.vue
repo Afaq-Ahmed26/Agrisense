@@ -19,6 +19,7 @@ import { authStore } from '@/store/auth';
 import { apiService } from '@/services/api'; // Import apiService
 
 Chart.register(...registerables);
+const ML_FEATURES_ENABLED = true;
 
 const chartCanvas = ref(null);
 const chartInstance = shallowRef(null);
@@ -33,6 +34,10 @@ const props = defineProps({
 });
 
 onMounted(() => {
+  if (!ML_FEATURES_ENABLED) {
+    renderChart();
+    return;
+  }
   if (props.deviceId) {
     loadPredictionData(props.deviceId);
   }
@@ -41,6 +46,11 @@ onMounted(() => {
 
 // Watch for deviceId changes
 watch(() => props.deviceId, (newDeviceId) => {
+  if (!ML_FEATURES_ENABLED) {
+    predictionData.value = null;
+    updateChart();
+    return;
+  }
   if (newDeviceId) {
     loadPredictionData(newDeviceId);
   } else {
@@ -56,6 +66,11 @@ onBeforeUnmount(() => {
 });
 
 const loadPredictionData = async (deviceId) => {
+  if (!ML_FEATURES_ENABLED) {
+    predictionData.value = null;
+    updateChart();
+    return;
+  }
   if (!deviceId) {
     predictionData.value = null;
     updateChart();
@@ -70,7 +85,6 @@ const loadPredictionData = async (deviceId) => {
       // Store the list of predictions
       predictionData.value = futurePredictions;
     } else {
-      console.warn(`No future predictions found for device ${deviceId}.`);
       predictionData.value = null;
     }
     updateChart(); // Update chart after new data is fetched

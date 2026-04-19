@@ -49,14 +49,15 @@ async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float])
         settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
         doc = await asyncio.to_thread(settings_ref.get)
         
-        # Use system threshold if available, else fallback to control-specific or 30.0
+        # Use system threshold if available; otherwise keep backward compatibility
+        # but normalize old low defaults to at least 30%.
         threshold = 30.0
         if doc.exists:
             threshold = doc.to_dict().get("soil_moisture_critical", 30.0)
             print(f"DEBUG: Found system-wide threshold: {threshold}")
-        elif control.threshold:
-            threshold = control.threshold
-            print(f"DEBUG: No system-wide threshold found, using device-specific: {threshold}")
+        elif control.threshold is not None:
+            threshold = max(control.threshold, 30.0)
+            print(f"DEBUG: No system-wide threshold found, using normalized device-specific threshold: {threshold}")
         else:
             print(f"DEBUG: No threshold found, using default: {threshold}")
 

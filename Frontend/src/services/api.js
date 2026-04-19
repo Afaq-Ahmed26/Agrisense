@@ -7,6 +7,10 @@ import { firebaseAuthReadyPromise } from './auth'; // Import the promise
 class ApiService {
     constructor() {
         this.baseURL = CONFIG.API_BASE_URL;
+        this.baseURLs = Array.isArray(CONFIG.API_BASE_URLS) && CONFIG.API_BASE_URLS.length > 0
+            ? CONFIG.API_BASE_URLS
+            : [this.baseURL];
+        this.activeBaseURLIndex = Math.max(0, this.baseURLs.indexOf(this.baseURL));
         this.timeout = CONFIG.API_TIMEOUT;
         // this.token no longer explicitly stored here; always fetched from localStorage
         this.isRefreshing = false; // Flag to prevent multiple refresh attempts
@@ -41,8 +45,6 @@ class ApiService {
 
     // Generic API request method with token refresh logic
     async request(endpoint, options = {}, isRetry = false) {
-        const url = `${this.baseURL}${endpoint}`;
-
         // Ensure Firebase Auth state is ready before proceeding with authenticated requests.
         // This prevents race conditions where requests are sent before currentUser is populated.
         const tokenFromLocalStorage = localStorage.getItem('accessToken');
@@ -86,85 +88,117 @@ class ApiService {
             requestOptions.headers['Authorization'] = `Bearer ${token}`;
         }
 
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const attemptOrder = this.baseURLs.map((_, idx) => (this.activeBaseURLIndex + idx) % this.baseURLs.length);
+        let lastNetworkError = null;
 
-            const response = await fetch(url, {
-                ...requestOptions,
-                signal: controller.signal
-            });
+        for (let i = 0; i < attemptOrder.length; i++) {
+            const baseIndex = attemptOrder[i];
+            const baseURL = this.baseURLs[baseIndex];
+            const url = `${baseURL}${endpoint}`;
+            let timeoutId = null;
 
-            clearTimeout(timeoutId);
-            // Handle token expiration / unauthorized access
-            if ((response.status === 401 || response.status === 403) && firebaseService.auth.currentUser && !isRetry) {
-                console.warn(`Token expired or unauthorized for ${endpoint}, attempting to refresh...`);
+            try {
+                const controller = new AbortController();
+                timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-                const originalRequest = { endpoint, options, resolve: null, reject: null }; // Store request context
-
-                return new Promise((resolve, reject) => {
-                    originalRequest.resolve = resolve;
-                    originalRequest.reject = reject;
-                    this.failedQueue.push(originalRequest);
-
-                    if (!this.isRefreshing) {
-                        this.isRefreshing = true;
-                        if (!firebaseService.auth.currentUser) {
-                            console.error("Firebase currentUser is null during token refresh attempt. Logging out.");
-                            storeLogout();
-                            this.processQueue(new Error("No user to refresh token."), null);
-                            this.isRefreshing = false; // Reset flag
-                            // This reject will propagate to the current request that triggered the refresh
-                            originalRequest.reject(new Error("No user to refresh token."));
-                            return;
-                        }
-                        firebaseService.auth.currentUser.getIdToken(true)
-                            .then(refreshedToken => {
-                                if (firebaseService.auth.currentUser) {
-                                    setUser(firebaseService.auth.currentUser, refreshedToken);
-                                }
-                                this.processQueue(null, refreshedToken); // Process all queued requests
-                            })
-                            .catch(err => {
-                                console.error('Failed to refresh Firebase ID token:', err);
-                                this.processQueue(err); // Process all queued requests with error
-                                storeLogout(); // Logout if refresh itself fails
-                            })
-                            .finally(() => {
-                                this.isRefreshing = false; // Reset refresh flag
-                            });
-                    }
+                const response = await fetch(url, {
+                    ...requestOptions,
+                    signal: controller.signal
                 });
-            } else if ((response.status === 401 || response.status === 403) && isRetry) {
-                // If it's a retry and still 401/403, something is wrong, force logout
-                storeLogout();
-                throw new Error(`Authentication failed on retry. Please login again. Status: ${response.status}`);
-            }
 
-            if (!response.ok) {
-                // For other non-OK responses, try to parse JSON error message if available
-                let errorMessage = `HTTP error! status: ${response.status}`;
-                try {
-                    const errorJson = await response.json();
-                    if (errorJson && errorJson.detail) {
-                        errorMessage = `HTTP error! status: ${response.status}. Detail: ${errorJson.detail}`;
-                    }
-                } catch (jsonError) {
-                    // Ignore JSON parsing errors, use generic message
+                if (this.activeBaseURLIndex !== baseIndex) {
+                    this.activeBaseURLIndex = baseIndex;
+                    this.baseURL = baseURL;
+                    console.log(`✅ Switched API endpoint to: ${baseURL}`);
                 }
-                throw new Error(errorMessage);
-            }
 
-            return await response.json();
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn(`🛑 API Timeout [${this.timeout}ms]: ${endpoint}.`);
-            } else {
-                console.error(`❌ API Request Failed: ${endpoint}`, error.message);
-            }
+                // Handle token expiration / unauthorized access
+                if ((response.status === 401 || response.status === 403) && firebaseService.auth.currentUser && !isRetry) {
+                    console.warn(`Token expired or unauthorized for ${endpoint}, attempting to refresh...`);
 
-            // If we reach here, throw the original error
-            throw error;
+                    const originalRequest = { endpoint, options, resolve: null, reject: null }; // Store request context
+
+                    return new Promise((resolve, reject) => {
+                        originalRequest.resolve = resolve;
+                        originalRequest.reject = reject;
+                        this.failedQueue.push(originalRequest);
+
+                        if (!this.isRefreshing) {
+                            this.isRefreshing = true;
+                            if (!firebaseService.auth.currentUser) {
+                                console.error("Firebase currentUser is null during token refresh attempt. Logging out.");
+                                storeLogout();
+                                this.processQueue(new Error("No user to refresh token."), null);
+                                this.isRefreshing = false; // Reset flag
+                                // This reject will propagate to the current request that triggered the refresh
+                                originalRequest.reject(new Error("No user to refresh token."));
+                                return;
+                            }
+                            firebaseService.auth.currentUser.getIdToken(true)
+                                .then(refreshedToken => {
+                                    if (firebaseService.auth.currentUser) {
+                                        setUser(firebaseService.auth.currentUser, refreshedToken);
+                                    }
+                                    this.processQueue(null, refreshedToken); // Process all queued requests
+                                })
+                                .catch(err => {
+                                    console.error('Failed to refresh Firebase ID token:', err);
+                                    this.processQueue(err); // Process all queued requests with error
+                                    storeLogout(); // Logout if refresh itself fails
+                                })
+                                .finally(() => {
+                                    this.isRefreshing = false; // Reset refresh flag
+                                });
+                        }
+                    });
+                } else if ((response.status === 401 || response.status === 403) && isRetry) {
+                    // If it's a retry and still 401/403, something is wrong, force logout
+                    storeLogout();
+                    throw new Error(`Authentication failed on retry. Please login again. Status: ${response.status}`);
+                }
+
+                if (!response.ok) {
+                    // For other non-OK responses, try to parse JSON error message if available
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorJson = await response.json();
+                        if (errorJson && errorJson.detail) {
+                            errorMessage = `HTTP error! status: ${response.status}. Detail: ${errorJson.detail}`;
+                        }
+                    } catch (jsonError) {
+                        // Ignore JSON parsing errors, use generic message
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                return await response.json();
+            } catch (error) {
+                const isNetworkError =
+                    error?.name === 'AbortError' ||
+                    (typeof error?.message === 'string' &&
+                        (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')));
+
+                if (isNetworkError && i < attemptOrder.length - 1) {
+                    lastNetworkError = error;
+                    console.warn(`⚠️ API endpoint unreachable (${baseURL}), trying next endpoint...`);
+                    continue;
+                }
+
+                if (error.name === 'AbortError') {
+                    console.warn(`🛑 API Timeout [${this.timeout}ms]: ${endpoint}.`);
+                } else {
+                    console.error(`❌ API Request Failed: ${endpoint}`, error.message);
+                }
+                throw error;
+            } finally {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+            }
+        }
+
+        if (lastNetworkError) {
+            throw lastNetworkError;
         }
     }
 
@@ -267,24 +301,24 @@ class ApiService {
     }
 
     async getIrrigationPredictions(deviceId, hoursAhead = 48) {
-        // ML-based irrigation recommendations are currently disabled in backend.
-        // Return a dummy response to avoid frontend errors.
-        return {
-            device_id: deviceId,
-            predictions: [],
-            message: "ML-based irrigation recommendations are currently disabled."
-        };
+        const params = new URLSearchParams({
+            hours_ahead: String(hoursAhead)
+        });
+        return this.request(`/ml/future_predictions/${deviceId}?${params}`, { method: 'GET' });
     }
 
     // ML model methods
     async getMLPrediction(soil_moisture, temperature, humidity, light_level, device_id = null) {
-        // ML-based irrigation recommendations are currently disabled in backend.
-        // Return a dummy response to avoid frontend errors.
-        return {
-            recommendation: "ML predictions disabled.",
-            predicted_valve_duration_s: 0,
-            status: "disabled"
-        };
+        return this.request('/ml/predict', {
+            method: 'POST',
+            body: JSON.stringify({
+                soil_moisture,
+                temperature,
+                humidity,
+                light_level,
+                device_id
+            })
+        });
     }
 
     async retrainModel(datasetStartDate, datasetEndDate) {

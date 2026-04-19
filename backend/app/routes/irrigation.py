@@ -75,47 +75,31 @@ async def trigger_irrigation(
     
     # If duration is not provided, use ML prediction
     if duration_seconds is None:
-        # =========================
-        # ML DISABLED (PHASE 2)
-        # latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
-        
-        # if not latest_reading:
-        #     raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}. Cannot predict irrigation duration.")
+        latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
+        if not latest_reading:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No recent sensor data found for device {device_id}. Cannot predict irrigation duration."
+            )
 
-        # sensor_data_for_ml = {
-        #     "soil_moisture": latest_reading.soil_moisture,
-        #     "temperature": latest_reading.temperature,
-        #     "humidity": latest_level.humidity,
-        #     "light_level": latest_reading.light_level,
-        #     "device_id": device_id
-        # }
-        
-        # prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
-        
-        # if prediction_result.get("error"):
-        #     raise HTTPException(status_code=500, detail=f"ML prediction failed: {prediction_result['error']}")
-        
-        # predicted_duration_s = prediction_result.get("predicted_valve_duration_s", 0)
-        # duration_seconds = max(0, round(predicted_duration_s)) # Use predicted seconds, ensure non-negative
-        # =========================
-        # For now, if duration is not provided and ML is disabled, default to a sensible duration or raise error
-        raise HTTPException(status_code=400, detail="Duration must be provided explicitly when ML is disabled.")
+        sensor_data_for_ml = {
+            "soil_moisture": latest_reading.soil_moisture,
+            "temperature": latest_reading.temperature,
+            "humidity": latest_reading.humidity,
+            "light_level": latest_reading.light_level,
+            "device_id": device_id
+        }
+
+        prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
+        if prediction_result.get("error"):
+            raise HTTPException(status_code=400, detail=f"ML prediction failed: {prediction_result['error']}")
+
+        predicted_duration_s = prediction_result.get("predicted_valve_duration_s", 0)
+        duration_seconds = max(0, round(predicted_duration_s))
 
 
     if duration_seconds <= 0:
-        # If duration is 0 or negative, it means no irrigation is needed/possible
-        # Create a "no irrigation" event for logging purposes if desired, or just return a message.
-        # For now, let's just return a message without creating an event.
-        return {
-            "message": f"No irrigation triggered for device {device_id} as predicted duration was 0 or less seconds.",
-            "device_id": device_id,
-            "predicted_duration_s": 0, # Since ML is disabled
-            "start_time": start_time, # Add start_time for consistency
-            "end_time": start_time, # End time same as start time for 0 duration
-            "duration_actual_seconds": 0,
-            "status": "completed", # Mark as completed for 0 duration
-            "user_triggered": user_triggered
-        }
+        raise HTTPException(status_code=400, detail=f"No irrigation needed for device {device_id} (predicted duration <= 0).")
 
     end_time = start_time + timedelta(seconds=duration_seconds)
     
@@ -138,10 +122,10 @@ async def trigger_irrigation(
 
     new_event = await irrigation_service.create_irrigation_event(event_create)
     
-    # Fetch current control state to preserve settings (like threshold)
+    # Fetch current control state to preserve settings (like threshold and mode)
     current_control = await irrigation_service.get_control_state(device_id)
+    # Do not override mode here; it is managed explicitly via /irrigation/control.
     current_control.pump_state = True
-    current_control.mode = "MANUAL" if user_triggered else "AUTO"
     
     # Update control state to turn pump ON
     await irrigation_service.update_control_state(current_control)
@@ -166,50 +150,39 @@ async def stop_irrigation(device_id: str, token: str = Depends(security)):
     return stopped_event
 
 
-# @router.get("/recommendations/{device_id}")
-# async def get_irrigation_recommendations(device_id: str, token: str = Depends(security)):
-#     """
-#     Get irrigation recommendations for a specific device based on sensor data and ML predictions.
-#     This endpoint integrates with the ML service to provide intelligent recommendations.
-#     """
-#     # =========================
-#     # ML DISABLED (PHASE 2)
-#     # latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
-    
-#     # if not latest_reading:
-#     #     raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}.")
+@router.get("/recommendations/{device_id}")
+async def get_irrigation_recommendations(device_id: str, token: str = Depends(security)):
+    """
+    Get irrigation recommendations for a specific device based on current sensor data.
+    """
+    latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
+    if not latest_reading:
+        raise HTTPException(status_code=404, detail=f"No recent sensor data found for device {device_id}.")
 
-#     # sensor_data_for_ml = {
-#     #     "device_id": device_id,
-#     #     "soil_moisture": latest_reading.soil_moisture,
-#     #     "temperature": latest_reading.temperature,
-#     #     "humidity": latest_reading.humidity,
-#     #     "light_level": latest_reading.light_level,
-#     #     "timestamp": datetime.utcnow().isoformat()
-#     # }
-    
-#     # prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
-    
-#     # # Check for errors from the ML service
-#     # if prediction_result.get("error"):
-#     #     raise HTTPException(status_code=500, detail=prediction_result["error"])
+    sensor_data_for_ml = {
+        "device_id": device_id,
+        "soil_moisture": latest_reading.soil_moisture,
+        "temperature": latest_reading.temperature,
+        "humidity": latest_reading.humidity,
+        "light_level": latest_reading.light_level
+    }
 
-#     # predicted_duration = prediction_result.get("predicted_valve_duration_s", 0)
-    
-#     # recommendation_text = "No irrigation recommended at this time."
-#     # if predicted_duration > 0.5: # If predicted duration is significant
-#     #     recommendation_text = f"Irrigate for approximately {predicted_duration:.2f} seconds."
-    
-#     # return {
-#     #     "device_id": device_id,
-#     #     "recommendation": recommendation_text,
-#     #     "predicted_valve_duration_s": predicted_duration,
-#     #     "predicted_at": prediction_result.get("predicted_at", datetime.utcnow().isoformat()),
-#     #     "current_conditions": latest_reading.dict() # Use actual latest reading
-#     # }
-#     # =========================
-# When ML is disabled, recommendations are not available.
-# raise HTTPException(status_code=501, detail="ML-based irrigation recommendations are currently disabled.")
+    prediction_result = await ml_service.predict_irrigation_need(sensor_data_for_ml)
+    if prediction_result.get("error"):
+        raise HTTPException(status_code=400, detail=prediction_result["error"])
+
+    predicted_duration = prediction_result.get("predicted_valve_duration_s", 0)
+    recommendation_text = "No irrigation recommended at this time."
+    if predicted_duration > 0:
+        recommendation_text = f"Irrigate for approximately {predicted_duration:.2f} seconds."
+
+    return {
+        "device_id": device_id,
+        "recommendation": recommendation_text,
+        "predicted_valve_duration_s": predicted_duration,
+        "predicted_at": prediction_result.get("predicted_at", datetime.utcnow().isoformat()),
+        "current_conditions": latest_reading.dict()
+    }
 
 
 # --- CONTROL STATE ROUTES ---

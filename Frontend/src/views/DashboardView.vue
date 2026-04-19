@@ -15,7 +15,7 @@
       </div>
 
       <!-- Irrigation Recommendation and Trigger Button -->
-      <div v-if="currentDeviceId && irrigationRecommendation" 
+      <div v-if="ML_FEATURES_ENABLED && currentDeviceId && irrigationRecommendation" 
            class="card shadow mb-4" 
            :class="recommendationCardClass">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
@@ -45,7 +45,7 @@
           <div class="position-relative">
             <!-- Ensure components that NEED a device ID only render when it exists -->
             <component 
-              v-if="(widget.id !== 'SensorDisplay' && widget.id !== 'IrrigationControl' && widget.id !== 'PredictionChart') || currentDeviceId"
+              v-if="(((widget.id !== 'SensorDisplay' && widget.id !== 'IrrigationControl' && widget.id !== 'PredictionChart') || currentDeviceId) && (ML_FEATURES_ENABLED || widget.id !== 'PredictionChart'))"
               :is="getComponent(widget.id)" 
               v-bind="widget.id === 'SensorDisplay' ? { 
                 'device-id': currentDeviceId,
@@ -116,6 +116,8 @@ import { authStore, fetchUser } from '@/store/auth';
 import { apiService } from '@/services/api';
 import { notificationsStore } from '@/store/notifications'; 
 
+const ML_FEATURES_ENABLED = true;
+
 const customizeMode = ref(false);
 const dashboardLayout = ref([]);
 const currentDeviceId = ref(null);
@@ -134,7 +136,7 @@ const availableWidgets = {
   AlertsBanner: AlertsBanner,
   SensorDisplay: SensorDisplay,
   IrrigationControl: IrrigationControl,
-  PredictionChart: PredictionChart,
+  PredictionChart: ML_FEATURES_ENABLED ? PredictionChart : null,
   LogsTable: LogsTable
 };
 
@@ -142,7 +144,7 @@ const defaultLayout = [
   { id: 'AlertsBanner', component: 'AlertsBanner', visible: true, order: 1 },
   { id: 'SensorDisplay', component: 'SensorDisplay', visible: true, order: 2 },
   { id: 'IrrigationControl', component: 'IrrigationControl', visible: true, order: 3 },
-  { id: 'PredictionChart', component: 'PredictionChart', visible: true, order: 4 },
+  { id: 'PredictionChart', component: 'PredictionChart', visible: ML_FEATURES_ENABLED, order: 4 },
   { id: 'LogsTable', component: 'LogsTable', visible: true, order: 5 }
 ];
 
@@ -152,7 +154,7 @@ const getComponent = (widgetId) => {
     'AlertsBanner': AlertsBanner,
     'SensorDisplay': SensorDisplay,
     'IrrigationControl': IrrigationControl,
-    'PredictionChart': PredictionChart,
+    'PredictionChart': ML_FEATURES_ENABLED ? PredictionChart : null,
     'LogsTable': LogsTable
   };
   return componentMap[widgetId] || null;
@@ -227,12 +229,25 @@ const setupSensorDataPolling = (deviceId) => {
 
 // Function to fetch irrigation recommendation
 const fetchIrrigationRecommendation = async (deviceId) => {
+  if (!ML_FEATURES_ENABLED) {
+    irrigationRecommendation.value = null;
+    return;
+  }
   if (!deviceId || !sensorData.value) {
     irrigationRecommendation.value = null;
     return;
   }
   try {
     const { soil_moisture, temperature, humidity, light_level } = sensorData.value;
+    if (soil_moisture === null || soil_moisture === undefined) {
+      irrigationRecommendation.value = {
+        recommendation: "Awaiting soil moisture data.",
+        predicted_valve_duration_s: 0,
+        current_conditions: { soil_moisture, temperature, humidity, light_level },
+        predicted_at: new Date().toISOString()
+      };
+      return;
+    }
     const prediction = await apiService.getMLPrediction(soil_moisture, temperature, humidity, light_level, deviceId);
     irrigationRecommendation.value = {
       recommendation: prediction.predicted_valve_duration_s > 0 ? "Irrigation recommended" : "No irrigation needed",
@@ -299,7 +314,7 @@ watch(currentDeviceId, (newVal) => {
 // Watch for changes in sensorData to fetch new irrigation recommendations
 // Guard added to prevent infinite loop when sensorData updates every 10 seconds
 watch(sensorData, async (newVal) => {
-  if (irrigationPending || !newVal || !currentDeviceId.value) return;
+  if (!ML_FEATURES_ENABLED || irrigationPending || !newVal || !currentDeviceId.value) return;
   
   irrigationPending = true;
   try {
@@ -379,7 +394,9 @@ const confirmIrrigation = async () => {
   }
   showIrrigationSpinner.value = true;
   try {
-    await apiService.triggerIrrigation(currentDeviceId.value, irrigationRecommendation.value.predicted_valve_duration_s);
+    // Backend expects an integer number of seconds; round the ML prediction.
+    const roundedDurationSeconds = Math.max(1, Math.round(irrigationRecommendation.value.predicted_valve_duration_s || 0));
+    await apiService.triggerIrrigation(currentDeviceId.value, roundedDurationSeconds);
     irrigationActionMessage.value = "Irrigation triggered successfully!";
     // Optionally trigger a refresh of logs or status here
   } catch (error) {

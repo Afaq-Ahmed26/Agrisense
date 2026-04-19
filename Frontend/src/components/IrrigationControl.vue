@@ -124,6 +124,7 @@ const updateControlState = async (updates) => {
     await fetchControlState();
   } catch (error) {
     console.error('Failed to update control state:', error);
+    throw error;
   }
 };
 

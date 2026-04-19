@@ -55,10 +55,20 @@ class MLService:
             'Light Level (lx)': sensor_data.get('light_level')
         }
 
-        # Check if all required data is present
-        if any(value is None for value in input_data_for_model.values()):
+        # Fill missing sensor values with conservative defaults so soil-moisture-only
+        # deployments can still get a prediction.
+        default_features = {
+            'Temperature (°C)': 25.0,
+            'Humidity (%)': 50.0,
+            'Light Level (lx)': 300.0
+        }
+        for feature_name, default_value in default_features.items():
+            if input_data_for_model.get(feature_name) is None:
+                input_data_for_model[feature_name] = default_value
+
+        if input_data_for_model.get('Soil Moisture (%)') is None:
             return {
-                "error": "Missing one or more required sensor data fields: soil_moisture, temperature, humidity, light_level.",
+                "error": "Missing required sensor field: soil_moisture.",
                 "predicted_valve_duration_s": None,
                 "input_data": sensor_data
             }
