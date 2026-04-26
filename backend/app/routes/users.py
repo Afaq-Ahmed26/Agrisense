@@ -107,7 +107,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         firestore_updates['dashboard_preferences'] = user_update.dashboard_preferences
     if user_update.is_active is not None:
         firestore_updates['is_active'] = user_update.is_active
-    
+
     # Get current user data for logging changes
     target_user_current_data = await get_user_from_firestore(user_id)
     if not target_user_current_data:
@@ -120,6 +120,28 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
         changes['email'] = {"old": target_user_current_data.email, "new": user_update.email}
     if user_update.full_name and user_update.full_name != target_user_current_data.full_name:
         changes['full_name'] = {"old": target_user_current_data.full_name, "new": user_update.full_name}
+
+    if user_update.assigned_device_ids is not None:
+        if acting_user.role != 'admin':
+            raise HTTPException(status_code=403, detail="Only admins can update assigned devices.")
+
+        normalized_assigned_devices = []
+        seen_device_ids = set()
+        for device_id in user_update.assigned_device_ids:
+            if not isinstance(device_id, str):
+                continue
+            normalized_device_id = device_id.strip()
+            if not normalized_device_id or normalized_device_id in seen_device_ids:
+                continue
+            seen_device_ids.add(normalized_device_id)
+            normalized_assigned_devices.append(normalized_device_id)
+
+        if normalized_assigned_devices != (target_user_current_data.assigned_device_ids or []):
+            changes['assigned_device_ids'] = {
+                "old": target_user_current_data.assigned_device_ids or [],
+                "new": normalized_assigned_devices
+            }
+        firestore_updates['assigned_device_ids'] = normalized_assigned_devices
 
     # Handle role update (only if admin is making the request)
     if user_update.role is not None:
@@ -144,7 +166,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, t
 
         # Log activity if there were changes
         if changes:
-            log_activity(
+            await log_activity(
                 user_id=acting_user_uid,
                 action="User Profile Update",
                 details={"target_user_id": user_id, "changes": changes}
@@ -223,7 +245,7 @@ async def update_user_preferences(user_id: str, preferences: UserPreferences, re
     # Log the activity
     changes = {k: {"old": getattr(old_prefs, k), "new": getattr(preferences, k)} for k in preferences.model_dump().keys() if getattr(old_prefs, k) != getattr(preferences, k)}
     if changes:
-        log_activity(
+        await log_activity(
             user_id=acting_user_uid,
             action="User Preferences Update",
             details={"target_user_id": user_id, "changes": changes}
@@ -268,7 +290,7 @@ async def update_user_notification_preferences(user_id: str, preferences: Notifi
 
     changes = {k: {"old": getattr(old_prefs, k), "new": getattr(preferences, k)} for k in preferences.model_dump().keys() if getattr(old_prefs, k) != getattr(preferences, k)}
     if changes:
-        log_activity(
+        await log_activity(
             user_id=acting_user_uid,
             action="Notification Preferences Update",
             details={"target_user_id": user_id, "changes": changes}

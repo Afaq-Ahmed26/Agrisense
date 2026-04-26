@@ -3,6 +3,9 @@ from typing import List, Dict, Optional
 from datetime import datetime, date, timedelta
 import asyncio
 import time  # For debounce timing
+import secrets
+from pydantic import BaseModel, Field
+from firebase_admin import firestore
 from app.middleware.auth import JWTBearer
 from app.models.sensor import SensorReading, SensorReadingCreate, Device, DeviceCreate, DeviceUpdate, HourlyAverageReadings, DailySummaryReadings
 from app.models.irrigation import IrrigationEventCreate, ControlState
@@ -10,9 +13,19 @@ from app.services.firebase_service import firebase_service
 from app.services.alert_service import alert_service
 from app.services.sensor_service import sensor_service
 from app.services.irrigation_service import irrigation_service
+from app.services.user_service import update_user_in_firestore
+from app.services.activity_log_service import log_activity
 from app.config import settings
 from app.services.ml_service import ml_service
 from app.utils.helpers import calculate_dew_point, calculate_heat_index
+from app.dependencies import (
+    get_current_user,
+    ensure_device_access,
+    get_assigned_device_ids,
+    ASSIGNED_DEVICE_ROLES,
+    normalize_role
+)
+from app.models.user import User
 
 
 router = APIRouter()
@@ -27,6 +40,20 @@ DEBOUNCE_INTERVAL_SECONDS = 2
 
 # Track last state change time per device (in-memory)
 _last_state_change_time: Dict[str, float] = {}
+
+
+class PairingCodeRequest(BaseModel):
+    expires_minutes: int = Field(default=10, ge=1, le=60)
+
+
+class PairingCodeResponse(BaseModel):
+    device_id: str
+    pairing_code: str
+    expires_at: datetime
+
+
+class DeviceClaimRequest(BaseModel):
+    pairing_code: str = Field(min_length=4, max_length=32)
 
 
 async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float]):
@@ -93,13 +120,26 @@ async def create_device(device: DeviceCreate, token: str = Depends(security)):
 
 
 @router.get("/", response_model=List[Device])
-async def get_devices(skip: int = 0, limit: int = 100, token: str = Depends(security)):
+async def get_devices(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user)
+):
     devices = await sensor_service.get_devices()
+
+    if normalize_role(current_user.role) in ASSIGNED_DEVICE_ROLES:
+        assigned_device_ids = get_assigned_device_ids(current_user)
+        devices = [device for device in devices if device.id in assigned_device_ids]
+
     return devices[skip : skip + limit]
 
 
 @router.get("/{device_id}", response_model=Device)
-async def get_device(device_id: str, token: str = Depends(security)):
+async def get_device(
+    device_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    ensure_device_access(current_user, device_id)
     device = await sensor_service.get_device(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -116,6 +156,153 @@ async def update_device(device_id: str, device_update: DeviceUpdate, token: str 
 async def delete_device(device_id: str, token: str = Depends(security)):
     # In a real implementation, this would delete a device from Firestore
     raise HTTPException(status_code=404, detail="Device not found")
+
+
+@router.post("/{device_id}/pairing-code", response_model=PairingCodeResponse)
+async def generate_pairing_code(
+    device_id: str,
+    payload: PairingCodeRequest,
+    current_user: User = Depends(get_current_user)
+):
+    if normalize_role(current_user.role) != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can generate pairing codes."
+        )
+
+    device = await sensor_service.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    pairing_code = "".join(secrets.choice("0123456789") for _ in range(6))
+    now = datetime.utcnow()
+    expires_at = now + timedelta(minutes=payload.expires_minutes)
+
+    device_ref = firebase_service.db.collection("devices").document(device_id)
+    await asyncio.to_thread(
+        device_ref.update,
+        {
+            "pairing_code": pairing_code,
+            "pairing_code_generated_at": now,
+            "pairing_code_expires_at": expires_at,
+            "pairing_code_generated_by": current_user.id,
+            "updated_at": now,
+        },
+    )
+
+    await log_activity(
+        user_id=current_user.id,
+        action="Device Pairing Code Generated",
+        details={
+            "device_id": device_id,
+            "expires_at": expires_at.isoformat(),
+        },
+    )
+
+    return PairingCodeResponse(
+        device_id=device_id,
+        pairing_code=pairing_code,
+        expires_at=expires_at,
+    )
+
+
+@router.post("/{device_id}/claim")
+async def claim_device(
+    device_id: str,
+    payload: DeviceClaimRequest,
+    current_user: User = Depends(get_current_user)
+):
+    if normalize_role(current_user.role) != "farmer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only farmers can claim devices via pairing code."
+        )
+
+    device_ref = firebase_service.db.collection("devices").document(device_id)
+    device_doc = await asyncio.to_thread(device_ref.get)
+    if not device_doc.exists:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    device_data = device_doc.to_dict() or {}
+    expected_code = str(device_data.get("pairing_code") or "").strip()
+    if not expected_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active pairing code found for this device."
+        )
+
+    provided_code = payload.pairing_code.strip()
+    if provided_code != expected_code:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid pairing code."
+        )
+
+    expires_at = device_data.get("pairing_code_expires_at")
+    if not isinstance(expires_at, datetime):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pairing code configuration is invalid."
+        )
+    expires_at = expires_at.replace(tzinfo=None) if expires_at.tzinfo else expires_at
+    if expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pairing code has expired."
+        )
+
+    now = datetime.utcnow()
+    await asyncio.to_thread(
+        device_ref.update,
+        {
+            "owner_id": current_user.id,
+            "updated_at": now,
+            "pairing_code": firestore.DELETE_FIELD,
+            "pairing_code_generated_at": firestore.DELETE_FIELD,
+            "pairing_code_expires_at": firestore.DELETE_FIELD,
+            "pairing_code_generated_by": firestore.DELETE_FIELD,
+        },
+    )
+
+    claimant_assigned_device_ids = get_assigned_device_ids(current_user)
+    claimant_assigned_device_ids.add(device_id)
+    await update_user_in_firestore(
+        current_user.id,
+        {"assigned_device_ids": sorted(claimant_assigned_device_ids), "updated_at": now},
+    )
+
+    users_query = firebase_service.db.collection("users").where(
+        "assigned_device_ids", "array_contains", device_id
+    )
+    users_docs = await asyncio.to_thread(lambda: users_query.get())
+    for user_doc in users_docs:
+        if user_doc.id == current_user.id:
+            continue
+        user_data = user_doc.to_dict() or {}
+        existing_ids = [
+            value.strip()
+            for value in (user_data.get("assigned_device_ids") or [])
+            if isinstance(value, str) and value.strip()
+        ]
+        if device_id not in existing_ids:
+            continue
+        remaining_ids = [value for value in existing_ids if value != device_id]
+        await update_user_in_firestore(
+            user_doc.id,
+            {"assigned_device_ids": remaining_ids, "updated_at": now},
+        )
+
+    await log_activity(
+        user_id=current_user.id,
+        action="Device Claimed",
+        details={"device_id": device_id},
+    )
+
+    return {
+        "message": "Device claimed successfully.",
+        "device_id": device_id,
+        "owner_id": current_user.id,
+    }
 
 
 @router.post("/{device_id}/readings", response_model=SensorReading)
@@ -166,8 +353,9 @@ async def get_sensor_readings(
     end_time: datetime = None, 
     skip: int = 0, 
     limit: int = 100, 
-    token: str = Depends(security)
+    current_user: User = Depends(get_current_user)
 ):
+    ensure_device_access(current_user, device_id)
     readings = await sensor_service.get_sensor_readings(
         device_id=device_id,
         start_time=start_time,
@@ -179,7 +367,11 @@ async def get_sensor_readings(
 
 
 @router.get("/{device_id}/latest-reading", response_model=SensorReading)
-async def get_latest_reading(device_id: str, token: str = Depends(security)):
+async def get_latest_reading(
+    device_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    ensure_device_access(current_user, device_id)
     latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
     if not latest_reading:
         raise HTTPException(status_code=404, detail="No sensor readings found for this device")
@@ -187,7 +379,11 @@ async def get_latest_reading(device_id: str, token: str = Depends(security)):
 
 
 @router.get("/{device_id}/hourly-average", response_model=HourlyAverageReadings)
-async def get_hourly_average_readings_route(device_id: str, token: str = Depends(security)):
+async def get_hourly_average_readings_route(
+    device_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    ensure_device_access(current_user, device_id)
     hourly_averages = await sensor_service.get_hourly_average_readings(device_id)
     if not hourly_averages["count"]:
         raise HTTPException(status_code=404, detail="No sensor readings found for this device in the last hour")
@@ -198,8 +394,9 @@ async def get_hourly_average_readings_route(device_id: str, token: str = Depends
 async def get_daily_summary_readings_route(
     device_id: str, 
     date: Optional[date] = Query(None), # Optional date parameter
-    token: str = Depends(security)
+    current_user: User = Depends(get_current_user)
 ):
+    ensure_device_access(current_user, device_id)
     daily_summary = await sensor_service.get_daily_summary_readings(device_id, date)
     if not daily_summary["count"]:
         raise HTTPException(status_code=404, detail="No sensor readings found for this device on the specified date")

@@ -164,7 +164,8 @@ class AuthService {
 
     // Check if current user is middleman
     isMiddleman() {
-        return this.getUserRole() === CONFIG.USER_ROLES.MIDDLEMAN;
+        const role = this.getUserRole();
+        return role === CONFIG.USER_ROLES.MIDDLEMAN || role === 'officer';
     }
 
     // Check if current user is farmer
@@ -185,6 +186,10 @@ class AuthService {
                 'manual_override'
             ],
             middleman: [
+                'view_assigned_sensors',
+                'view_assigned_logs'
+            ],
+            officer: [
                 'view_assigned_sensors',
                 'view_assigned_logs'
             ],

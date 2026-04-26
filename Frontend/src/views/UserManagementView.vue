@@ -13,6 +13,7 @@
                   <th>Name</th>
                   <th>Email</th>
                   <th>Role</th>
+                  <th>Assigned Device IDs</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -34,6 +35,25 @@
                       <div v-if="user.isUpdatingRole" class="spinner-border spinner-border-sm text-primary ms-2" role="status">
                         <span class="visually-hidden">Loading...</span>
                       </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        v-model="user.assignedDevicesInput"
+                        placeholder="esp32-b47cb8, esp32-xyz"
+                        :disabled="!canEditAssignments(user) || user.isUpdatingAssignments"
+                      />
+                      <button
+                        class="btn btn-sm btn-outline-primary ms-2"
+                        @click="updateAssignedDevices(user)"
+                        :disabled="!canEditAssignments(user) || user.isUpdatingAssignments"
+                      >
+                        <span v-if="user.isUpdatingAssignments" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span v-else>Save</span>
+                      </button>
                     </div>
                   </td>
                   <td>
@@ -70,19 +90,37 @@ const isAdmin = computed(() => authStore.user?.role === 'admin');
 onMounted(async () => {
   try {
     const fetchedUsers = await apiService.getUsers();
-    // Show all users, but add a property to disable controls for self
-    users.value = fetchedUsers.map(user => ({ ...user, isUpdatingRole: false }));
+    users.value = fetchedUsers.map(user => ({
+      ...user,
+      isUpdatingRole: false,
+      isUpdatingAssignments: false,
+      assignedDevicesInput: (user.assigned_device_ids || []).join(', ')
+    }));
   } catch (error) {
     console.error('Failed to fetch users:', error);
   }
 });
+
+const isOfficer = (user) => {
+  const role = (user.role || '').toLowerCase();
+  return role === 'officer' || role === 'middleman';
+};
+
+const isFarmer = (user) => (user.role || '').toLowerCase() === 'farmer';
+
+const canEditAssignments = (user) => isAdmin.value && (isOfficer(user) || isFarmer(user));
 
 const toggleUserStatus = async (user) => {
   try {
     const updatedUser = await apiService.updateUser(user.id, { is_active: !user.is_active });
     const index = users.value.findIndex(u => u.id === user.id);
     if (index !== -1) {
-      users.value[index] = updatedUser;
+      users.value[index] = {
+        ...updatedUser,
+        isUpdatingRole: false,
+        isUpdatingAssignments: false,
+        assignedDevicesInput: (updatedUser.assigned_device_ids || []).join(', ')
+      };
     }
   } catch (error) {
     console.error(`Failed to toggle user status for user ${user.id}:`, error);
@@ -96,8 +134,12 @@ const updateUserRole = async (user, newRole) => {
     const updatedUser = await apiService.updateUser(user.id, { role: newRole });
     const index = users.value.findIndex(u => u.id === user.id);
     if (index !== -1) {
-      // Keep the isUpdatingRole property
-      users.value[index] = { ...updatedUser, isUpdatingRole: false };
+      users.value[index] = {
+        ...updatedUser,
+        isUpdatingRole: false,
+        isUpdatingAssignments: false,
+        assignedDevicesInput: (updatedUser.assigned_device_ids || []).join(', ')
+      };
     }
   } catch (error)
 	{
@@ -112,6 +154,38 @@ const updateUserRole = async (user, newRole) => {
     const index = users.value.findIndex(u => u.id === user.id);
     if (index !== -1) {
       users.value[index].isUpdatingRole = false;
+    }
+  }
+};
+
+const updateAssignedDevices = async (user) => {
+  const index = users.value.findIndex(u => u.id === user.id);
+  if (index === -1) return;
+
+  users.value[index].isUpdatingAssignments = true;
+
+  const assignedDeviceIds = (users.value[index].assignedDevicesInput || '')
+    .split(',')
+    .map(deviceId => deviceId.trim())
+    .filter(Boolean);
+
+  try {
+    const updatedUser = await apiService.updateUser(user.id, {
+      assigned_device_ids: assignedDeviceIds
+    });
+
+    users.value[index] = {
+      ...updatedUser,
+      isUpdatingRole: false,
+      isUpdatingAssignments: false,
+      assignedDevicesInput: (updatedUser.assigned_device_ids || []).join(', ')
+    };
+  } catch (error) {
+    console.error(`Failed to update assigned devices for user ${user.id}:`, error);
+  } finally {
+    const currentIndex = users.value.findIndex(u => u.id === user.id);
+    if (currentIndex !== -1) {
+      users.value[currentIndex].isUpdatingAssignments = false;
     }
   }
 };

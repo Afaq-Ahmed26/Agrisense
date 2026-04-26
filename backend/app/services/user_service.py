@@ -11,13 +11,21 @@ _user_cache = {}
 _user_cache_time = {}
 USER_CACHE_EXPIRY = 3600  # 1 hour in seconds
 
+
+def invalidate_user_cache(uid: str) -> None:
+    _user_cache.pop(uid, None)
+    _user_cache_time.pop(uid, None)
+
+
 async def get_user_from_firestore(uid: str, include_deleted: bool = False) -> Optional[User]:
     now = time.time()
     
     # Return from cache if fresh
     if uid in _user_cache and (now - _user_cache_time.get(uid, 0)) < USER_CACHE_EXPIRY:
-        # print(f"DEBUG: get_user_from_firestore - returning CACHED user with UID: {uid}")
-        return _user_cache[uid]
+        cached_user = _user_cache[uid]
+        if not include_deleted and cached_user.is_deleted:
+            return None
+        return cached_user
 
     print(f"DEBUG: get_user_from_firestore - trying to fetch user with UID: {uid}")
     user_ref = firebase_service.db.collection('users').document(uid)
@@ -52,11 +60,14 @@ async def create_user_in_firestore(user: User):
     user_ref = firebase_service.db.collection('users').document(user.id)
     # Use to_thread for blocking set()
     await asyncio.to_thread(user_ref.set, user.model_dump(by_alias=True))
+    _user_cache[user.id] = user
+    _user_cache_time[user.id] = time.time()
 
 async def update_user_in_firestore(uid: str, update_data: dict):
     user_ref = firebase_service.db.collection('users').document(uid)
     # Use to_thread for blocking update()
     await asyncio.to_thread(user_ref.update, update_data)
+    invalidate_user_cache(uid)
 
 async def get_all_users_from_firestore(skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[User]:
     users_ref = firebase_service.db.collection('users')

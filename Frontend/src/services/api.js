@@ -264,6 +264,20 @@ class ApiService {
         return this.request('/sensors/');
     }
 
+    async generateDevicePairingCode(deviceId, expiresMinutes = 10) {
+        return this.request(`/sensors/${deviceId}/pairing-code`, {
+            method: 'POST',
+            body: JSON.stringify({ expires_minutes: expiresMinutes })
+        });
+    }
+
+    async claimDevice(deviceId, pairingCode) {
+        return this.request(`/sensors/${deviceId}/claim`, {
+            method: 'POST',
+            body: JSON.stringify({ pairing_code: pairingCode })
+        });
+    }
+
     // Irrigation control methods
     async getIrrigationStatus(deviceId) {
         // For now, return a mock status since the backend doesn't have a specific status endpoint

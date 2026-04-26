@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import BaseModel, field_validator, EmailStr, Field
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 import re
@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     role: str = "farmer"  # Default role is farmer
     full_name: Optional[str] = None
     dashboard_preferences: Optional[List[Dict[str, Any]]] = None
+    assigned_device_ids: List[str] = Field(default_factory=list)
 
     @field_validator('email')
     @classmethod
@@ -45,6 +46,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     full_name: Optional[str] = None
     dashboard_preferences: Optional[List[Dict[str, Any]]] = None
+    assigned_device_ids: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
     @field_validator('email')
