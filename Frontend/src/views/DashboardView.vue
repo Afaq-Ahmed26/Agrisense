@@ -57,7 +57,10 @@
                 'external-irrigation-duration-seconds': irrigationRecommendation?.predicted_valve_duration_s
               } : (widget.id === 'PredictionChart' ? {
                 'device-id': currentDeviceId
-              } : {}))"
+              } : (widget.id === 'LogsTable' ? {
+                'device-id': currentDeviceId,
+                'refresh-key': logsRefreshKey
+              } : {})))"
               @irrigation-started="handleIrrigationStarted"
               @irrigation-stopped="handleIrrigationStopped"
             ></component>
@@ -117,6 +120,7 @@ import { apiService } from '@/services/api';
 import { notificationsStore } from '@/store/notifications'; 
 
 const ML_FEATURES_ENABLED = true;
+const SENSOR_DATA_STALE_MS = 15000;
 
 const customizeMode = ref(false);
 const dashboardLayout = ref([]);
@@ -126,11 +130,31 @@ const showIrrigationSpinner = ref(false);
 const showIrrigationConfirmModal = ref(false);
 const irrigationActionMessage = ref('');
 const externalTriggerForIrrigationControl = ref(0);
+const logsRefreshKey = ref(0);
 const sensorData = ref(null); // This will hold the latest sensor data
 const deviceStatus = ref(null); // This will hold the latest device status
 let sensorDataInterval = null; // To store the interval for polling sensor data
 let irrigationPending = false; // Guard to prevent infinite irrigation fetch loops
 let consecutiveFailures = 0; // For backoff mechanism
+
+const getOfflineSensorData = () => ({
+  soil_moisture: null,
+  temperature: null,
+  humidity: null,
+  light_level: null,
+  last_updated: null
+});
+
+const normalizeSensorReading = (data) => ({
+  ...data,
+  last_updated: data?.last_updated || data?.timestamp || null
+});
+
+const isSensorReadingFresh = (reading) => {
+  if (!reading?.last_updated) return false;
+  const readingTs = new Date(reading.last_updated).getTime();
+  return Number.isFinite(readingTs) && (Date.now() - readingTs) <= SENSOR_DATA_STALE_MS;
+};
 
 const availableWidgets = {
   AlertsBanner: AlertsBanner,
@@ -147,6 +171,26 @@ const defaultLayout = [
   { id: 'PredictionChart', component: 'PredictionChart', visible: ML_FEATURES_ENABLED, order: 4 },
   { id: 'LogsTable', component: 'LogsTable', visible: true, order: 5 }
 ];
+
+const mergeDashboardLayout = (savedLayout) => {
+  const saved = Array.isArray(savedLayout) ? savedLayout : [];
+  const merged = defaultLayout.map((defaults) => {
+    const existing = saved.find((item) => item?.id === defaults.id);
+    if (!existing) return { ...defaults };
+
+    return {
+      ...defaults,
+      ...existing,
+      id: defaults.id,
+      component: defaults.component,
+      // Keep logs widget available even if old preferences hid/removed it.
+      visible: defaults.id === 'LogsTable' ? true : (existing.visible ?? defaults.visible),
+      order: existing.order ?? defaults.order
+    };
+  });
+
+  return merged.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+};
 
 // Function to get component by widget ID
 const getComponent = (widgetId) => {
@@ -170,34 +214,33 @@ const fetchLatestSensorData = async (deviceId) => {
   try {
     const data = await apiService.getLatestSensorReadings(deviceId);
     consecutiveFailures = 0;  // reset on success
-    sensorData.value = data;
-    // Placeholder for device status, as the backend latest-reading only returns SensorReading
-    // You might want a separate API for device status or include it in SensorReading if available
+    const normalizedData = normalizeSensorReading(data);
+    const isFresh = isSensorReadingFresh(normalizedData);
+
+    if (!isFresh) {
+      sensorData.value = getOfflineSensorData();
+      deviceStatus.value = {
+        online: false,
+        last_heartbeat: normalizedData.last_updated,
+        battery_level: null
+      };
+      return;
+    }
+
+    sensorData.value = normalizedData;
     deviceStatus.value = {
       online: true,
-      last_heartbeat: data.timestamp, // Use sensor reading timestamp as heartbeat
-      battery_level: 100 // Placeholder
+      last_heartbeat: normalizedData.last_updated,
+      battery_level: null
     };
   } catch (error) {
     console.error(`Failed to fetch latest sensor data for device ${deviceId}:`, error);
     consecutiveFailures++;
-    if (consecutiveFailures >= 3) {
-      // Stop hammering — show offline state
-      clearInterval(sensorDataInterval);
-      console.warn('Backend unreachable, stopping polls');
-    }
-    // Set default sensor data instead of null to prevent crashes
-    sensorData.value = {
-      soil_moisture: 0,
-      temperature: 0,
-      humidity: 0,
-      light_level: 0,
-      last_updated: new Date().toISOString()
-    };
+    sensorData.value = getOfflineSensorData();
     deviceStatus.value = {
       online: false,
-      last_heartbeat: new Date().toISOString(),
-      battery_level: 0
+      last_heartbeat: null,
+      battery_level: null
     };
   }
 };
@@ -270,11 +313,7 @@ onMounted(async () => {
   if (!authStore.user) {
     await fetchUser();
   }
-  if (authStore.user && authStore.user.dashboard_preferences) {
-    dashboardLayout.value = authStore.user.dashboard_preferences;
-  } else {
-    dashboardLayout.value = defaultLayout;
-  }
+  dashboardLayout.value = mergeDashboardLayout(authStore.user?.dashboard_preferences);
 
   // Fetch devices and set currentDeviceId
   try {
@@ -415,9 +454,14 @@ const confirmIrrigation = async () => {
 
 const handleIrrigationStarted = (payload) => {
   console.log('Irrigation started event received from IrrigationControl:', payload);
+  logsRefreshKey.value = Date.now();
+  const seconds = Number(payload?.durationSeconds);
+  const durationText = Number.isFinite(seconds) && seconds > 0
+    ? (seconds < 60 ? `${seconds} seconds` : `${(seconds / 60).toFixed(seconds % 60 === 0 ? 0 : 1)} minutes`)
+    : `${payload.duration} minutes`;
   notificationsStore.addNotification({
     title: 'Irrigation Started',
-    message: `Irrigation for device ${payload.deviceId} has started for ${payload.duration} minutes.`,
+    message: `Irrigation for device ${payload.deviceId} has started for ${durationText}.`,
     type: 'success',
     deviceId: payload.deviceId
   });
@@ -425,6 +469,7 @@ const handleIrrigationStarted = (payload) => {
 
 const handleIrrigationStopped = (payload) => {
   console.log('Irrigation stopped event received from IrrigationControl:', payload);
+  logsRefreshKey.value = Date.now();
   notificationsStore.addNotification({
     title: 'Irrigation Stopped',
     message: `Irrigation for device ${payload.deviceId} has completed.`,

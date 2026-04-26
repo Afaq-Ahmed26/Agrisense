@@ -28,11 +28,27 @@
         <div class="mb-3">
           <strong>Mode:</strong>
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="irrigationMode" id="autoMode" value="auto" v-model="mode">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="irrigationMode"
+              id="autoMode"
+              :checked="mode === 'auto'"
+              :disabled="isLoading || isModeChanging"
+              @change="handleModeChange('auto')"
+            >
             <label class="form-check-label" for="autoMode">Auto</label>
           </div>
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="irrigationMode" id="manualMode" value="manual" v-model="mode">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="irrigationMode"
+              id="manualMode"
+              :checked="mode === 'manual'"
+              :disabled="isLoading || isModeChanging"
+              @change="handleModeChange('manual')"
+            >
             <label class="form-check-label" for="manualMode">Manual</label>
           </div>
         </div>
@@ -40,8 +56,21 @@
         <!-- Manual Controls -->
         <div id="manualControls" v-if="mode === 'manual'">
           <div class="input-group mb-3">
-            <label class="input-group-text" for="durationMinutes">Duration (min)</label>
-            <input type="number" class="form-control" id="durationMinutes" v-model.number="durationMinutes" min="1" max="120" :disabled="isRunning || isLoading">
+            <label class="input-group-text" for="durationValue">Duration</label>
+            <input
+              type="number"
+              class="form-control"
+              id="durationValue"
+              v-model.number="durationValue"
+              :min="durationMin"
+              :max="durationMax"
+              :step="durationStep"
+              :disabled="isRunning || isLoading"
+            >
+            <select class="form-select" v-model="durationUnit" :disabled="isRunning || isLoading" style="max-width: 120px;">
+              <option value="minutes">Minutes</option>
+              <option value="seconds">Seconds</option>
+            </select>
             <button id="startIrrigation" class="btn btn-success" @click="confirmStart" :disabled="isRunning || isLoading">
               <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               <i v-else class="fas fa-play"> Start</i>
@@ -51,11 +80,11 @@
               <i v-else class="fas fa-stop"> Stop</i>
             </button>
           </div>
-          <small class="form-text text-muted">Set a duration between 1 and 120 minutes.</small>
+          <small class="form-text text-muted">Set duration from 0.1-120 minutes or 1-7200 seconds.</small>
         </div>
 
         <div v-if="countdown" class="mt-2 text-center">
-          <p class="h5">{{ countdown }} remaining</p>
+          <p class="h5">{{ countdown }} remaining <small class="text-muted">({{ countdownSeconds }}s)</small></p>
         </div>
       </div>
 
@@ -69,9 +98,6 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { formatDuration } from '@/utils/helpers';
-import { formatWithUserPreferences } from '@/utils/unitConverter';
-import { authStore } from '@/store/auth';
 import { apiService } from '@/services/api'; 
 import NotificationModal from './NotificationModal.vue';
 
@@ -94,20 +120,29 @@ const emit = defineEmits(['irrigation-started', 'irrigation-stopped']);
 
 const notificationModal = ref(null);
 const isLoading = ref(false);
+const isModeChanging = ref(false);
 const isRunning = ref(false); 
 const mode = ref('auto'); 
-const durationMinutes = ref(15);
+const durationUnit = ref('minutes');
+const durationValue = ref(15);
 const lastIrrigationTime = ref('N/A');
 const countdown = ref('');
+const countdownSeconds = ref(0);
 let irrigationTimer = null;
 let countdownInterval = null;
 let pollInterval = null;
+
+const durationMin = computed(() => (durationUnit.value === 'seconds' ? 1 : 0.1));
+const durationMax = computed(() => (durationUnit.value === 'seconds' ? 7200 : 120));
+const durationStep = computed(() => (durationUnit.value === 'seconds' ? 1 : 0.1));
 
 const fetchControlState = async () => {
   if (!props.deviceId) return;
   try {
     const state = await apiService.request(`/irrigation/control/${props.deviceId}`, { method: 'GET' });
-    mode.value = state.mode.toLowerCase();
+    if (!isModeChanging.value && state.mode) {
+      mode.value = state.mode.toLowerCase();
+    }
     isRunning.value = state.pump_state;
   } catch (error) {
     console.error('Failed to fetch control state:', error);
@@ -128,13 +163,28 @@ const updateControlState = async (updates) => {
   }
 };
 
-const startLocalIrrigationFeedback = (duration) => {
+const startLocalIrrigationFeedback = (durationSeconds) => {
+  clearTimers();
   isRunning.value = true;
-  startCountdown(duration);
+  startCountdown(durationSeconds);
 
   irrigationTimer = setTimeout(() => {
     stopIrrigation(true);
-  }, duration * 60 * 1000);
+  }, durationSeconds * 1000);
+};
+
+const formatClock = (totalSeconds) => {
+  const normalized = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(normalized / 60);
+  const seconds = normalized % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getDurationSecondsFromInput = (value, unit) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  const seconds = unit === 'seconds' ? Math.round(numericValue) : Math.round(numericValue * 60);
+  return Math.max(1, seconds);
 };
 
 onMounted(async () => {
@@ -147,21 +197,65 @@ onUnmounted(() => {
   clearTimers();
 });
 
-watch(mode, async (newMode) => {
-  await updateControlState({ mode: newMode.toUpperCase() });
-});
+const handleModeChange = async (newMode) => {
+  if (!props.deviceId || mode.value === newMode || isModeChanging.value || isLoading.value) {
+    return;
+  }
+
+  const previousMode = mode.value;
+  mode.value = newMode;
+  isModeChanging.value = true;
+  try {
+    await updateControlState({ mode: newMode.toUpperCase() });
+  } catch (error) {
+    mode.value = previousMode;
+    notificationModal.value?.show('Failed to change irrigation mode.', 'Error', 'error');
+  } finally {
+    isModeChanging.value = false;
+  }
+};
 
 watch(() => props.externalIrrigationTriggered, (newVal) => {
   if (newVal > 0 && props.externalIrrigationDurationSeconds > 0) {
-    const durationMin = Math.ceil(props.externalIrrigationDurationSeconds / 60);
-    startLocalIrrigationFeedback(durationMin);
-    emit('irrigation-started', { deviceId: props.deviceId, duration: durationMin });
+    const durationSeconds = Math.max(1, Math.round(props.externalIrrigationDurationSeconds));
+    startLocalIrrigationFeedback(durationSeconds);
+    emit('irrigation-started', {
+      deviceId: props.deviceId,
+      durationSeconds,
+      duration: durationSeconds / 60
+    });
+  }
+});
+
+watch(durationUnit, (newUnit, oldUnit) => {
+  if (newUnit === oldUnit) return;
+  const currentValue = Number(durationValue.value);
+  if (!Number.isFinite(currentValue)) {
+    durationValue.value = newUnit === 'seconds' ? 60 : 1;
+    return;
+  }
+
+  if (newUnit === 'seconds') {
+    durationValue.value = Math.max(1, Math.round(currentValue * 60));
+  } else {
+    durationValue.value = Math.max(0.1, Number((currentValue / 60).toFixed(1)));
   }
 });
 
 const confirmStart = () => {
-  if (confirm(`Start irrigation for ${durationMinutes.value} minutes?`)) {
-    startIrrigationAPI(durationMinutes.value);
+  const numericDuration = Number(durationValue.value);
+  if (!Number.isFinite(numericDuration) || numericDuration < durationMin.value || numericDuration > durationMax.value) {
+    notificationModal.value.show(
+      `Please enter a valid duration between ${durationMin.value} and ${durationMax.value} ${durationUnit.value}.`,
+      'Invalid Duration',
+      'error'
+    );
+    return;
+  }
+
+  const durationLabel = durationUnit.value === 'seconds' ? 'seconds' : 'minutes';
+  if (confirm(`Start irrigation for ${numericDuration} ${durationLabel}?`)) {
+    startIrrigationAPI();
   }
 };
 
@@ -171,25 +265,30 @@ const confirmStop = () => {
   }
 };
 
-const startIrrigationAPI = async (duration) => {
+const startIrrigationAPI = async () => {
   if (!props.deviceId) {
     notificationModal.value.show('No device specified for irrigation.', 'Error', 'error');
     return;
   }
   isLoading.value = true;
   try {
-    await updateControlState({ 
-      pump_state: true,
-      mode: 'MANUAL' 
-    });
-    
+    const durationSeconds = getDurationSecondsFromInput(durationValue.value, durationUnit.value);
+    if (durationSeconds === null) {
+      throw new Error('Invalid irrigation duration.');
+    }
+    await updateControlState({ mode: 'MANUAL' });
+
     mode.value = 'manual';
-    await apiService.startIrrigation(props.deviceId, duration * 60);
-    
-    notificationModal.value.show(`Irrigation started for ${duration} minutes!`, 'Success', 'success');
-    
-    startLocalIrrigationFeedback(duration);
-    emit('irrigation-started', { deviceId: props.deviceId, duration: duration });
+    await apiService.startIrrigation(props.deviceId, durationSeconds);
+
+    notificationModal.value.show(`Irrigation started for ${durationSeconds} seconds!`, 'Success', 'success');
+
+    startLocalIrrigationFeedback(durationSeconds);
+    emit('irrigation-started', {
+      deviceId: props.deviceId,
+      durationSeconds,
+      duration: durationSeconds / 60
+    });
 
   } catch (error) {
     console.error('Failed to start irrigation:', error);
@@ -221,13 +320,15 @@ const stopIrrigation = async (wasAutomatic = false) => {
   }
 };
 
-const startCountdown = (minutes) => {
-  let seconds = minutes * 60;
-  countdown.value = formatDuration(seconds);
+const startCountdown = (totalSeconds) => {
+  let seconds = totalSeconds;
+  countdownSeconds.value = seconds;
+  countdown.value = formatClock(seconds);
   countdownInterval = setInterval(() => {
     seconds--;
     if (seconds >= 0) {
-      countdown.value = formatDuration(seconds);
+      countdownSeconds.value = seconds;
+      countdown.value = formatClock(seconds);
     } else {
       clearTimers();
     }
@@ -238,6 +339,7 @@ const clearTimers = () => {
   clearInterval(countdownInterval);
   clearTimeout(irrigationTimer);
   countdown.value = '';
+  countdownSeconds.value = 0;
   countdownInterval = null;
   irrigationTimer = null;
 };

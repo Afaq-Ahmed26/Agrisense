@@ -129,15 +129,15 @@ const props = defineProps({
       humidity: null,
       soil_moisture: null,
       light_level: null,
-      last_updated: new Date().toISOString()
+      last_updated: null
     })
   },
   deviceStatus: {
     type: Object,
     default: () => ({
-      online: true,
-      last_heartbeat: new Date().toISOString(),
-      battery_level: 95
+      online: false,
+      last_heartbeat: null,
+      battery_level: null
     })
   }
 });

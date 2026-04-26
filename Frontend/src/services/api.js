@@ -271,10 +271,10 @@ class ApiService {
     }
 
     async startIrrigation(deviceId, durationSeconds) {
-        // Use the simulate endpoint since we don't have hardware
+        const normalizedDurationSeconds = Math.max(1, Math.round(Number(durationSeconds)));
         const params = new URLSearchParams({
             device_id: deviceId,
-            duration_seconds: durationSeconds.toString() // Change to duration_seconds
+            duration_seconds: normalizedDurationSeconds.toString()
         });
         return this.request(`/irrigation/trigger?${params}`, {
             method: 'POST'
@@ -294,10 +294,13 @@ class ApiService {
     }
 
     async getIrrigationLogs(deviceId, limit = 50) {
-        // Get irrigation events for the device
-        const events = await this.request('/irrigation/events/');
-        // Filter for the specific device and limit results
-        return events.filter(event => event.device_id === deviceId).slice(0, limit);
+        const params = new URLSearchParams({
+            device_id: deviceId,
+            limit: String(limit)
+        });
+        return this.request(`/irrigation/events?${params}`, {
+            method: 'GET'
+        });
     }
 
     async getIrrigationPredictions(deviceId, hoursAhead = 48) {
@@ -390,7 +393,7 @@ class ApiService {
         if (action) {
             params.append('action', action);
         }
-        return this.request(`/activity-logs?${params}`);
+        return this.request(`/activity-logs/?${params}`);
     }
 
     // Alert methods

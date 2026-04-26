@@ -26,25 +26,30 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="sortedLogs.length === 0">
+            <tr v-if="isLoading">
+              <td colspan="10" class="text-center text-muted">Loading irrigation logs...</td>
+            </tr>
+            <tr v-else-if="sortedLogs.length === 0">
               <td colspan="10" class="text-center text-muted">No irrigation logs available.</td>
             </tr>
-            <tr v-for="log in sortedLogs" :key="log.id">
-              <td>{{ formatDate(log.start_time) }}</td>
-              <td>{{ formatTime(log.start_time) }}</td>
-              <td>{{ log.duration_actual_minutes }}</td>
-              <td>{{ formatVolumeWithUserPreferences(log.water_used_liters) }}</td>
-              <td>
-                <span class="badge" :class="modeClass(log.mode)">{{ capitalize(log.mode) }}</span>
-              </td>
-              <td>
-                <span class="badge" :class="statusClass(log.status)">{{ log.status }}</span>
-              </td>
-              <td>{{ log.temperature ? formatTemperatureWithUserPreferences(log.temperature) : 'N/A' }}</td>
-              <td>{{ log.humidity ? log.humidity.toFixed(2) : 'N/A' }}</td>
-              <td>{{ log.soil_moisture ? log.soil_moisture.toFixed(2) : 'N/A' }}</td>
-              <td>{{ log.light_level ? log.light_level.toFixed(2) : 'N/A' }}</td>
-            </tr>
+            <template v-else>
+              <tr v-for="log in sortedLogs" :key="log.id">
+                <td>{{ formatDate(log.start_time) }}</td>
+                <td>{{ formatTime(log.start_time) }}</td>
+                <td>{{ log.duration_actual_minutes }}</td>
+                <td>{{ log.water_used_liters !== null ? formatVolumeWithUserPreferences(log.water_used_liters) : 'N/A' }}</td>
+                <td>
+                  <span class="badge" :class="modeClass(log.mode)">{{ capitalize(log.mode) }}</span>
+                </td>
+                <td>
+                  <span class="badge" :class="statusClass(log.status)">{{ log.status }}</span>
+                </td>
+                <td>{{ log.temperature !== null && log.temperature !== undefined ? formatTemperatureWithUserPreferences(log.temperature) : 'N/A' }}</td>
+                <td>{{ log.humidity !== null && log.humidity !== undefined ? log.humidity.toFixed(2) : 'N/A' }}</td>
+                <td>{{ log.soil_moisture !== null && log.soil_moisture !== undefined ? log.soil_moisture.toFixed(2) : 'N/A' }}</td>
+                <td>{{ log.light_level !== null && log.light_level !== undefined ? log.light_level.toFixed(2) : 'N/A' }}</td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -53,19 +58,81 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { capitalize } from '@/utils/helpers';
 import { formatWithUserPreferences } from '@/utils/unitConverter';
 import { authStore } from '@/store/auth';
+import { apiService } from '@/services/api';
+
+const props = defineProps({
+  deviceId: {
+    type: String,
+    default: ''
+  },
+  refreshKey: {
+    type: Number,
+    default: 0
+  }
+});
 
 const logs = ref([]);
+const isLoading = ref(false);
+let pollInterval = null;
 
-onMounted(() => {
-  generateSampleLogs();
+const fetchIrrigationLogs = async () => {
+  if (!props.deviceId) {
+    logs.value = [];
+    return;
+  }
+
+  isLoading.value = true;
+  try {
+    const events = await apiService.getIrrigationLogs(props.deviceId, 100);
+    logs.value = (Array.isArray(events) ? events : []).map((event) => {
+      const durationActualSeconds = Number(event.duration_actual_seconds ?? 0);
+      const durationActualMinutes = Number((durationActualSeconds / 60).toFixed(2));
+      const inferredMode = event.mode
+        ? String(event.mode).toLowerCase()
+        : (event.user_triggered ? 'manual' : 'auto');
+      const startTime = event.start_time || event.created_at || null;
+
+      return {
+        ...event,
+        start_time: startTime,
+        mode: inferredMode,
+        status: event.status || 'unknown',
+        duration_actual_seconds: durationActualSeconds,
+        duration_actual_minutes: durationActualMinutes,
+        water_used_liters: event.water_used_liters ?? null
+      };
+    });
+  } catch (error) {
+    console.error('Failed to fetch irrigation logs:', error);
+    logs.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(async () => {
+  await fetchIrrigationLogs();
+  pollInterval = setInterval(fetchIrrigationLogs, 15000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+
+watch(() => props.deviceId, () => {
+  fetchIrrigationLogs();
+});
+
+watch(() => props.refreshKey, () => {
+  fetchIrrigationLogs();
 });
 
 const sortedLogs = computed(() => {
-  return [...logs.value].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+  return [...logs.value].sort((a, b) => new Date(b.start_time || 0) - new Date(a.start_time || 0));
 });
 
 const userPrefs = computed(() => authStore.user?.preferences || {
@@ -78,8 +145,10 @@ const userPrefs = computed(() => authStore.user?.preferences || {
 const volumeUnit = computed(() => formatWithUserPreferences(0, 'volume', userPrefs.value).unit);
 const temperatureUnit = computed(() => formatWithUserPreferences(0, 'temperature', userPrefs.value).unit);
 
-const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
-const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString() : 'N/A';
+const formatTime = (dateString) => dateString
+  ? new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  : 'N/A';
 
 const formatVolumeWithUserPreferences = (liters) => {
   const result = formatWithUserPreferences(liters, 'volume', userPrefs.value);
@@ -91,15 +160,23 @@ const formatTemperatureWithUserPreferences = (celsius) => {
   return result.formatted;
 };
 
+const normalizeStatus = (status) => String(status || '').toLowerCase();
+const normalizeMode = (mode) => String(mode || '').toLowerCase();
+
 const modeClass = (mode) => ({
-  'bg-primary': mode?.toLowerCase() === 'auto',
-  'bg-warning text-dark': mode?.toLowerCase() === 'manual'
+  'bg-primary': normalizeMode(mode) === 'auto',
+  'bg-warning text-dark': normalizeMode(mode) === 'manual'
 });
 
 const statusClass = (status) => ({
-  'bg-success': status?.toLowerCase().includes('complete'),
-  'bg-danger': status?.toLowerCase().includes('error') || status?.toLowerCase().includes('fail'),
-  'bg-secondary': !status?.toLowerCase().includes('complete') && !status?.toLowerCase().includes('error')
+  'bg-success': normalizeStatus(status).includes('complete') || normalizeStatus(status).includes('stopped'),
+  'bg-primary': normalizeStatus(status).includes('active'),
+  'bg-danger': normalizeStatus(status).includes('error') || normalizeStatus(status).includes('fail'),
+  'bg-secondary': !normalizeStatus(status).includes('complete')
+    && !normalizeStatus(status).includes('stopped')
+    && !normalizeStatus(status).includes('active')
+    && !normalizeStatus(status).includes('error')
+    && !normalizeStatus(status).includes('fail')
 });
 
 const exportCSV = () => {
@@ -116,10 +193,10 @@ const exportCSV = () => {
       formatVolumeWithUserPreferences(log.water_used_liters),
       log.mode,
       log.status,
-      log.temperature ? formatTemperatureWithUserPreferences(log.temperature) : 'N/A',
-      log.humidity ? log.humidity.toFixed(2) : 'N/A',
-      log.soil_moisture ? log.soil_moisture.toFixed(2) : 'N/A',
-      log.light_level ? log.light_level.toFixed(2) : 'N/A',
+      log.temperature !== null && log.temperature !== undefined ? formatTemperatureWithUserPreferences(log.temperature) : 'N/A',
+      log.humidity !== null && log.humidity !== undefined ? log.humidity.toFixed(2) : 'N/A',
+      log.soil_moisture !== null && log.soil_moisture !== undefined ? log.soil_moisture.toFixed(2) : 'N/A',
+      log.light_level !== null && log.light_level !== undefined ? log.light_level.toFixed(2) : 'N/A',
     ].map(field => `"${field}"`).join(',');
     csvContent += row + '\n';
   });
@@ -132,14 +209,6 @@ const exportCSV = () => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-};
-
-const generateSampleLogs = () => {
-  logs.value = [
-    { id: 1, start_time: new Date(Date.now() - 3600000), duration_actual_minutes: 50, water_used_liters: 500, mode: 'auto', status: 'Completed', temperature: 25.5, humidity: 60.2, soil_moisture: 45.1, light_level: 800 },
-    { id: 2, start_time: new Date(Date.now() - 86400000), duration_actual_minutes: 30, water_used_liters: 300, mode: 'manual', status: 'Completed', temperature: 24.1, humidity: 62.5, soil_moisture: 40.7, light_level: 750 },
-    { id: 3, start_time: new Date(Date.now() - 172800000), duration_actual_minutes: 45, water_used_liters: 450, mode: 'auto', status: 'Failed', temperature: 26.8, humidity: 58.9, soil_moisture: 50.3, light_level: 850 },
-  ];
 };
 </script>
 

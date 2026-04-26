@@ -63,11 +63,22 @@ class IrrigationService:
         return new_event
 
     async def get_irrigation_events(self, device_id: Optional[str] = None, limit: int = 100) -> List[IrrigationEvent]:
-        query = self.db.collection('irrigation_events')
+        base_query = self.db.collection('irrigation_events')
+
+        # Firestore often requires a composite index for where + order_by.
+        # To avoid hard index dependency in this project setup, apply sorting in Python
+        # when filtering by device_id.
         if device_id:
-            query = query.where('device_id', '==', device_id)
-        query = query.order_by('created_at', direction='DESCENDING').limit(limit)
-        
+            query = base_query.where('device_id', '==', device_id)
+            docs = await asyncio.to_thread(lambda: query.get())
+            events = [IrrigationEvent(**doc.to_dict()) for doc in docs]
+            events.sort(
+                key=lambda e: e.created_at or e.start_time or datetime.min,
+                reverse=True
+            )
+            return events[:limit]
+
+        query = base_query.order_by('created_at', direction='DESCENDING').limit(limit)
         docs = await asyncio.to_thread(lambda: query.get())
         return [IrrigationEvent(**doc.to_dict()) for doc in docs]
 

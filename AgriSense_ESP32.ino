@@ -48,7 +48,7 @@ const int DHT_PIN           = 4;
 const int I2C_SDA           = 21;
 const int I2C_SCL           = 22;
 const int RELAY_PIN         = 25;
-const bool RELAY_ACTIVE_LOW = false; // Set true if your relay is active-LOW
+const bool RELAY_ACTIVE_LOW = true; // Relay is active-LOW for this module
 
 // =============================================================================
 // DHT & BH1750 Setup
@@ -64,7 +64,7 @@ const char* WIFI_SSID     = "Agrisense";
 const char* WIFI_PASSWORD = "passwordd";
 const char* API_BASE_URLS[] = {
   "http://192.168.100.13:8000", // Primary (home)
-  "http://10.96.45.218:8000"    // Secondary (university)
+  "http://192.168.43.120:8000" // Secondary (current)
 };
 const int API_BASE_URL_COUNT = sizeof(API_BASE_URLS) / sizeof(API_BASE_URLS[0]);
 int activeApiIndex = 0;
