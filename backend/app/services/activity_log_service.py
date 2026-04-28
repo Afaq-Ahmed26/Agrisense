@@ -5,6 +5,7 @@ import uuid
 
 from app.services.firebase_service import firebase_service
 from app.models.activity_log import ActivityLog
+from app.repositories.activity_log_repository import activity_log_repository
 
 
 async def log_activity(user_id: str, action: str, details: Optional[Dict] = None):
@@ -18,6 +19,10 @@ async def log_activity(user_id: str, action: str, details: Optional[Dict] = None
         action=action,
         details=details
     )
+    if activity_log_repository.is_enabled():
+        await asyncio.to_thread(activity_log_repository.create, log_entry)
+        return
+
     doc_ref = firebase_service.db.collection('activity_logs').document(log_entry.id)
     await asyncio.to_thread(doc_ref.set, log_entry.model_dump())
     print(f"Activity Logged: User {user_id}, Action: {action}, Details: {details}")
@@ -34,6 +39,15 @@ async def get_activity_logs(
           fields and order by another. You may need to create indexes for combinations
           of (user_id, timestamp) and (action, timestamp).
     """
+    if activity_log_repository.is_enabled():
+        return await asyncio.to_thread(
+            activity_log_repository.list,
+            limit,
+            skip,
+            user_id,
+            action,
+        )
+
     query = firebase_service.db.collection('activity_logs')
 
     # Apply filters

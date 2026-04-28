@@ -38,7 +38,9 @@ class AuthService {
                 // It's crucial to await getIdToken(true) to force refresh token before setting the user
                 const refreshedToken = await user.getIdToken(true); // Force refresh
                 setUser(user, refreshedToken);
-                await fetchUser(); // Fetch detailed user profile from backend using Firebase ID Token
+                if (user.emailVerified) {
+                    await fetchUser(); // Fetch detailed user profile from backend using Firebase ID Token
+                }
             } else {
                 // User is signed out.
                 storeLogout();
@@ -53,8 +55,20 @@ class AuthService {
         try {
             // Use firebaseService.auth here
             const userCredential = await signInWithEmailAndPassword(firebaseService.auth, email, password);
+            // Reload ensures emailVerified reflects the latest status from Firebase.
+            await userCredential.user.reload();
+            const isVerified = !!firebaseService.auth.currentUser?.emailVerified;
+            if (!isVerified) {
+                return {
+                    success: true,
+                    requiresVerification: true,
+                    email: firebaseService.auth.currentUser?.email || userCredential.user?.email || email,
+                    message: 'Email verification required.'
+                };
+            }
+
             // onAuthStateChanged listener will handle setting the user in authStore
-            return { success: true, user: userCredential.user, message: 'Login successful' };
+            return { success: true, requiresVerification: false, user: userCredential.user, message: 'Login successful' };
         } catch (error) {
             console.error('Firebase Login error:', error);
             // Provide more specific error messages for Firebase Auth errors
@@ -81,7 +95,20 @@ class AuthService {
             const response = await apiService.register(userData); // Backend returns User object on 200 OK
 
             if (response && response.id) { // Check if the response is a valid User object (has an ID)
-                return { success: true, message: 'Registration successful.' };
+                const userCredential = await signInWithEmailAndPassword(
+                    firebaseService.auth,
+                    userData.email,
+                    userData.password
+                );
+
+                await this.sendVerificationEmail();
+
+                return {
+                    success: true,
+                    requiresVerification: true,
+                    email: userCredential.user?.email || userData.email,
+                    message: 'Registration successful. Verification email sent.'
+                };
             } else {
                 // This 'else' block might be hit if the backend returns an empty object or something unexpected on success.
                 // However, the backend should always return a User object or throw an error.
@@ -112,6 +139,48 @@ class AuthService {
             console.error('Firebase Logout error:', error);
             return { success: false, message: error.message || 'Logout failed. Please try again.' };
         }
+    }
+
+    // Send email verification for account deletion
+    async sendVerificationEmail() {
+        try {
+            const currentUser = firebaseService.auth.currentUser;
+            if (!currentUser) {
+                return { success: false, message: 'No user is currently logged in.' };
+            }
+
+            await sendEmailVerification(currentUser);
+            return { success: true, message: 'Verification email sent.' };
+        } catch (error) {
+            console.error('Error sending verification email:', error);
+            let errorMessage = error.message || 'Failed to send verification email.';
+            if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many requests. Please wait before trying again.';
+            }
+            return { success: false, message: errorMessage };
+        }
+    }
+
+    async checkEmailVerificationStatus() {
+        const currentUser = firebaseService.auth.currentUser;
+        if (!currentUser) {
+            return { success: false, verified: false, message: 'No authenticated user found.' };
+        }
+
+        await currentUser.reload();
+        const refreshedUser = firebaseService.auth.currentUser;
+        if (!refreshedUser) {
+            return { success: false, verified: false, message: 'Session expired.' };
+        }
+
+        if (!refreshedUser.emailVerified) {
+            return { success: true, verified: false };
+        }
+
+        const refreshedToken = await refreshedUser.getIdToken(true);
+        setUser(refreshedUser, refreshedToken);
+        await fetchUser();
+        return { success: true, verified: true };
     }
 
     // Send email verification for account deletion

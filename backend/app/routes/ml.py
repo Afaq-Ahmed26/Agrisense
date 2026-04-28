@@ -61,8 +61,11 @@ async def ml_service_status(token: str = Depends(security)):
     """
     Check the status of the ML service.
     """
+    status = ml_service.get_status()
     return {
-        "status": "operational",
+        "status": "operational" if status["model_loaded"] else "degraded",
         "service": "ml_service",
-        "message": "ML service is ready for predictions"
+        "message": "ML service is ready for predictions" if status["model_loaded"] else "ML model is not loaded",
+        "model_loaded": status["model_loaded"],
+        "model_path": status["model_path"],
     }

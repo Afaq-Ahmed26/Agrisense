@@ -4,6 +4,7 @@ import joblib  # Changed from pickle to joblib
 import pandas as pd
 import os
 import random
+from app.config import settings
 from app.services.sensor_service import sensor_service
 
 
@@ -17,12 +18,13 @@ class MLService:
         Initializes the MLService by loading the trained model.
         The model is loaded using joblib from the /model directory.
         """
-        # Construct the absolute path to the new model file in the /model directory
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        model_path = os.path.join(base_dir, '..', '..', '..', 'model', 'irrigation_model.pkl')
-        
+        self.model = None
+        self.model_path = None
+        model_path = self._resolve_model_path()
+
         try:
             self.model = joblib.load(model_path)
+            self.model_path = model_path
             print(f"Successfully loaded model from {model_path}")
         except FileNotFoundError:
             print(f"Error: Model file not found at {model_path}")
@@ -30,6 +32,28 @@ class MLService:
         except Exception as e:
             print(f"An error occurred while loading the model: {e}")
             self.model = None
+
+    def _resolve_model_path(self) -> str:
+        configured_path = (settings.ML_MODEL_PATH or "").strip()
+        if configured_path:
+            if os.path.isabs(configured_path):
+                return configured_path
+            if os.path.exists(configured_path):
+                return os.path.abspath(configured_path)
+
+        # Common deployment/runtime locations.
+        candidate_paths = [
+            os.path.join(os.getcwd(), "model", "irrigation_model.pkl"),
+            os.path.join(os.getcwd(), "..", "model", "irrigation_model.pkl"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "model", "irrigation_model.pkl"),
+        ]
+
+        for candidate in candidate_paths:
+            if os.path.exists(candidate):
+                return os.path.abspath(candidate)
+
+        # Return first candidate for clear error logging if nothing exists.
+        return os.path.abspath(candidate_paths[0])
 
     async def predict_irrigation_need(self, sensor_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -167,6 +191,12 @@ class MLService:
             "optimal_schedule": optimal_times,
             "calculated_at": datetime.now(timezone.utc).isoformat(),
             "user_preferences_applied": user_preferences or {}
+        }
+
+    def get_status(self) -> Dict[str, Any]:
+        return {
+            "model_loaded": self.model is not None,
+            "model_path": self.model_path,
         }
 
 

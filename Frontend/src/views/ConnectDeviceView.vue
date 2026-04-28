@@ -2,151 +2,112 @@
   <div class="connect-device-view">
     <h2>Connect Device</h2>
 
-    <div v-if="isAdmin" class="card mb-4">
+    <div v-if="isFarmer" class="card">
       <div class="card-body">
-        <h5 class="card-title">Admin: Generate Pairing Code</h5>
-        <form @submit.prevent="handleGeneratePairingCode">
-          <div class="mb-3">
-            <label for="adminDeviceId" class="form-label">Device ID</label>
+        <h5 class="card-title">Connect by Email OTP</h5>
+        <p class="text-muted">OTP will be sent to <strong>{{ userEmail }}</strong></p>
+
+        <form @submit.prevent="handleRequestOtp" class="mb-3">
+          <label for="deviceId" class="form-label">Device ID</label>
+          <div class="input-group">
             <input
-              id="adminDeviceId"
-              v-model="pairingForm.deviceId"
+              id="deviceId"
+              v-model="deviceId"
               type="text"
               class="form-control"
               placeholder="esp32-b47cb8"
               required
             />
+            <button type="submit" class="btn btn-primary" :disabled="isRequestingOtp || !deviceId.trim()">
+              <span v-if="isRequestingOtp" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <span v-else>Send OTP</span>
+            </button>
           </div>
-          <div class="mb-3">
-            <label for="expiresMinutes" class="form-label">Code Expiry (minutes)</label>
-            <input
-              id="expiresMinutes"
-              v-model.number="pairingForm.expiresMinutes"
-              type="number"
-              min="1"
-              max="60"
-              class="form-control"
-              required
-            />
-          </div>
-          <button type="submit" class="btn btn-primary" :disabled="isGeneratingCode">
-            <span v-if="isGeneratingCode" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            <span v-else>Generate Pairing Code</span>
-          </button>
         </form>
 
-        <div v-if="generatedCode" class="alert alert-success mt-3 mb-0">
-          <div><strong>Pairing Code:</strong> {{ generatedCode.pairing_code }}</div>
-          <div><strong>Expires At:</strong> {{ generatedCode.expires_at }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="isFarmer" class="card mb-4">
-      <div class="card-body">
-        <h5 class="card-title">Farmer: Claim Device</h5>
-        <form @submit.prevent="handleClaimDevice">
-          <div class="mb-3">
-            <label for="claimDeviceId" class="form-label">Device ID</label>
+        <form v-if="otpRequested" @submit.prevent="handleVerifyOtp">
+          <label for="otpInput" class="form-label">Enter OTP</label>
+          <div class="input-group">
             <input
-              id="claimDeviceId"
-              v-model="claimForm.deviceId"
+              id="otpInput"
+              v-model="otp"
               type="text"
               class="form-control"
-              placeholder="esp32-b47cb8"
+              placeholder="6-digit OTP"
               required
             />
+            <button type="submit" class="btn btn-success" :disabled="isVerifyingOtp || !otp.trim()">
+              <span v-if="isVerifyingOtp" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <span v-else>Verify & Connect</span>
+            </button>
           </div>
-          <div class="mb-3">
-            <label for="pairingCode" class="form-label">Pairing Code</label>
-            <input
-              id="pairingCode"
-              v-model="claimForm.pairingCode"
-              type="text"
-              class="form-control"
-              placeholder="6-digit code"
-              required
-            />
-          </div>
-          <button type="submit" class="btn btn-success" :disabled="isClaimingDevice">
-            <span v-if="isClaimingDevice" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            <span v-else>Claim Device</span>
-          </button>
+          <small class="text-muted d-block mt-2">
+            OTP expires in 10 minutes and is blocked after 3 wrong attempts.
+          </small>
         </form>
       </div>
     </div>
 
-    <div v-if="message" class="alert alert-success">{{ message }}</div>
-    <div v-if="errorMessage" class="alert alert-danger">{{ errorMessage }}</div>
-    <div v-if="!isAdmin && !isFarmer" class="alert alert-info mb-0">
-      Device self-claim is disabled for your role. Ask an admin or assigned farmer to manage device ownership.
+    <div v-if="message" class="alert alert-success mt-3">{{ message }}</div>
+    <div v-if="errorMessage" class="alert alert-danger mt-3">{{ errorMessage }}</div>
+
+    <div v-if="!isFarmer" class="alert alert-info mt-3">
+      Device self-connect is available for farmer accounts only.
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { apiService } from '@/services/api';
 import { authStore, fetchUser } from '@/store/auth';
 
-const pairingForm = ref({
-  deviceId: '',
-  expiresMinutes: 10
-});
-const claimForm = ref({
-  deviceId: '',
-  pairingCode: ''
-});
-
-const isGeneratingCode = ref(false);
-const isClaimingDevice = ref(false);
-const generatedCode = ref(null);
+const router = useRouter();
+const deviceId = ref('');
+const otp = ref('');
+const otpRequested = ref(false);
+const isRequestingOtp = ref(false);
+const isVerifyingOtp = ref(false);
 const message = ref('');
 const errorMessage = ref('');
 
-const normalizedRole = computed(() => (authStore.user?.role || '').toLowerCase());
-const isAdmin = computed(() => normalizedRole.value === 'admin');
-const isFarmer = computed(() => normalizedRole.value === 'farmer');
+const role = computed(() => (authStore.user?.role || '').toLowerCase());
+const isFarmer = computed(() => role.value === 'farmer');
+const userEmail = computed(() => authStore.user?.email || 'your email');
 
-const clearMessages = () => {
+const clearStatus = () => {
   message.value = '';
   errorMessage.value = '';
 };
 
-const handleGeneratePairingCode = async () => {
-  clearMessages();
-  generatedCode.value = null;
-  isGeneratingCode.value = true;
-
+const handleRequestOtp = async () => {
+  clearStatus();
+  isRequestingOtp.value = true;
   try {
-    const response = await apiService.generateDevicePairingCode(
-      pairingForm.value.deviceId.trim(),
-      pairingForm.value.expiresMinutes
-    );
-    generatedCode.value = response;
-    message.value = `Pairing code generated for ${response.device_id}.`;
+    const response = await apiService.requestDeviceConnectOtp(deviceId.value.trim());
+    otpRequested.value = true;
+    message.value = response.message || `OTP sent to ${response.email}`;
   } catch (error) {
-    errorMessage.value = error.message || 'Failed to generate pairing code.';
+    otpRequested.value = false;
+    errorMessage.value = error.message || 'Failed to send OTP.';
   } finally {
-    isGeneratingCode.value = false;
+    isRequestingOtp.value = false;
   }
 };
 
-const handleClaimDevice = async () => {
-  clearMessages();
-  isClaimingDevice.value = true;
-
+const handleVerifyOtp = async () => {
+  clearStatus();
+  isVerifyingOtp.value = true;
   try {
-    const response = await apiService.claimDevice(
-      claimForm.value.deviceId.trim(),
-      claimForm.value.pairingCode.trim()
-    );
+    const response = await apiService.verifyDeviceConnectOtp(deviceId.value.trim(), otp.value.trim());
+    message.value = response.message || 'Device connected successfully.';
     await fetchUser();
-    message.value = response.message || 'Device claimed successfully.';
+    setTimeout(() => router.push('/dashboard'), 800);
   } catch (error) {
-    errorMessage.value = error.message || 'Failed to claim device.';
+    errorMessage.value = error.message || 'Failed to verify OTP.';
   } finally {
-    isClaimingDevice.value = false;
+    isVerifyingOtp.value = false;
   }
 };
 </script>

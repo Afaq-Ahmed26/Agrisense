@@ -10,8 +10,9 @@ import NotificationsView from '@/views/NotificationsView.vue';
 import ActivityLogView from '@/views/ActivityLogView.vue';
 import ConnectDeviceView from '@/views/ConnectDeviceView.vue';
 import ThresholdsView from '@/views/Admin/ThresholdsView.vue';
-import { authService } from '@/services/auth';
+import { authService, firebaseAuthReadyPromise } from '@/services/auth';
 import { authStore } from '@/store/auth';
+import { firebaseService } from '@/services/firebase';
 
 const routes = [
   {
@@ -23,6 +24,12 @@ const routes = [
     path: '/register',
     name: 'Register',
     component: RegisterView,
+  },
+  {
+    path: '/verify-email',
+    name: 'VerifyEmail',
+    component: () => import('@/views/VerifyEmailView.vue'),
+    meta: { requiresAuth: true, allowUnverified: true },
   },
   {
     path: '/dashboard',
@@ -100,16 +107,29 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  // Removed await authReady; as it's no longer managed by firebaseConfig.js
+  // Wait for Firebase auth state to initialize to avoid false unverified redirects.
+  await firebaseAuthReadyPromise;
+
   const requiresAuth = to.meta.requiresAuth;
   const isAuthenticated = authService.isAuthenticated();
+  const currentUser = firebaseService.auth?.currentUser || null;
+  const isEmailVerified = !!currentUser?.emailVerified;
+  const allowUnverified = !!to.meta.allowUnverified;
 
   if (requiresAuth && !isAuthenticated) {
     // If the route requires auth and the user is not authenticated, redirect to login
     next('/login');
+  } else if (to.name === 'VerifyEmail' && isAuthenticated && isEmailVerified) {
+    next('/dashboard');
+  } else if (requiresAuth && isAuthenticated && !isEmailVerified && !allowUnverified) {
+    next({ name: 'VerifyEmail', query: { email: currentUser?.email || '' } });
   } else if ((to.name === 'Login' || to.name === 'Register') && isAuthenticated) {
     // If the user is authenticated and tries to access login or register, redirect to dashboard
-    next('/dashboard');
+    if (!isEmailVerified) {
+      next({ name: 'VerifyEmail', query: { email: currentUser?.email || '' } });
+    } else {
+      next('/dashboard');
+    }
   } else if (requiresAuth && isAuthenticated) {
     const requiredRoles = to.meta.roles;
     if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(authStore.user?.role)) {

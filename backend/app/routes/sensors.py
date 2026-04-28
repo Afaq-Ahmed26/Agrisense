@@ -4,6 +4,7 @@ from datetime import datetime, date, timedelta
 import asyncio
 import time  # For debounce timing
 import secrets
+import hashlib
 from pydantic import BaseModel, Field
 from firebase_admin import firestore
 from app.middleware.auth import JWTBearer
@@ -15,6 +16,11 @@ from app.services.sensor_service import sensor_service
 from app.services.irrigation_service import irrigation_service
 from app.services.user_service import update_user_in_firestore
 from app.services.activity_log_service import log_activity
+from app.services.email_service import send_device_otp_email
+from app.repositories.device_repository import device_repository
+from app.repositories.user_repository import user_repository
+from app.repositories.device_otp_repository import device_otp_repository
+from app.repositories.threshold_repository import threshold_repository
 from app.config import settings
 from app.services.ml_service import ml_service
 from app.utils.helpers import calculate_dew_point, calculate_heat_index
@@ -56,6 +62,17 @@ class DeviceClaimRequest(BaseModel):
     pairing_code: str = Field(min_length=4, max_length=32)
 
 
+class DeviceConnectOtpRequest(BaseModel):
+    pass
+
+
+class DeviceConnectOtpVerifyRequest(BaseModel):
+    otp: str = Field(min_length=4, max_length=12)
+
+
+OTP_COLLECTION = "device_connect_otps"
+
+
 async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float]):
     """
     Real-time irrigation control based on soil moisture threshold (AUTO) or user command (MANUAL).
@@ -73,19 +90,27 @@ async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float])
             return  # Skip if no soil moisture data in AUTO mode
 
         # Fetch system-wide thresholds for soil moisture
-        settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
-        doc = await asyncio.to_thread(settings_ref.get)
-        
         # Use system threshold if available; otherwise keep backward compatibility
         # but normalize old low defaults to at least 30%.
         threshold = 30.0
-        if doc.exists:
-            threshold = doc.to_dict().get("soil_moisture_critical", 30.0)
-            print(f"DEBUG: Found system-wide threshold: {threshold}")
-        elif control.threshold is not None:
+        found_system_threshold = False
+        if threshold_repository.is_enabled():
+            system_thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
+            if system_thresholds:
+                threshold = getattr(system_thresholds, "soil_moisture_critical", 30.0)
+                found_system_threshold = True
+                print(f"DEBUG: Found PostgreSQL system-wide threshold: {threshold}")
+        else:
+            settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
+            doc = await asyncio.to_thread(settings_ref.get)
+            if doc.exists:
+                threshold = doc.to_dict().get("soil_moisture_critical", 30.0)
+                found_system_threshold = True
+                print(f"DEBUG: Found system-wide threshold: {threshold}")
+        if not found_system_threshold and control.threshold is not None:
             threshold = max(control.threshold, 30.0)
             print(f"DEBUG: No system-wide threshold found, using normalized device-specific threshold: {threshold}")
-        else:
+        elif not found_system_threshold:
             print(f"DEBUG: No threshold found, using default: {threshold}")
 
         # Decision: pump ON if moisture below threshold
@@ -111,6 +136,72 @@ async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float])
 
     except Exception as e:
         print(f"❌ [Irrigation Control] Error for device {device_id}: {e}")
+
+
+def _build_otp_doc_id(user_id: str, device_id: str) -> str:
+    return f"{user_id}:{device_id}"
+
+
+def _hash_otp(otp: str) -> str:
+    return hashlib.sha256(otp.encode("utf-8")).hexdigest()
+
+
+async def _assign_device_to_user(current_user: User, device_id: str) -> None:
+    now = datetime.utcnow()
+
+    if device_repository.is_enabled():
+        await asyncio.to_thread(device_repository.assign_owner, device_id, current_user.id)
+    else:
+        device_ref = firebase_service.db.collection("devices").document(device_id)
+        await asyncio.to_thread(
+            device_ref.update,
+            {
+                "owner_id": current_user.id,
+                "updated_at": now,
+            },
+        )
+
+    claimant_assigned_device_ids = get_assigned_device_ids(current_user)
+    claimant_assigned_device_ids.add(device_id)
+    await update_user_in_firestore(
+        current_user.id,
+        {"assigned_device_ids": sorted(claimant_assigned_device_ids), "updated_at": now},
+    )
+
+    if user_repository.is_enabled():
+        users = await asyncio.to_thread(user_repository.get_all, 0, 5000, True)
+        for user in users:
+            if user.id == current_user.id:
+                continue
+            existing_ids = [value for value in (user.assigned_device_ids or []) if isinstance(value, str)]
+            if device_id not in existing_ids:
+                continue
+            remaining_ids = [value for value in existing_ids if value != device_id]
+            await update_user_in_firestore(
+                user.id,
+                {"assigned_device_ids": remaining_ids, "updated_at": now},
+            )
+    else:
+        users_query = firebase_service.db.collection("users").where(
+            "assigned_device_ids", "array_contains", device_id
+        )
+        users_docs = await asyncio.to_thread(lambda: users_query.get())
+        for user_doc in users_docs:
+            if user_doc.id == current_user.id:
+                continue
+            user_data = user_doc.to_dict() or {}
+            existing_ids = [
+                value.strip()
+                for value in (user_data.get("assigned_device_ids") or [])
+                if isinstance(value, str) and value.strip()
+            ]
+            if device_id not in existing_ids:
+                continue
+            remaining_ids = [value for value in existing_ids if value != device_id]
+            await update_user_in_firestore(
+                user_doc.id,
+                {"assigned_device_ids": remaining_ids, "updated_at": now},
+            )
 
 
 @router.post("/", response_model=Device)
@@ -158,6 +249,163 @@ async def delete_device(device_id: str, token: str = Depends(security)):
     raise HTTPException(status_code=404, detail="Device not found")
 
 
+@router.post("/{device_id}/connect/request-otp")
+async def request_device_connect_otp(
+    device_id: str,
+    payload: DeviceConnectOtpRequest,
+    current_user: User = Depends(get_current_user)
+):
+    if normalize_role(current_user.role) != "farmer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only farmers can connect devices with OTP."
+        )
+
+    device = await sensor_service.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    otp = "".join(secrets.choice("0123456789") for _ in range(6))
+    now = datetime.utcnow()
+    expires_at = now + timedelta(minutes=settings.DEVICE_OTP_EXPIRE_MINUTES)
+
+    otp_doc_id = _build_otp_doc_id(current_user.id, device_id)
+    otp_payload = {
+        "otp_hash": _hash_otp(otp),
+        "device_id": device_id,
+        "email": current_user.email,
+        "user_id": current_user.id,
+        "expires_at": expires_at,
+        "attempts": 0,
+        "blocked": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    if device_otp_repository.is_enabled():
+        await asyncio.to_thread(device_otp_repository.upsert, otp_doc_id, otp_payload)
+    else:
+        otp_ref = firebase_service.db.collection(OTP_COLLECTION).document(otp_doc_id)
+        await asyncio.to_thread(otp_ref.set, otp_payload)
+
+    try:
+        await asyncio.to_thread(
+            send_device_otp_email,
+            current_user.email,
+            device_id,
+            otp,
+            settings.DEVICE_OTP_EXPIRE_MINUTES,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send OTP email: {exc}"
+        )
+
+    await log_activity(
+        user_id=current_user.id,
+        action="Device Connect OTP Requested",
+        details={"device_id": device_id, "email": current_user.email}
+    )
+
+    return {
+        "message": "OTP sent to your email.",
+        "email": current_user.email,
+        "device_id": device_id,
+        "expires_at": expires_at,
+    }
+
+
+@router.post("/{device_id}/connect/verify-otp")
+async def verify_device_connect_otp(
+    device_id: str,
+    payload: DeviceConnectOtpVerifyRequest,
+    current_user: User = Depends(get_current_user)
+):
+    if normalize_role(current_user.role) != "farmer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only farmers can connect devices with OTP."
+        )
+
+    otp_doc_id = _build_otp_doc_id(current_user.id, device_id)
+    if device_otp_repository.is_enabled():
+        otp_data = await asyncio.to_thread(device_otp_repository.get, otp_doc_id)
+    else:
+        otp_ref = firebase_service.db.collection(OTP_COLLECTION).document(otp_doc_id)
+        otp_doc = await asyncio.to_thread(otp_ref.get)
+        otp_data = otp_doc.to_dict() if otp_doc.exists else None
+
+    if not otp_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active OTP found. Please request a new OTP."
+        )
+
+    attempts = int(otp_data.get("attempts", 0))
+    blocked = bool(otp_data.get("blocked", False))
+    max_attempts = max(1, settings.DEVICE_OTP_MAX_ATTEMPTS)
+
+    if blocked or attempts >= max_attempts:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="OTP blocked after too many failed attempts. Request a new OTP."
+        )
+
+    expires_at = otp_data.get("expires_at")
+    if not isinstance(expires_at, datetime):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP record is invalid. Request a new OTP."
+        )
+    expires_at = expires_at.replace(tzinfo=None) if expires_at.tzinfo else expires_at
+    if expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP expired. Please request a new OTP."
+        )
+
+    provided_hash = _hash_otp(payload.otp.strip())
+    if provided_hash != otp_data.get("otp_hash"):
+        new_attempts = attempts + 1
+        is_blocked = new_attempts >= max_attempts
+        if device_otp_repository.is_enabled():
+            await asyncio.to_thread(device_otp_repository.update_attempts, otp_doc_id, new_attempts, is_blocked)
+        else:
+            await asyncio.to_thread(
+                otp_ref.update,
+                {"attempts": new_attempts, "blocked": is_blocked, "updated_at": datetime.utcnow()},
+            )
+        attempts_left = max(0, max_attempts - new_attempts)
+        detail = "Invalid OTP."
+        if is_blocked:
+            detail = "OTP blocked after too many failed attempts. Request a new OTP."
+        else:
+            detail = f"Invalid OTP. {attempts_left} attempts remaining."
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+    device = await sensor_service.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    await _assign_device_to_user(current_user, device_id)
+    if device_otp_repository.is_enabled():
+        await asyncio.to_thread(device_otp_repository.delete, otp_doc_id)
+    else:
+        await asyncio.to_thread(otp_ref.delete)
+
+    await log_activity(
+        user_id=current_user.id,
+        action="Device Connected via OTP",
+        details={"device_id": device_id}
+    )
+
+    return {
+        "message": "Device connected successfully.",
+        "device_id": device_id,
+        "owner_id": current_user.id,
+    }
+
+
 @router.post("/{device_id}/pairing-code", response_model=PairingCodeResponse)
 async def generate_pairing_code(
     device_id: str,
@@ -178,17 +426,26 @@ async def generate_pairing_code(
     now = datetime.utcnow()
     expires_at = now + timedelta(minutes=payload.expires_minutes)
 
-    device_ref = firebase_service.db.collection("devices").document(device_id)
-    await asyncio.to_thread(
-        device_ref.update,
-        {
-            "pairing_code": pairing_code,
-            "pairing_code_generated_at": now,
-            "pairing_code_expires_at": expires_at,
-            "pairing_code_generated_by": current_user.id,
-            "updated_at": now,
-        },
-    )
+    if device_repository.is_enabled():
+        await asyncio.to_thread(
+            device_repository.save_pairing_code,
+            device_id,
+            pairing_code,
+            current_user.id,
+            expires_at,
+        )
+    else:
+        device_ref = firebase_service.db.collection("devices").document(device_id)
+        await asyncio.to_thread(
+            device_ref.update,
+            {
+                "pairing_code": pairing_code,
+                "pairing_code_generated_at": now,
+                "pairing_code_expires_at": expires_at,
+                "pairing_code_generated_by": current_user.id,
+                "updated_at": now,
+            },
+        )
 
     await log_activity(
         user_id=current_user.id,
@@ -218,12 +475,15 @@ async def claim_device(
             detail="Only farmers can claim devices via pairing code."
         )
 
-    device_ref = firebase_service.db.collection("devices").document(device_id)
-    device_doc = await asyncio.to_thread(device_ref.get)
-    if not device_doc.exists:
-        raise HTTPException(status_code=404, detail="Device not found")
+    if device_repository.is_enabled():
+        device_data = await asyncio.to_thread(device_repository.get_raw_by_id, device_id)
+    else:
+        device_ref = firebase_service.db.collection("devices").document(device_id)
+        device_doc = await asyncio.to_thread(device_ref.get)
+        device_data = device_doc.to_dict() if device_doc.exists else None
 
-    device_data = device_doc.to_dict() or {}
+    if not device_data:
+        raise HTTPException(status_code=404, detail="Device not found")
     expected_code = str(device_data.get("pairing_code") or "").strip()
     if not expected_code:
         raise HTTPException(
@@ -252,44 +512,19 @@ async def claim_device(
         )
 
     now = datetime.utcnow()
-    await asyncio.to_thread(
-        device_ref.update,
-        {
-            "owner_id": current_user.id,
-            "updated_at": now,
-            "pairing_code": firestore.DELETE_FIELD,
-            "pairing_code_generated_at": firestore.DELETE_FIELD,
-            "pairing_code_expires_at": firestore.DELETE_FIELD,
-            "pairing_code_generated_by": firestore.DELETE_FIELD,
-        },
-    )
-
-    claimant_assigned_device_ids = get_assigned_device_ids(current_user)
-    claimant_assigned_device_ids.add(device_id)
-    await update_user_in_firestore(
-        current_user.id,
-        {"assigned_device_ids": sorted(claimant_assigned_device_ids), "updated_at": now},
-    )
-
-    users_query = firebase_service.db.collection("users").where(
-        "assigned_device_ids", "array_contains", device_id
-    )
-    users_docs = await asyncio.to_thread(lambda: users_query.get())
-    for user_doc in users_docs:
-        if user_doc.id == current_user.id:
-            continue
-        user_data = user_doc.to_dict() or {}
-        existing_ids = [
-            value.strip()
-            for value in (user_data.get("assigned_device_ids") or [])
-            if isinstance(value, str) and value.strip()
-        ]
-        if device_id not in existing_ids:
-            continue
-        remaining_ids = [value for value in existing_ids if value != device_id]
-        await update_user_in_firestore(
-            user_doc.id,
-            {"assigned_device_ids": remaining_ids, "updated_at": now},
+    await _assign_device_to_user(current_user, device_id)
+    if device_repository.is_enabled():
+        await asyncio.to_thread(device_repository.clear_pairing_code, device_id)
+    else:
+        await asyncio.to_thread(
+            device_ref.update,
+            {
+                "pairing_code": firestore.DELETE_FIELD,
+                "pairing_code_generated_at": firestore.DELETE_FIELD,
+                "pairing_code_expires_at": firestore.DELETE_FIELD,
+                "pairing_code_generated_by": firestore.DELETE_FIELD,
+                "updated_at": now,
+            },
         )
 
     await log_activity(

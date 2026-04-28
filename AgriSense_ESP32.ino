@@ -63,10 +63,11 @@ BH1750 lightMeter;
 const char* WIFI_SSID     = "Agrisense";
 const char* WIFI_PASSWORD = "passwordd";
 const char* API_BASE_URLS[] = {
-  "http://192.168.100.13:8000", // Primary (home)
-  "http://192.168.43.120:8000" // Secondary (current)
+  "http://10.96.44.166:8000", // Current IP
+  "http://192.168.100.13:8000", // Fallback
+  "http://192.168.43.120:8000" // Fallback
 };
-const int API_BASE_URL_COUNT = sizeof(API_BASE_URLS) / sizeof(API_BASE_URLS[0]);
+const int API_BASE_URL_COUNT = 3;
 int activeApiIndex = 0;
 
 // =============================================================================

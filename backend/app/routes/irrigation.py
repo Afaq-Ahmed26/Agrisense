@@ -237,14 +237,11 @@ async def get_irrigation_recommendations(
 # --- CONTROL STATE ROUTES ---
 
 @router.get("/control/{device_id}", response_model=ControlState)
-async def get_control_state(
-    device_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def get_control_state(device_id: str):
     """
     Get the current irrigation control state (mode, pump_state, threshold) for a device.
+    ESP32 polls this endpoint to get pump state (no auth required for hardware polling).
     """
-    ensure_device_access(current_user, device_id)
     return await irrigation_service.get_control_state(device_id)
 
 

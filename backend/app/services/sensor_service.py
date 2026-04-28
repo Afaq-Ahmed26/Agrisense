@@ -5,6 +5,8 @@ import random # Added
 from firebase_admin import firestore
 from typing import List, Optional, Dict, Any
 from app.services.firebase_service import firebase_service
+from app.services.postgres_service import postgres_service
+from app.repositories.device_repository import device_repository
 from app.models.sensor import Device, DeviceCreate, SensorReading, SensorReadingCreate
 from app.utils.helpers import generate_device_id
 
@@ -30,11 +32,17 @@ class SensorService:
             updated_at=datetime.utcnow(),
             is_active=True
         )
-        doc_ref = self.db.collection('devices').document(device_id)
-        await asyncio.to_thread(doc_ref.set, new_device.model_dump())
+        if device_repository.is_enabled():
+            await asyncio.to_thread(device_repository.create, new_device)
+        else:
+            doc_ref = self.db.collection('devices').document(device_id)
+            await asyncio.to_thread(doc_ref.set, new_device.model_dump())
         return new_device
 
     async def get_device(self, device_id: str) -> Optional[Device]:
+        if device_repository.is_enabled():
+            return await asyncio.to_thread(device_repository.get_by_id, device_id)
+
         doc_ref = self.db.collection('devices').document(device_id)
         doc = await asyncio.to_thread(doc_ref.get)
         if doc.exists:
@@ -42,6 +50,9 @@ class SensorService:
         return None
 
     async def get_devices(self, owner_id: Optional[str] = None) -> List[Device]:
+        if device_repository.is_enabled():
+            return await asyncio.to_thread(device_repository.list, owner_id)
+
         query = self.db.collection('devices')
         if owner_id:
             query = query.where('owner_id', '==', owner_id)
@@ -66,6 +77,12 @@ class SensorService:
         # Update in-memory cache IMMEDIATELY (for live dashboard)
         self._latest_sensor_data_cache[device_id] = new_reading
 
+        if postgres_service.enabled:
+            try:
+                await asyncio.to_thread(postgres_service.save_sensor_reading, new_reading.model_dump())
+            except Exception as e:
+                print(f"❌ [SensorService] PostgreSQL save failed for {device_id}: {e}")
+
         # Only save to Firestore if the interval has passed (periodic backup)
         last_save = self._last_firestore_save.get(device_id, 0)
         if now - last_save >= self.FIRESTORE_SAVE_INTERVAL:
@@ -86,6 +103,16 @@ class SensorService:
         # Try to get from in-memory cache first
         if device_id in self._latest_sensor_data_cache:
             return self._latest_sensor_data_cache[device_id]
+
+        if postgres_service.enabled:
+            try:
+                latest_pg = await asyncio.to_thread(postgres_service.get_latest_sensor_reading, device_id)
+                if latest_pg:
+                    latest_reading = SensorReading(**latest_pg)
+                    self._latest_sensor_data_cache[device_id] = latest_reading
+                    return latest_reading
+            except Exception as e:
+                print(f"❌ [SensorService] PostgreSQL latest read failed for {device_id}: {e}")
         
         # If not in cache, fetch from Firestore and populate cache
         query = (
@@ -110,6 +137,20 @@ class SensorService:
         skip: int = 0, 
         limit: int = 100
     ) -> List[SensorReading]:
+        if postgres_service.enabled:
+            try:
+                rows = await asyncio.to_thread(
+                    postgres_service.get_sensor_readings,
+                    device_id,
+                    start_time,
+                    end_time,
+                    skip,
+                    limit,
+                )
+                return [SensorReading(**row) for row in rows]
+            except Exception as e:
+                print(f"❌ [SensorService] PostgreSQL range read failed for {device_id}: {e}")
+
         query = (
             self.db.collection('sensor_readings')
             .where('device_id', '==', device_id)
@@ -129,6 +170,19 @@ class SensorService:
 
     async def get_hourly_average_readings(self, device_id: str) -> Dict[str, float]:
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+
+        if postgres_service.enabled:
+            try:
+                rows = await asyncio.to_thread(
+                    postgres_service.get_sensor_readings_for_range,
+                    device_id,
+                    one_hour_ago,
+                    datetime.utcnow(),
+                )
+                readings = [SensorReading(**row) for row in rows]
+                return self._build_summary_from_readings(device_id, readings, count_override=len(readings), include_date=False)
+            except Exception as e:
+                print(f"❌ [SensorService] PostgreSQL hourly summary failed for {device_id}: {e}")
         
         readings_query = (
             self.db.collection('sensor_readings')
@@ -184,6 +238,19 @@ class SensorService:
         else:
             start_of_day = datetime(date.year, date.month, date.day, 0, 0, 0, tzinfo=timezone.utc)
             end_of_day = start_of_day + timedelta(days=1)
+
+        if postgres_service.enabled:
+            try:
+                rows = await asyncio.to_thread(
+                    postgres_service.get_sensor_readings_for_range,
+                    device_id,
+                    start_of_day,
+                    end_of_day,
+                )
+                readings = [SensorReading(**row) for row in rows]
+                return self._build_daily_summary_from_readings(device_id, readings, date if date else now_utc.date())
+            except Exception as e:
+                print(f"❌ [SensorService] PostgreSQL daily summary failed for {device_id}: {e}")
         
         readings_query = (
             self.db.collection('sensor_readings')
@@ -271,6 +338,73 @@ class SensorService:
         
         print(f"Simulating irrigation effect for device {device_id}: moisture increased from {current_moisture:.2f}% to {new_soil_moisture:.2f}% over {duration_seconds} seconds.")
         return await self.create_sensor_reading(device_id, simulated_reading_create)
+
+    def _build_summary_from_readings(
+        self,
+        device_id: str,
+        readings: List[SensorReading],
+        *,
+        count_override: Optional[int] = None,
+        include_date: bool = False,
+    ) -> Dict[str, Any]:
+        soil_moisture_values = [r.soil_moisture for r in readings if r.soil_moisture is not None]
+        temperature_values = [r.temperature for r in readings if r.temperature is not None]
+        humidity_values = [r.humidity for r in readings if r.humidity is not None]
+        light_level_values = [r.light_level for r in readings if r.light_level is not None]
+        count = count_override if count_override is not None else len(readings)
+
+        if not include_date:
+            if count > 0:
+                return {
+                    "device_id": device_id,
+                    "soil_moisture_avg": round(sum(soil_moisture_values) / len(soil_moisture_values), 2) if soil_moisture_values else 0.0,
+                    "temperature_avg": round(sum(temperature_values) / len(temperature_values), 2) if temperature_values else 0.0,
+                    "humidity_avg": round(sum(humidity_values) / len(humidity_values), 2) if humidity_values else 0.0,
+                    "light_level_avg": round(sum(light_level_values) / len(light_level_values), 2) if light_level_values else 0.0,
+                    "count": count
+                }
+            return {
+                "device_id": device_id,
+                "soil_moisture_avg": 0.0,
+                "temperature_avg": 0.0,
+                "humidity_avg": 0.0,
+                "light_level_avg": 0.0,
+                "count": 0
+            }
+
+        return {}
+
+    def _build_daily_summary_from_readings(self, device_id: str, readings: List[SensorReading], summary_date: datetime.date) -> Dict[str, Any]:
+        soil_moisture_values = [r.soil_moisture for r in readings if r.soil_moisture is not None]
+        temperature_values = [r.temperature for r in readings if r.temperature is not None]
+        humidity_values = [r.humidity for r in readings if r.humidity is not None]
+        light_level_values = [r.light_level for r in readings if r.light_level is not None]
+
+        return {
+            "device_id": device_id,
+            "date": summary_date.isoformat(),
+            "count": len(readings),
+            "soil_moisture": {
+                "min": min(soil_moisture_values) if soil_moisture_values else 0.0,
+                "max": max(soil_moisture_values) if soil_moisture_values else 0.0,
+                "avg": round(sum(soil_moisture_values) / len(soil_moisture_values), 2) if soil_moisture_values else 0.0
+            },
+            "temperature": {
+                "min": min(temperature_values) if temperature_values else 0.0,
+                "max": max(temperature_values) if temperature_values else 0.0,
+                "avg": round(sum(temperature_values) / len(temperature_values), 2) if temperature_values else 0.0
+            },
+            "humidity": {
+                "min": min(humidity_values) if humidity_values else 0.0,
+                "max": max(humidity_values) if humidity_values else 0.0,
+                "avg": round(sum(humidity_values) / len(humidity_values), 2) if humidity_values else 0.0
+            },
+            "light_level": {
+                "min": min(light_level_values) if light_level_values else 0.0,
+                "max": max(light_level_values) if light_level_values else 0.0,
+                "avg": round(sum(light_level_values) / len(light_level_values), 2) if light_level_values else 0.0
+            }
+        }
 
 
 # Initialize the service

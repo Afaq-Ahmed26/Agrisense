@@ -278,6 +278,20 @@ class ApiService {
         });
     }
 
+    async requestDeviceConnectOtp(deviceId) {
+        return this.request(`/sensors/${deviceId}/connect/request-otp`, {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
+    }
+
+    async verifyDeviceConnectOtp(deviceId, otp) {
+        return this.request(`/sensors/${deviceId}/connect/verify-otp`, {
+            method: 'POST',
+            body: JSON.stringify({ otp })
+        });
+    }
+
     // Irrigation control methods
     async getIrrigationStatus(deviceId) {
         // For now, return a mock status since the backend doesn't have a specific status endpoint
@@ -322,6 +336,25 @@ class ApiService {
             hours_ahead: String(hoursAhead)
         });
         return this.request(`/ml/future_predictions/${deviceId}?${params}`, { method: 'GET' });
+    }
+
+    async getReportsDaily(deviceId) {
+        const params = new URLSearchParams({ device_id: deviceId });
+        return this.request(`/reports/daily?${params}`, { method: 'GET' });
+    }
+
+    async getReportsWeekly(deviceId) {
+        const params = new URLSearchParams({ device_id: deviceId });
+        return this.request(`/reports/weekly?${params}`, { method: 'GET' });
+    }
+
+    async getReportsMonthly(deviceId) {
+        const params = new URLSearchParams({ device_id: deviceId });
+        return this.request(`/reports/monthly?${params}`, { method: 'GET' });
+    }
+
+    async getReportDevices() {
+        return this.request('/reports/devices', { method: 'GET' });
     }
 
     // ML model methods

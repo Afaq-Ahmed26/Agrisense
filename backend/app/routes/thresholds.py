@@ -5,6 +5,7 @@ from app.dependencies import require_roles
 from app.services.firebase_service import firebase_service
 from app.services.activity_log_service import log_activity
 from app.models.user import User
+from app.repositories.threshold_repository import threshold_repository
 
 router = APIRouter()
 
@@ -16,6 +17,10 @@ async def get_alert_thresholds(current_user: User = Depends(require_roles(AUTHOR
     """
     Retrieve the system-wide alert thresholds.
     """
+    if threshold_repository.is_enabled():
+        thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
+        return thresholds or AlertThresholds()
+
     settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
     doc = await asyncio.to_thread(settings_ref.get)
     if doc.exists:
@@ -31,14 +36,15 @@ async def update_alert_thresholds(
     """
     Update the system-wide alert thresholds.
     """
-    settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
-    
-    # For logging, get old thresholds
-    old_thresholds_doc = await asyncio.to_thread(settings_ref.get)
-    old_thresholds = AlertThresholds(**old_thresholds_doc.to_dict()) if old_thresholds_doc.exists else AlertThresholds()
-
-    # Set the new thresholds
-    await asyncio.to_thread(settings_ref.set, thresholds.model_dump())
+    if threshold_repository.is_enabled():
+        old_thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
+        old_thresholds = old_thresholds or AlertThresholds()
+        await asyncio.to_thread(threshold_repository.upsert_alert_thresholds, thresholds)
+    else:
+        settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
+        old_thresholds_doc = await asyncio.to_thread(settings_ref.get)
+        old_thresholds = AlertThresholds(**old_thresholds_doc.to_dict()) if old_thresholds_doc.exists else AlertThresholds()
+        await asyncio.to_thread(settings_ref.set, thresholds.model_dump())
 
     # Log the activity
     changes = {k: {"old": getattr(old_thresholds, k), "new": getattr(thresholds, k)} for k in thresholds.model_dump().keys() if getattr(old_thresholds, k) != getattr(thresholds, k)}

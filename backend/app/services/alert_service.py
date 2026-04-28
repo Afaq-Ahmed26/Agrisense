@@ -9,6 +9,10 @@ from app.models.notification import NotificationCreate
 from app.services import notification_service
 from app.models.thresholds import AlertThresholds
 from app.models.notification_preferences import NotificationPreferences
+from app.repositories.alert_repository import alert_repository
+from app.repositories.threshold_repository import threshold_repository
+from app.repositories.device_repository import device_repository
+from app.repositories.user_repository import user_repository
 
 
 class AlertSeverity(str, Enum):
@@ -72,13 +76,17 @@ class AlertService:
                 (now - self._last_cache_time) < self._cache_expiry):
             return self._thresholds_cache
 
-        settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
-        doc = settings_ref.get()
-        if doc.exists:
-            self._thresholds_cache = AlertThresholds(**doc.to_dict())
+        if threshold_repository.is_enabled():
+            pg_thresholds = threshold_repository.get_alert_thresholds()
+            self._thresholds_cache = pg_thresholds or AlertThresholds()
         else:
-            # Use default values if not set in DB
-            self._thresholds_cache = AlertThresholds()
+            settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
+            doc = settings_ref.get()
+            if doc.exists:
+                self._thresholds_cache = AlertThresholds(**doc.to_dict())
+            else:
+                # Use default values if not set in DB
+                self._thresholds_cache = AlertThresholds()
         
         self._last_cache_time = now
         return self._thresholds_cache
@@ -194,6 +202,10 @@ class AlertService:
         """
         Resolves the latest open alert of a specific type for a device in Firestore.
         """
+        if alert_repository.is_enabled():
+            await asyncio.to_thread(alert_repository.resolve_latest_open_by_type, device_id, alert_type.value)
+            return
+
         query = (
             firebase_service.db.collection('alerts')
             .where(filter=FieldFilter("device_id", "==", device_id))
@@ -221,21 +233,35 @@ class AlertService:
             self._user_prefs_cache.clear()
             self._cache_clear_time = now
 
-        # Save alert to Firestore
-        alert_ref = firebase_service.db.collection('alerts').document(alert.id)
-        await asyncio.to_thread(alert_ref.set, alert.model_dump())
-        print(f"Saved alert to Firestore: {alert.message}")
+        if alert_repository.is_enabled():
+            payload = alert.model_dump()
+            payload["alert_type"] = alert.alert_type.value
+            payload["severity"] = alert.severity.value
+            payload["status"] = alert.status.value
+            await asyncio.to_thread(alert_repository.upsert, payload)
+            print(f"Saved alert to PostgreSQL: {alert.message}")
+        else:
+            # Save alert to Firestore
+            alert_ref = firebase_service.db.collection('alerts').document(alert.id)
+            await asyncio.to_thread(alert_ref.set, alert.model_dump())
+            print(f"Saved alert to Firestore: {alert.message}")
 
         # Fetch device owner (using cache if available)
         owner_id = self._device_owner_cache.get(alert.device_id)
         if not owner_id:
-            device_ref = firebase_service.db.collection('devices').document(alert.device_id)
-            device_doc = await asyncio.to_thread(device_ref.get)
-            if device_doc.exists:
-                device_data = device_doc.to_dict()
-                owner_id = device_data.get("owner_id")
+            if device_repository.is_enabled():
+                device_data = await asyncio.to_thread(device_repository.get_raw_by_id, alert.device_id)
+                owner_id = (device_data or {}).get("owner_id")
                 if owner_id:
                     self._device_owner_cache[alert.device_id] = owner_id
+            else:
+                device_ref = firebase_service.db.collection('devices').document(alert.device_id)
+                device_doc = await asyncio.to_thread(device_ref.get)
+                if device_doc.exists:
+                    device_data = device_doc.to_dict()
+                    owner_id = device_data.get("owner_id")
+                    if owner_id:
+                        self._device_owner_cache[alert.device_id] = owner_id
 
         if owner_id:
             # Fetch user's notification preferences (using cache if available)
@@ -264,11 +290,17 @@ class AlertService:
                 await notification_service.create_notification(notification_data, owner_id)
                 print(f"Created in-app notification for user {owner_id}")
             elif channel == 'email':
-                user_doc = await asyncio.to_thread(firebase_service.db.collection('users').document(owner_id).get)
-                if user_doc.exists:
-                    user_email = user_doc.to_dict().get('email')
+                if user_repository.is_enabled():
+                    user = await asyncio.to_thread(user_repository.get_by_id, owner_id, True)
+                    user_email = user.email if user else None
                     if user_email:
                         print(f"INFO: Would send email alert to {user_email}: {alert.message}")
+                else:
+                    user_doc = await asyncio.to_thread(firebase_service.db.collection('users').document(owner_id).get)
+                    if user_doc.exists:
+                        user_email = user_doc.to_dict().get('email')
+                        if user_email:
+                            print(f"INFO: Would send email alert to {user_email}: {alert.message}")
             elif channel == 'none':
                 print(f"INFO: Notification for user {owner_id} suppressed by user preference.")
     
@@ -276,6 +308,15 @@ class AlertService:
         """
         Retrieve alerts for a specific device.
         """
+        if alert_repository.is_enabled():
+            rows = await asyncio.to_thread(
+                alert_repository.get_by_device,
+                device_id,
+                status.value if status else None,
+                50,
+            )
+            return [Alert(**row) for row in rows]
+
         query = firebase_service.db.collection('alerts').where(filter=FieldFilter("device_id", "==", device_id))
         if status:
             query = query.where(filter=FieldFilter("status", "==", status.value))
@@ -289,6 +330,10 @@ class AlertService:
         """
         Retrieve all open alerts across all devices.
         """
+        if alert_repository.is_enabled():
+            rows = await asyncio.to_thread(alert_repository.get_open, 50)
+            return [Alert(**row) for row in rows]
+
         query = firebase_service.db.collection('alerts').where(filter=FieldFilter("status", "==", AlertStatus.OPEN.value))
         query = query.limit(50)
         docs = await asyncio.to_thread(lambda: [doc for doc in query.stream()])
@@ -299,6 +344,10 @@ class AlertService:
         """
         Acknowledge an alert.
         """
+        if alert_repository.is_enabled():
+            await asyncio.to_thread(alert_repository.acknowledge, alert_id, user_id)
+            return
+
         alert_ref = firebase_service.db.collection('alerts').document(alert_id)
         await asyncio.to_thread(alert_ref.update, {
             "status": AlertStatus.ACKNOWLEDGED.value,
@@ -310,6 +359,10 @@ class AlertService:
         """
         Resolve an alert.
         """
+        if alert_repository.is_enabled():
+            await asyncio.to_thread(alert_repository.resolve, alert_id, user_id)
+            return
+
         alert_ref = firebase_service.db.collection('alerts').document(alert_id)
         await asyncio.to_thread(alert_ref.update, {
             "status": AlertStatus.RESOLVED.value,

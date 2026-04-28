@@ -97,10 +97,10 @@ const handleRegister = async () => {
 
   const result = await authService.register(userData);
   if (result.success) {
-    successMessage.value = 'Registration successful! Redirecting to login...';
+    successMessage.value = 'Registration successful! Please verify your email.';
     setTimeout(() => {
-      router.push('/login');
-    }, 2000);
+      router.push({ name: 'VerifyEmail', query: { email: result.email || email.value } });
+    }, 800);
   } else {
     errorMessage.value = result.message;
   }

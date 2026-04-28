@@ -58,7 +58,11 @@ const handleLogin = async () => {
   errorMessage.value = '';
   const result = await authService.login(email.value, password.value);
   if (result.success) {
-    router.push('/dashboard');
+    if (result.requiresVerification) {
+      router.push({ name: 'VerifyEmail', query: { email: result.email || email.value } });
+    } else {
+      router.push('/dashboard');
+    }
   } else {
     errorMessage.value = result.message;
   }

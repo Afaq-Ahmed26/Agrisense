@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 from typing import List, Optional
 from app.services.firebase_service import firebase_service
+from app.services.postgres_service import postgres_service
 from app.services.sensor_service import sensor_service # Added
 from app.models.irrigation import IrrigationEvent, IrrigationEventCreate, IrrigationSchedule, IrrigationScheduleCreate, ControlState
 
@@ -50,8 +51,11 @@ class IrrigationService:
             user_triggered=event_create.user_triggered, # Added user_triggered
             created_at=datetime.utcnow()
         )
-        doc_ref = self.db.collection('irrigation_events').document(event_id)
-        await asyncio.to_thread(doc_ref.set, new_event.dict())
+        if postgres_service.enabled:
+            await asyncio.to_thread(postgres_service.save_irrigation_event, new_event.model_dump())
+        else:
+            doc_ref = self.db.collection('irrigation_events').document(event_id)
+            await asyncio.to_thread(doc_ref.set, new_event.dict())
 
         # --- NEW CODE: Simulate irrigation effect ---
         if new_event.duration_actual_seconds is not None and new_event.duration_actual_seconds > 0:
@@ -63,6 +67,10 @@ class IrrigationService:
         return new_event
 
     async def get_irrigation_events(self, device_id: Optional[str] = None, limit: int = 100) -> List[IrrigationEvent]:
+        if postgres_service.enabled:
+            rows = await asyncio.to_thread(postgres_service.get_irrigation_events, device_id, limit)
+            return [IrrigationEvent(**row) for row in rows]
+
         base_query = self.db.collection('irrigation_events')
 
         # Firestore often requires a composite index for where + order_by.
@@ -86,29 +94,35 @@ class IrrigationService:
         """
         Finds the most recent active irrigation event for a device and stops it.
         """
+        if postgres_service.enabled:
+            row = await asyncio.to_thread(postgres_service.stop_latest_active_event, device_id, datetime.utcnow())
+            if not row:
+                return None
+            return IrrigationEvent(**row)
+
         query = self.db.collection('irrigation_events') \
             .where('device_id', '==', device_id) \
             .where('status', '==', 'active') \
             .order_by('start_time', direction='DESCENDING') \
             .limit(1)
-        
+
         docs = await asyncio.to_thread(lambda: query.get())
-        
+
         if not docs:
             return None # No active event found
-        
+
         active_event_doc = docs[0]
         event_id = active_event_doc.id
-        
+
         update_data = {
             "status": "stopped",
             "end_time": datetime.utcnow(),
             "updated_at": datetime.utcnow() # Assuming updated_at field exists in model
         }
-        
+
         doc_ref = self.db.collection('irrigation_events').document(event_id)
         await asyncio.to_thread(doc_ref.update, update_data)
-        
+
         updated_event_doc = await asyncio.to_thread(doc_ref.get)
         return IrrigationEvent(**updated_event_doc.to_dict())
 
@@ -117,6 +131,12 @@ class IrrigationService:
     CONTROL_STATE_DOCUMENT_ID_PREFIX = "control_state_"
 
     async def get_control_state(self, device_id: str) -> ControlState:
+        if postgres_service.enabled:
+            row = await asyncio.to_thread(postgres_service.get_control_state, device_id)
+            if row:
+                return ControlState(**row)
+            return ControlState(device_id=device_id)
+
         doc_ref = self.db.collection(self.CONTROL_STATE_COLLECTION).document(f"{self.CONTROL_STATE_DOCUMENT_ID_PREFIX}{device_id}")
         doc = await asyncio.to_thread(doc_ref.get)
         if doc.exists:
@@ -125,9 +145,13 @@ class IrrigationService:
         return ControlState(device_id=device_id)
 
     async def update_control_state(self, control_state: ControlState) -> ControlState:
-        doc_ref = self.db.collection(self.CONTROL_STATE_COLLECTION).document(f"{self.CONTROL_STATE_DOCUMENT_ID_PREFIX}{control_state.device_id}")
         # Update last_change_time whenever the state is updated
         control_state.last_change_time = datetime.utcnow()
+        if postgres_service.enabled:
+            row = await asyncio.to_thread(postgres_service.upsert_control_state, control_state.model_dump())
+            return ControlState(**row)
+
+        doc_ref = self.db.collection(self.CONTROL_STATE_COLLECTION).document(f"{self.CONTROL_STATE_DOCUMENT_ID_PREFIX}{control_state.device_id}")
         await asyncio.to_thread(doc_ref.set, control_state.model_dump())
         return control_state
     # --- END NEW CODE ---

@@ -28,6 +28,12 @@ class JWTBearer(HTTPBearer):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Invalid token or expired token."
                 )
+
+            if not user_payload.get("email_verified", False):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Email is not verified."
+                )
             
             # Attach user info to request for use in route handlers
             request.state.user = user_payload
