@@ -1,1 +1,0 @@
-This is a placeholder for QWEN.md. It should contain the same content as GEMINI.md.

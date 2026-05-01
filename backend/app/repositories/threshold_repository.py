@@ -13,7 +13,7 @@ class ThresholdRepository:
         row = postgres_service.execute(
             """
             SELECT soil_moisture_low, soil_moisture_critical, temperature_high, temperature_critical,
-                   humidity_low, humidity_high
+                   humidity_low, humidity_high, update_frequency, notes
             FROM thresholds
             WHERE scope = 'global'
             LIMIT 1;
@@ -29,9 +29,9 @@ class ThresholdRepository:
             """
             INSERT INTO thresholds (
                 scope, soil_moisture_low, soil_moisture_critical, temperature_high,
-                temperature_critical, humidity_low, humidity_high, updated_at
+                temperature_critical, humidity_low, humidity_high, update_frequency, notes, updated_at
             )
-            VALUES ('global', %s, %s, %s, %s, %s, %s, %s)
+            VALUES ('global', %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (scope) DO UPDATE SET
                 soil_moisture_low = EXCLUDED.soil_moisture_low,
                 soil_moisture_critical = EXCLUDED.soil_moisture_critical,
@@ -39,6 +39,8 @@ class ThresholdRepository:
                 temperature_critical = EXCLUDED.temperature_critical,
                 humidity_low = EXCLUDED.humidity_low,
                 humidity_high = EXCLUDED.humidity_high,
+                update_frequency = EXCLUDED.update_frequency,
+                notes = EXCLUDED.notes,
                 updated_at = EXCLUDED.updated_at;
             """,
             (
@@ -48,10 +50,15 @@ class ThresholdRepository:
                 thresholds.temperature_critical,
                 thresholds.humidity_low,
                 thresholds.humidity_high,
+                thresholds.update_frequency,
+                thresholds.notes,
                 datetime.utcnow(),
             ),
         )
         return thresholds
+
+    def get_default_thresholds(self) -> AlertThresholds:
+        return AlertThresholds()
 
 
 threshold_repository = ThresholdRepository()

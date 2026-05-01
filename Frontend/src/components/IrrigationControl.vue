@@ -24,6 +24,15 @@
           </div>
         </div>
 
+        <!-- ML Prediction Display -->
+        <div class="alert alert-info mb-3 py-2" v-if="predictionLiters !== null">
+          <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-brain"></i> <strong>Predicted Water Need:</strong></span>
+            <span class="badge bg-info text-dark">{{ predictionLiters }} Liters</span>
+          </div>
+          <small class="text-muted" v-if="predictionSeconds">Duration: {{ formatClock(predictionSeconds) }}</small>
+        </div>
+
         <!-- Mode Selection -->
         <div class="mb-3">
           <strong>Mode:</strong>
@@ -128,9 +137,13 @@ const durationValue = ref(15);
 const lastIrrigationTime = ref('N/A');
 const countdown = ref('');
 const countdownSeconds = ref(0);
+const predictionLiters = ref(null);
+const predictionSeconds = ref(null);
+const FLOW_RATE_LPS = 0.05; // 0.05 L/s match backend
 let irrigationTimer = null;
 let countdownInterval = null;
 let pollInterval = null;
+let predictionInterval = null;
 
 const durationMin = computed(() => (durationUnit.value === 'seconds' ? 1 : 0.1));
 const durationMax = computed(() => (durationUnit.value === 'seconds' ? 7200 : 120));
@@ -146,6 +159,28 @@ const fetchControlState = async () => {
     isRunning.value = state.pump_state;
   } catch (error) {
     console.error('Failed to fetch control state:', error);
+  }
+};
+
+const fetchMLPrediction = async () => {
+  if (!props.deviceId) return;
+  try {
+    const latest = await apiService.getLatestSensorReadings(props.deviceId);
+    if (latest && latest.soil_moisture !== undefined) {
+      const pred = await apiService.getMLPrediction(
+        latest.soil_moisture,
+        latest.temperature,
+        latest.humidity,
+        latest.light_level,
+        props.deviceId
+      );
+      if (pred && pred.predicted_valve_duration_s !== undefined) {
+        predictionSeconds.value = pred.predicted_valve_duration_s;
+        predictionLiters.value = (pred.predicted_valve_duration_s * FLOW_RATE_LPS).toFixed(2);
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to fetch ML prediction for UI:', error);
   }
 };
 
@@ -189,11 +224,14 @@ const getDurationSecondsFromInput = (value, unit) => {
 
 onMounted(async () => {
   await fetchControlState();
+  await fetchMLPrediction();
   pollInterval = setInterval(fetchControlState, 5000);
+  predictionInterval = setInterval(fetchMLPrediction, 30000); // Prediction updates every 30s
 });
 
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval);
+  if (predictionInterval) clearInterval(predictionInterval);
   clearTimers();
 });
 

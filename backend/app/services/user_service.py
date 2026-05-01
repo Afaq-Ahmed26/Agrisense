@@ -33,7 +33,7 @@ async def get_user_from_firestore(uid: str, include_deleted: bool = False) -> Op
         if user:
             _user_cache[uid] = user
             _user_cache_time[uid] = now
-        return user
+            return user
 
     print(f"DEBUG: get_user_from_firestore - trying to fetch user with UID: {uid}")
     user_ref = firebase_service.db.collection('users').document(uid)
@@ -50,6 +50,13 @@ async def get_user_from_firestore(uid: str, include_deleted: bool = False) -> Op
         try:
             user_data['id'] = doc.id # Add the document ID to the data
             user = User(**user_data)
+
+            # PostgreSQL-first mode: backfill missing users from Firestore on-demand.
+            if user_repository.is_enabled():
+                try:
+                    await asyncio.to_thread(user_repository.create, user)
+                except Exception as write_error:
+                    print(f"WARNING: Failed to backfill user {uid} to PostgreSQL: {write_error}")
             
             # Update cache
             _user_cache[uid] = user

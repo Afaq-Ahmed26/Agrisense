@@ -21,9 +21,6 @@
               <router-link class="nav-link" to="/reports" :class="{ active: currentRouteName === 'Reports' }"><i class="fas fa-chart-line me-1"></i>Reports</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/connect-device" :class="{ active: currentRouteName === 'ConnectDevice' }"><i class="fas fa-satellite-dish me-1"></i>Connect Device</router-link>
-            </li>
-            <li class="nav-item">
               <router-link class="nav-link" to="/notifications" :class="{ active: currentRouteName === 'Notifications' }">
                 <i class="fas fa-bell me-1"></i>
                 <span v-if="unreadCount > 0" class="badge rounded-pill bg-danger">

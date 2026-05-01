@@ -4,7 +4,7 @@
 export const MAX_LOGS_DISPLAYED = 10;
 export const MAX_ALERTS_DISPLAYED = 5;
 export const DEFAULT_DURATION_MINUTES = 15;
-export const SENSOR_REFRESH_INTERVAL = 2000;
+export const SENSOR_REFRESH_INTERVAL = 5000;
 export const ALERTS_REFRESH_INTERVAL = 60000;
 export const CHART_UPDATE_INTERVAL = 60000;
 
@@ -40,7 +40,7 @@ export const CONFIG = {
     API_TIMEOUT: 20000,
 
     // Refresh interval for sensor data (in milliseconds)
-    SENSOR_REFRESH_INTERVAL: 30000, // 30 seconds
+    SENSOR_REFRESH_INTERVAL: 5000, // 5 seconds
 
     // Refresh interval for alerts (in milliseconds)
     ALERTS_REFRESH_INTERVAL: 60000, // 1 minute

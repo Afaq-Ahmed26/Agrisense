@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine # Use an official PostgreSQL image
+    container_name: agrisense_db
+    environment:
+      # IMPORTANT: Use a .env file for these sensitive variables.
+      # Example .env file:
+      # POSTGRES_DB=agrisense
+      # POSTGRES_USER=agrisense_user
+      # POSTGRES_PASSWORD=your_strong_password
+      POSTGRES_DB: ${POSTGRES_DB:-agrisense}
+      POSTGRES_USER: ${POSTGRES_USER:-agrisense_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agrisense_password}
+      # The DATABASE_URL for your backend will be: postgresql://user:password@db:5432/dbname
+    ports:
+      - "5432:5432" # Map PostgreSQL port to host (optional, for direct DB access if needed)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist database data
+    networks:
+      - agrisense_network
+
+  backend:
+    build:
+      context: ./backend # Path to your backend Dockerfile
+      dockerfile: Dockerfile
+    container_name: agrisense_backend
+    ports:
+      - "8000:8000" # Map backend port to host (e.g., access at http://localhost:8000)
+    depends_on:
+      - db
+    environment:
+      # IMPORTANT: Use a .env file for sensitive variables.
+      # This DATABASE_URL tells the backend how to connect to the 'db' service.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agrisense_user}:${POSTGRES_PASSWORD:-agrisense_password}@db:5432/${POSTGRES_DB:-agrisense}
+      # Mount Firebase credentials securely as a read-only volume
+      FIREBASE_CONFIG_PATH: /app/firebase-credentials.json
+      # Add other necessary environment variables here (e.g., JWT secrets)
+      # Ensure these are also defined in your .env file.
+    volumes:
+      - ./backend/firebase-credentials.json:/app/firebase-credentials.json:ro # Mount credentials securely (read-only)
+      - ./model:/app/model:ro # Mount ML models (read-only)
+      # Removed log file volume mounts as requested
+    networks:
+      - agrisense_network
+    # Added command to run uvicorn
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build:
+      context: ./Frontend # Path to your frontend Dockerfile
+      dockerfile: Dockerfile
+      # Added build args for Vite env variables to be available at build time
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
+        - VITE_API_BASE_URLS=http://localhost:8000
+    container_name: agrisense_frontend
+    ports:
+      - "5173:80" # Map frontend's exposed port (Nginx default 80) to host port 5173
+    depends_on:
+      - backend
+    environment:
+      # IMPORTANT: Frontend needs to know how to reach the backend.
+      # Use the backend service name ('backend') as the host for internal Docker communication.
+      # However, for browser access from host, it's localhost.
+      # VITE_API_URL needs to be set for your frontend to know where the backend is.
+      # Corrected to localhost:8000 for browser access from host.
+      VITE_API_URL: http://localhost:8000
+      # If VITE_API_BASE_URLS is also used by frontend, set it similarly:
+      VITE_API_BASE_URLS: http://localhost:8000
+    networks:
+      - agrisense_network
+
+volumes:
+  postgres_data: # Define the volume for PostgreSQL data persistence
+
+networks:
+  agrisense_network: # Define a custom network for containers to communicate
+    driver: bridge

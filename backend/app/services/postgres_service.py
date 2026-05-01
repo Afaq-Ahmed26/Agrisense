@@ -114,6 +114,18 @@ class PostgresService:
             );
             """,
             """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'thresholds' AND column_name = 'update_frequency') THEN
+                    ALTER TABLE thresholds ADD COLUMN update_frequency INTEGER NOT NULL DEFAULT 15;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'thresholds' AND column_name = 'notes') THEN
+                    ALTER TABLE thresholds ADD COLUMN notes TEXT DEFAULT '';
+                END IF;
+            END
+            $$;
+            """,
+            """
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id TEXT PRIMARY KEY,
                 timestamp TIMESTAMPTZ NOT NULL,

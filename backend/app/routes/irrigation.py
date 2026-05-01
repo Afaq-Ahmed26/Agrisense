@@ -7,6 +7,7 @@ from app.services.firebase_service import firebase_service
 from app.services.irrigation_service import irrigation_service
 from app.services.ml_service import ml_service
 from app.services.sensor_service import sensor_service
+from app.services.activity_log_service import log_activity
 from app.dependencies import (
     get_current_user,
     ensure_device_access,
@@ -100,7 +101,7 @@ async def get_irrigation_events(
 async def trigger_irrigation(
     device_id: str,
     duration_seconds: Optional[int] = None, # Allow explicit duration in seconds or use ML prediction
-    user_triggered: bool = True, # Default to true if called manually
+    user_triggered: Optional[bool] = None,
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -109,6 +110,7 @@ async def trigger_irrigation(
     the optimal duration based on the latest sensor data.
     """
     ensure_device_access(current_user, device_id)
+    current_control = await irrigation_service.get_control_state(device_id)
 
     start_time = datetime.utcnow()
     
@@ -152,7 +154,11 @@ async def trigger_irrigation(
         end_time=end_time,
         duration_actual_seconds=duration_seconds, # Changed to seconds
         status="active", # Set to active so it can be stopped later
-        user_triggered=user_triggered,
+        user_triggered=(
+            bool(user_triggered)
+            if user_triggered is not None
+            else str(current_control.mode).upper() != "AUTO"
+        ),
         temperature=sensor_data_to_record.get('temperature'),
         humidity=sensor_data_to_record.get('humidity'),
         soil_moisture=sensor_data_to_record.get('soil_moisture'),
@@ -161,13 +167,23 @@ async def trigger_irrigation(
 
     new_event = await irrigation_service.create_irrigation_event(event_create)
     
-    # Fetch current control state to preserve settings (like threshold and mode)
-    current_control = await irrigation_service.get_control_state(device_id)
+    # Preserve control settings (like threshold and mode), only toggle pump state.
     # Do not override mode here; it is managed explicitly via /irrigation/control.
     current_control.pump_state = True
     
     # Update control state to turn pump ON
     await irrigation_service.update_control_state(current_control)
+
+    await log_activity(
+        user_id=current_user.id,
+        action="Irrigation Start",
+        details={
+            "device_id": device_id,
+            "duration_actual_seconds": duration_seconds,
+            "event_id": new_event.id,
+            "mode": "manual" if new_event.user_triggered else "auto",
+        },
+    )
     
     return new_event
 
@@ -190,6 +206,17 @@ async def stop_irrigation(
     current_control = await irrigation_service.get_control_state(device_id)
     current_control.pump_state = False
     await irrigation_service.update_control_state(current_control)
+
+    await log_activity(
+        user_id=current_user.id,
+        action="Irrigation Stop",
+        details={
+            "device_id": device_id,
+            "event_id": stopped_event.id,
+            "status": stopped_event.status,
+            "duration_actual_seconds": stopped_event.duration_actual_seconds,
+        },
+    )
     
     return stopped_event
 

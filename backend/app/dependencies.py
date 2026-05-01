@@ -3,10 +3,11 @@ from typing import List, Set
 from app.services.user_service import get_user_from_firestore
 from app.middleware.auth import JWTBearer
 from app.models.user import User
+from app.config import settings
 
 security = JWTBearer()
 OFFICER_ROLES = {"officer", "middleman"}
-ASSIGNED_DEVICE_ROLES = {"farmer", "officer"}
+ASSIGNED_DEVICE_ROLES = {"farmer", "officer"} if settings.DEVICE_ASSIGNMENT_ENFORCEMENT else set()
 
 
 def normalize_role(role: str) -> str:

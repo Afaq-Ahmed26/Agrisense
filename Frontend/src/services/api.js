@@ -353,6 +353,47 @@ class ApiService {
         return this.request(`/reports/monthly?${params}`, { method: 'GET' });
     }
 
+    async getReportsCustom(deviceId, startDate, endDate) {
+        const params = new URLSearchParams({ 
+            device_id: deviceId,
+            start_date: startDate,
+            end_date: endDate
+        });
+        return this.request(`/reports/custom?${params}`, { method: 'GET' });
+    }
+
+    async exportReportCSV(deviceId, startDate, endDate) {
+        const params = new URLSearchParams({ 
+            device_id: deviceId,
+            start_date: startDate,
+            end_date: endDate
+        });
+        
+        // Use standard request to handle token
+        const baseURL = this.baseURLs[this.activeBaseURLIndex];
+        const url = `${baseURL}/reports/export?${params}`;
+        
+        const token = await firebaseService.auth.currentUser.getIdToken();
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Export failed');
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', `report_${deviceId}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
     async getReportDevices() {
         return this.request('/reports/devices', { method: 'GET' });
     }
@@ -461,6 +502,10 @@ class ApiService {
 
     async getAlertThresholds() {
         return this.request('/thresholds/');
+    }
+
+    async getDefaultAlertThresholds() {
+        return this.request('/thresholds/defaults');
     }
 
     async updateAlertThresholds(thresholds) {

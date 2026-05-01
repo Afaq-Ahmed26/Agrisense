@@ -69,7 +69,8 @@ class IrrigationService:
     async def get_irrigation_events(self, device_id: Optional[str] = None, limit: int = 100) -> List[IrrigationEvent]:
         if postgres_service.enabled:
             rows = await asyncio.to_thread(postgres_service.get_irrigation_events, device_id, limit)
-            return [IrrigationEvent(**row) for row in rows]
+            if rows:
+                return [IrrigationEvent(**row) for row in rows]
 
         base_query = self.db.collection('irrigation_events')
 
@@ -79,16 +80,43 @@ class IrrigationService:
         if device_id:
             query = base_query.where('device_id', '==', device_id)
             docs = await asyncio.to_thread(lambda: query.get())
-            events = [IrrigationEvent(**doc.to_dict()) for doc in docs]
+            events = []
+            for doc in docs:
+                payload = doc.to_dict() or {}
+                if "id" not in payload:
+                    payload["id"] = doc.id
+                events.append(IrrigationEvent(**payload))
             events.sort(
                 key=lambda e: e.created_at or e.start_time or datetime.min,
                 reverse=True
             )
+
+            if postgres_service.enabled:
+                for event in events[:limit]:
+                    try:
+                        await asyncio.to_thread(postgres_service.save_irrigation_event, event.model_dump())
+                    except Exception as write_error:
+                        print(f"WARNING: Failed to backfill irrigation event {event.id} to PostgreSQL: {write_error}")
+
             return events[:limit]
 
         query = base_query.order_by('created_at', direction='DESCENDING').limit(limit)
         docs = await asyncio.to_thread(lambda: query.get())
-        return [IrrigationEvent(**doc.to_dict()) for doc in docs]
+        events = []
+        for doc in docs:
+            payload = doc.to_dict() or {}
+            if "id" not in payload:
+                payload["id"] = doc.id
+            events.append(IrrigationEvent(**payload))
+
+        if postgres_service.enabled:
+            for event in events:
+                try:
+                    await asyncio.to_thread(postgres_service.save_irrigation_event, event.model_dump())
+                except Exception as write_error:
+                    print(f"WARNING: Failed to backfill irrigation event {event.id} to PostgreSQL: {write_error}")
+
+        return events
 
     async def stop_irrigation_event(self, device_id: str) -> Optional[IrrigationEvent]:
         """

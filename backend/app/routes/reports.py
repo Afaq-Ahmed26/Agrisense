@@ -1,8 +1,11 @@
 import asyncio
-from datetime import datetime, timedelta
+import csv
+import io
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 
 from app.dependencies import (
     ASSIGNED_DEVICE_ROLES,
@@ -48,9 +51,14 @@ def _format_report_response(rows: List[dict], label_format: str) -> Dict[str, Li
 
 
 def _aggregate_readings(readings, bucket_kind: str) -> Dict[str, List]:
+    def _to_utc_naive(dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            return dt
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
     grouped = {}
     for reading in readings:
-        ts = reading.timestamp
+        ts = _to_utc_naive(reading.timestamp)
         if bucket_kind == "hour":
             key = ts.replace(minute=0, second=0, microsecond=0)
         else:
@@ -99,7 +107,20 @@ async def get_report_devices(current_user: User = Depends(get_current_user)):
 
     if postgres_service.enabled:
         ids_with_data = set(await asyncio.to_thread(postgres_service.get_device_ids_with_sensor_data))
-        devices = [d for d in devices if d.id in ids_with_data]
+        if ids_with_data:
+            devices = [d for d in devices if d.id in ids_with_data]
+
+            existing_ids = {d.id for d in devices}
+            for device_id in sorted(ids_with_data):
+                if device_id in existing_ids:
+                    continue
+                devices.append(
+                    {
+                        "id": device_id,
+                        "name": f"Device {device_id}",
+                        "location": "Unknown",
+                    }
+                )
     else:
         devices_with_data = []
         for device in devices:
@@ -109,7 +130,9 @@ async def get_report_devices(current_user: User = Depends(get_current_user)):
         devices = devices_with_data
 
     return [
-        {"id": device.id, "name": device.name, "location": device.location}
+        {"id": device["id"], "name": device["name"], "location": device["location"]}
+        if isinstance(device, dict)
+        else {"id": device.id, "name": device.name, "location": device.location}
         for device in devices
     ]
 
@@ -146,8 +169,6 @@ async def get_weekly_report(
     readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start, limit=10000)
     rows = _aggregate_readings(readings, "day")
     return _format_report_response(rows, "%d %b")
-
-
 @router.get("/monthly")
 async def get_monthly_report(
     device_id: str,
@@ -163,3 +184,71 @@ async def get_monthly_report(
     readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start, limit=20000)
     rows = _aggregate_readings(readings, "day")
     return _format_report_response(rows, "%d %b")
+
+
+@router.get("/custom")
+async def get_custom_report(
+    device_id: str,
+    start_date: datetime,
+    end_date: datetime,
+    current_user: User = Depends(get_current_user),
+):
+    ensure_device_access(current_user, device_id)
+
+    # Use a bucket size based on the range
+    diff = end_date - start_date
+    if diff.days <= 2:
+        bucket = "hour"
+        label_fmt = "%H:%M"
+    else:
+        bucket = "day"
+        label_fmt = "%d %b"
+
+    if postgres_service.enabled:
+        readings = await asyncio.to_thread(postgres_service.get_sensor_readings_for_range, device_id, start_date, end_date)
+    else:
+        readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start_date, end_time=end_date, limit=50000)
+    
+    rows = _aggregate_readings(readings, bucket)
+    return _format_report_response(rows, label_fmt)
+
+
+@router.get("/export")
+async def export_report_csv(
+    device_id: str,
+    start_date: datetime,
+    end_date: datetime,
+    current_user: User = Depends(get_current_user),
+):
+    ensure_device_access(current_user, device_id)
+
+    if postgres_service.enabled:
+        readings = await asyncio.to_thread(postgres_service.get_sensor_readings_for_range, device_id, start_date, end_date)
+    else:
+        readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start_date, end_time=end_date, limit=50000)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Timestamp", "Soil Moisture (%)", "Temperature (C)", "Humidity (%)", "Light Level (lx)"])
+
+    for r in readings:
+        # handle both dict (from postgres) and object (from sensor_service)
+        if isinstance(r, dict):
+            ts = r["timestamp"]
+            if isinstance(ts, datetime):
+                ts = ts.strftime("%Y-%m-%d %H:%M:%S")
+            writer.writerow([ts, r.get("soil_moisture"), r.get("temperature"), r.get("humidity"), r.get("light_level")])
+        else:
+            ts = r.timestamp
+            if isinstance(ts, datetime):
+                ts = ts.strftime("%Y-%m-%d %H:%M:%S")
+            writer.writerow([ts, r.soil_moisture, r.temperature, r.humidity, r.light_level])
+
+    output.seek(0)
+    filename = f"report_{device_id}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.csv"
+    
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

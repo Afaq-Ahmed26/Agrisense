@@ -40,13 +40,15 @@ async def get_activity_logs(
           of (user_id, timestamp) and (action, timestamp).
     """
     if activity_log_repository.is_enabled():
-        return await asyncio.to_thread(
+        pg_logs = await asyncio.to_thread(
             activity_log_repository.list,
             limit,
             skip,
             user_id,
             action,
         )
+        if pg_logs:
+            return pg_logs
 
     query = firebase_service.db.collection('activity_logs')
 
@@ -66,7 +68,14 @@ async def get_activity_logs(
         try:
             log_data = doc.to_dict()
             log_data['id'] = doc.id
-            logs.append(ActivityLog(**log_data))
+            parsed = ActivityLog(**log_data)
+            logs.append(parsed)
+
+            if activity_log_repository.is_enabled():
+                try:
+                    await asyncio.to_thread(activity_log_repository.create, parsed)
+                except Exception as write_error:
+                    print(f"WARNING: Failed to backfill activity log {parsed.id} to PostgreSQL: {write_error}")
         except Exception as e:
             print(f"Error parsing activity log {doc.id}: {e}")
             continue

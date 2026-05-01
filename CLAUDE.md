@@ -1,1 +1,0 @@
-This is a placeholder for CLAUDE.md. It should contain the same content as GEMINI.md.

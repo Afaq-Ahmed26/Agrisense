@@ -3,9 +3,6 @@
     <AlertsBanner />
     <div class="container-fluid px-4 mt-3">
       <div class="d-flex justify-content-end mb-3">
-        <button class="btn btn-info me-2" @click="$router.push({ name: 'ConnectDevice' })">
-          Connect New Device
-        </button>
         <button class="btn btn-secondary" @click="toggleCustomizeMode">
           {{ customizeMode ? 'Finish Customizing' : 'Customize Dashboard' }}
         </button>
@@ -23,11 +20,11 @@
         </div>
         <div class="card-body text-center">
             <h4 class="mb-3">{{ irrigationRecommendation.recommendation }}</h4>
-            <p v-if="irrigationRecommendation.recommendation === 'Irrigation recommended'" class="lead">
-                Reason: Soil moisture ({{ irrigationRecommendation.current_conditions?.soil_moisture }}%) is below the threshold.
+            <p v-if="irrigationRecommendation.reason" class="lead">
+                Reason: {{ irrigationRecommendation.reason }}
             </p>
             <p v-if="irrigationRecommendation.predicted_valve_duration_s > 0" class="mb-3">
-                <strong>Predicted Duration:</strong> {{ (irrigationRecommendation.predicted_valve_duration_s / 60).toFixed(1) }} minutes
+                <strong>Predicted Duration:</strong> {{ irrigationRecommendation.predicted_valve_duration_s }} seconds
             </p>
             <button class="btn btn-primary btn-lg" @click="triggerIrrigation" :disabled="showIrrigationSpinner || irrigationRecommendation.recommendation !== 'Irrigation recommended'">
                 <span v-if="showIrrigationSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -145,9 +142,16 @@ const getOfflineSensorData = () => ({
   last_updated: null
 });
 
+const normalizeApiTimestamp = (value) => {
+  if (!value || typeof value !== 'string') return value || null;
+  const trimmed = value.trim().replace(' ', 'T');
+  const hasTimezone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(trimmed);
+  return hasTimezone ? trimmed : `${trimmed}Z`;
+};
+
 const normalizeSensorReading = (data) => ({
   ...data,
-  last_updated: data?.last_updated || data?.timestamp || null
+  last_updated: normalizeApiTimestamp(data?.last_updated || data?.timestamp || null)
 });
 
 const isSensorReadingFresh = (reading) => {
@@ -285,15 +289,33 @@ const fetchIrrigationRecommendation = async (deviceId) => {
     if (soil_moisture === null || soil_moisture === undefined) {
       irrigationRecommendation.value = {
         recommendation: "Awaiting soil moisture data.",
+        reason: "No soil moisture data available.",
         predicted_valve_duration_s: 0,
         current_conditions: { soil_moisture, temperature, humidity, light_level },
         predicted_at: new Date().toISOString()
       };
       return;
     }
+
+    const thresholds = await apiService.getAlertThresholds();
+    const lowThreshold = thresholds.soil_moisture_low || 30.0;
+
     const prediction = await apiService.getMLPrediction(soil_moisture, temperature, humidity, light_level, deviceId);
+    
+    let recommendationText = "No irrigation needed";
+    let recommendationReason = "";
+
+    // Recommendation logic: only recommend if below low threshold AND ML predicts a need
+    if (soil_moisture < lowThreshold && prediction.predicted_valve_duration_s > 0) {
+      recommendationText = "Irrigation recommended";
+      recommendationReason = `Soil moisture (${soil_moisture}%) is below the low threshold (${lowThreshold}%).`;
+    } else {
+      recommendationReason = `Soil moisture (${soil_moisture}%) is above the low threshold (${lowThreshold}%).`;
+    }
+
     irrigationRecommendation.value = {
-      recommendation: prediction.predicted_valve_duration_s > 0 ? "Irrigation recommended" : "No irrigation needed",
+      recommendation: recommendationText,
+      reason: recommendationReason,
       predicted_valve_duration_s: prediction.predicted_valve_duration_s,
       current_conditions: { soil_moisture, temperature, humidity, light_level },
       predicted_at: prediction.predicted_at
@@ -302,6 +324,7 @@ const fetchIrrigationRecommendation = async (deviceId) => {
     console.error('Failed to fetch irrigation recommendation:', error);
     irrigationRecommendation.value = {
       recommendation: "Error fetching recommendation.",
+      reason: "Failed to load irrigation recommendation.",
       predicted_valve_duration_s: 0,
       current_conditions: null,
       predicted_at: new Date().toISOString()

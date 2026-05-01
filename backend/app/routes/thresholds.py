@@ -56,3 +56,10 @@ async def update_alert_thresholds(
         )
 
     return thresholds
+
+@router.get("/defaults", response_model=AlertThresholds)
+async def get_default_thresholds(current_user: User = Depends(require_roles(AUTHORIZED_ROLES))):
+    """
+    Retrieve the default alert thresholds.
+    """
+    return AlertThresholds()

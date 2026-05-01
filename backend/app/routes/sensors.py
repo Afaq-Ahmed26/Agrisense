@@ -38,7 +38,7 @@ router = APIRouter()
 security = JWTBearer()
 
 # =============================================================================
-# AUTO IRRIGATION CONTROL (Production-Ready, ML Disabled)
+# AUTO IRRIGATION CONTROL (ML-Driven)
 # =============================================================================
 
 # Debounce configuration: minimum seconds between state changes
@@ -73,9 +73,9 @@ class DeviceConnectOtpVerifyRequest(BaseModel):
 OTP_COLLECTION = "device_connect_otps"
 
 
-async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float]):
+async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float], temperature: Optional[float] = None, humidity: Optional[float] = None, light_level: Optional[float] = None):
     """
-    Real-time irrigation control based on soil moisture threshold (AUTO) or user command (MANUAL).
+    Real-time irrigation control based on ML prediction (AUTO) or user command (MANUAL).
     Only updates if state actually changes + debounce prevents rapid toggling.
     """
     try:
@@ -85,54 +85,115 @@ async def handle_auto_irrigation(device_id: str, soil_moisture: Optional[float])
         if control.mode == "MANUAL":
             return
 
-        # --- AUTO MODE LOGIC ---
+        # --- AUTO MODE LOGIC (ML-DRIVEN with Safety Fallback) ---
         if soil_moisture is None:
-            return  # Skip if no soil moisture data in AUTO mode
+            print(f"DEBUG: Device {device_id} - Soil moisture is None. Skipping auto-irrigation decision.")
+            return  # Skip if no soil moisture data
 
-        # Fetch system-wide thresholds for soil moisture
-        # Use system threshold if available; otherwise keep backward compatibility
-        # but normalize old low defaults to at least 30%.
-        threshold = 30.0
-        found_system_threshold = False
+        # Prepare data for ML prediction
+        sensor_data = {
+            'soil_moisture': soil_moisture,
+            'temperature': temperature,
+            'humidity': humidity,
+            'light_level': light_level
+        }
+        
+        # Attempt ML prediction
+        ml_prediction_duration = 0
+        ml_error = None
+        ml_triggered_by_prediction = False # Flag for ML prediction suggesting irrigation
+        
+        if ml_service.model: # Ensure model is loaded
+            prediction = await ml_service.predict_irrigation_need(sensor_data)
+            ml_prediction_duration = prediction.get("predicted_valve_duration_s", 0)
+            ml_error = prediction.get("error")
+            
+            if ml_error:
+                print(f"DEBUG: Device {device_id} - ML Prediction Error: {ml_error}")
+            else:
+                if ml_prediction_duration > 0:
+                    ml_triggered_by_prediction = True
+                    print(f"DEBUG: Device {device_id} - ML predicted irrigation needed: {ml_prediction_duration}s")
+                else:
+                    print(f"DEBUG: Device {device_id} - ML predicted no irrigation needed (duration: {ml_prediction_duration}s).")
+        else:
+            ml_error = "ML model not loaded." # Treat as ML failure if model not loaded
+            print(f"DEBUG: Device {device_id} - ML Model Status: Not Loaded. Treating as ML error.")
+
+        # Liters per second conversion (Example: 0.05 L/s)
+        FLOW_RATE_LPS = 0.05
+        predicted_liters = round(ml_prediction_duration * FLOW_RATE_LPS, 2)
+
+        # Fetch system-wide thresholds for safety/fallback
+        # Default fallback: 30% low, 20% critical
+        threshold_low = 30.0
+        threshold_critical = 20.0
+        
         if threshold_repository.is_enabled():
             system_thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
             if system_thresholds:
-                threshold = getattr(system_thresholds, "soil_moisture_critical", 30.0)
-                found_system_threshold = True
-                print(f"DEBUG: Found PostgreSQL system-wide threshold: {threshold}")
+                threshold_low = getattr(system_thresholds, "soil_moisture_low", 30.0)
+                threshold_critical = getattr(system_thresholds, "soil_moisture_critical", 20.0)
+                print(f"DEBUG: Device {device_id} - Fetched system thresholds: Low={threshold_low}%, Critical={threshold_critical}%.")
+            else:
+                print(f"DEBUG: Device {device_id} - No system thresholds found in DB. Using defaults.")
         else:
-            settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
-            doc = await asyncio.to_thread(settings_ref.get)
-            if doc.exists:
-                threshold = doc.to_dict().get("soil_moisture_critical", 30.0)
-                found_system_threshold = True
-                print(f"DEBUG: Found system-wide threshold: {threshold}")
-        if not found_system_threshold and control.threshold is not None:
-            threshold = max(control.threshold, 30.0)
-            print(f"DEBUG: No system-wide threshold found, using normalized device-specific threshold: {threshold}")
-        elif not found_system_threshold:
-            print(f"DEBUG: No threshold found, using default: {threshold}")
+            print(f"DEBUG: Device {device_id} - Threshold repository not enabled. Using default thresholds.")
+        
+        # --- DECISION LOGIC WITH SAFETY FALLBACK ---
+        ml_triggered = False # Final decision based on ML for pump activation
+        threshold_triggered = False # Final decision based on critical threshold for pump activation
 
-        # Decision: pump ON if moisture below threshold
-        new_pump_state = soil_moisture < threshold
-        print(f"DEBUG: Device {device_id} - Soil: {soil_moisture}%, Threshold: {threshold}%, Current Pump: {control.pump_state}, New Pump: {new_pump_state}")
+        # 1. Primary: ML-Driven trigger condition
+        # Trigger if ML works, predicts duration > 0, AND soil moisture is below the 'low' threshold.
+        # Ensure ML is not in an error state.
+        if ml_triggered_by_prediction and not ml_error and soil_moisture < threshold_low:
+            ml_triggered = True
+            print(f"DEBUG: Device {device_id} - ML condition met: soil_moisture ({soil_moisture}%) < Low Threshold ({threshold_low}%) AND ML predicted > 0.")
+
+        # 2. Fallback: Threshold-Driven trigger condition
+        # Trigger if soil moisture is critically low, regardless of ML output.
+        if soil_moisture < threshold_critical:
+            threshold_triggered = True
+            print(f"DEBUG: Device {device_id} - Critical Threshold condition met: soil_moisture ({soil_moisture}%) < Critical Threshold ({threshold_critical}%).")
+
+        # Final decision: pump is ON if ML triggered it OR if the critical threshold dictates it.
+        # This ensures the safety fallback takes precedence.
+        # New: Automatically stop if moisture >= 60%
+        if control.pump_state and soil_moisture >= 60.0:
+            new_pump_state = False
+            trigger_type = "Stop-Condition (>=60%)"
+        else:
+            new_pump_state = ml_triggered or threshold_triggered
+            trigger_type = "ML-Driven" if ml_triggered else ("Threshold-Fallback" if threshold_triggered else "None")
+        
+        # Add detailed print statements for debugging as requested
+        print(f"DEBUG: Device {device_id} - Final Decision Trace: Soil: {soil_moisture:.1f}%, ML Pred Duration: {ml_prediction_duration}s, ML Error: {ml_error}, ML Triggered (by logic): {ml_triggered}, Threshold Triggered: {threshold_triggered}, Final Pump State Decision: {new_pump_state} (via {trigger_type})")
 
         # ✅ Debounce: prevent rapid toggling
         now = time.time()
         last_change = _last_state_change_time.get(device_id, 0)
         if (now - last_change) < DEBOUNCE_INTERVAL_SECONDS:
+            print(f"DEBUG: Device {device_id} - Debounce active. Skipping state change to {new_pump_state}.")
             return  # Too soon, skip this change
+
+        # Only proceed if state actually changes
+        if control.pump_state == new_pump_state:
+            print(f"DEBUG: Device {device_id} - Pump state unchanged ({new_pump_state}). Skipping database update.")
+            return
 
         # Update control state
         control.pump_state = new_pump_state
         await irrigation_service.update_control_state(control)
+        print(f"DEBUG: Device {device_id} - Database control state updated to pump_state={new_pump_state}.")
 
         # Track change time for debounce
         _last_state_change_time[device_id] = now
 
         # Log only on actual state changes
         state_str = "ON" if new_pump_state else "OFF"
-        print(f"💧 [Auto Irrigation] Device {device_id}: Pump turned {state_str} (moisture={soil_moisture:.1f}%, threshold={threshold:.1f}%)")
+        ml_info = f"ML Predicted: {ml_prediction_duration}s ({predicted_liters}L)" if ml_triggered else ""
+        print(f"💧 [Auto Irrigation] Device {device_id}: Pump turned {state_str} (moisture={soil_moisture:.1f}%, Low={threshold_low:.1f}%, Critical={threshold_critical:.1f}%) {ml_info}")
 
     except Exception as e:
         print(f"❌ [Irrigation Control] Error for device {device_id}: {e}")
@@ -575,7 +636,10 @@ async def create_sensor_reading(device_id: str, reading: SensorReadingCreate):
     # ✅ AUTO IRRIGATION CONTROL (Real sensor data → Real decision)
     await handle_auto_irrigation(
         device_id=sensor_reading.device_id,
-        soil_moisture=sensor_reading.soil_moisture
+        soil_moisture=sensor_reading.soil_moisture,
+        temperature=sensor_reading.temperature,
+        humidity=sensor_reading.humidity,
+        light_level=sensor_reading.light_level
     )
 
     return sensor_reading

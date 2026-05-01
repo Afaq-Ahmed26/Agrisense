@@ -1,10 +1,30 @@
-# node_modules/
-# venv/
-# .env
-# __pycache__/
-# # *.md
-# # !.gitignore
-# # !README.md
-# # !README.MD
-# # !readme.md
-# # !Readme.md
+# Environment & Secrets
+.env
+*.env
+firebase-credentials.json
+*.json.secret
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.npm/
+
+# Database
+*.sqlite3
+postgres_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

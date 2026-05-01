@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # Device connect OTP policy
     DEVICE_OTP_EXPIRE_MINUTES: int = int(os.getenv("DEVICE_OTP_EXPIRE_MINUTES", "10"))
     DEVICE_OTP_MAX_ATTEMPTS: int = int(os.getenv("DEVICE_OTP_MAX_ATTEMPTS", "3"))
+    DEVICE_ASSIGNMENT_ENFORCEMENT: bool = os.getenv("DEVICE_ASSIGNMENT_ENFORCEMENT", "false").lower() == "true"
 
     class Config:
         env_file = ".env"

@@ -17,6 +17,14 @@ class SensorService:
         self._last_firestore_save: Dict[str, float] = {} # Tracking last save time per device
         self.FIRESTORE_SAVE_INTERVAL = 600 # 10 minutes in seconds
 
+    @staticmethod
+    def _to_utc_naive(dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
     async def create_device(self, device_create: DeviceCreate) -> Device:
         device_id = generate_device_id()
         new_device = Device(
@@ -41,17 +49,32 @@ class SensorService:
 
     async def get_device(self, device_id: str) -> Optional[Device]:
         if device_repository.is_enabled():
-            return await asyncio.to_thread(device_repository.get_by_id, device_id)
+            pg_device = await asyncio.to_thread(device_repository.get_by_id, device_id)
+            if pg_device:
+                return pg_device
 
         doc_ref = self.db.collection('devices').document(device_id)
         doc = await asyncio.to_thread(doc_ref.get)
         if doc.exists:
-            return Device(**doc.to_dict())
+            device_data = doc.to_dict() or {}
+            if "id" not in device_data:
+                device_data["id"] = doc.id
+            firestore_device = Device(**device_data)
+
+            if device_repository.is_enabled():
+                try:
+                    await asyncio.to_thread(device_repository.create, firestore_device)
+                except Exception as write_error:
+                    print(f"WARNING: Failed to backfill device {device_id} to PostgreSQL: {write_error}")
+
+            return firestore_device
         return None
 
     async def get_devices(self, owner_id: Optional[str] = None) -> List[Device]:
         if device_repository.is_enabled():
-            return await asyncio.to_thread(device_repository.list, owner_id)
+            pg_devices = await asyncio.to_thread(device_repository.list, owner_id)
+            if pg_devices:
+                return pg_devices
 
         query = self.db.collection('devices')
         if owner_id:
@@ -59,7 +82,21 @@ class SensorService:
         
         # Use to_thread for blocking query stream or get
         docs = await asyncio.to_thread(lambda: query.get())
-        return [Device(**doc.to_dict()) for doc in docs]
+        firestore_devices: List[Device] = []
+        for doc in docs:
+            device_data = doc.to_dict() or {}
+            if "id" not in device_data:
+                device_data["id"] = doc.id
+            firestore_devices.append(Device(**device_data))
+
+        if device_repository.is_enabled():
+            for device in firestore_devices:
+                try:
+                    await asyncio.to_thread(device_repository.create, device)
+                except Exception as write_error:
+                    print(f"WARNING: Failed to backfill device {device.id} to PostgreSQL: {write_error}")
+
+        return firestore_devices
 
     async def create_sensor_reading(self, device_id: str, reading_create: SensorReadingCreate) -> SensorReading:
         now = time.time()
@@ -83,19 +120,18 @@ class SensorService:
             except Exception as e:
                 print(f"❌ [SensorService] PostgreSQL save failed for {device_id}: {e}")
 
-        # Only save to Firestore if the interval has passed (periodic backup)
-        last_save = self._last_firestore_save.get(device_id, 0)
-        if now - last_save >= self.FIRESTORE_SAVE_INTERVAL:
-            try:
-                doc_ref = self.db.collection('sensor_readings').document(sensor_reading_id)
-                await asyncio.to_thread(doc_ref.set, new_reading.model_dump())
-                self._last_firestore_save[device_id] = now
-                print(f"✅ [SensorService] Periodic Firestore backup for {device_id} successful.")
-            except Exception as e:
-                print(f"❌ [SensorService] Firestore backup failed for {device_id}: {e}")
-        else:
-            # Skip Firestore save to conserve quota
-            pass
+        # Only run Firestore periodic backup when PostgreSQL mode is disabled.
+        # In PostgreSQL mode, Firestore network outages should never block ingestion.
+        if not postgres_service.enabled:
+            last_save = self._last_firestore_save.get(device_id, 0)
+            if now - last_save >= self.FIRESTORE_SAVE_INTERVAL:
+                try:
+                    doc_ref = self.db.collection('sensor_readings').document(sensor_reading_id)
+                    await asyncio.to_thread(doc_ref.set, new_reading.model_dump())
+                    self._last_firestore_save[device_id] = now
+                    print(f"✅ [SensorService] Periodic Firestore backup for {device_id} successful.")
+                except Exception as e:
+                    print(f"❌ [SensorService] Firestore backup failed for {device_id}: {e}")
         
         return new_reading
 
@@ -137,6 +173,24 @@ class SensorService:
         skip: int = 0, 
         limit: int = 100
     ) -> List[SensorReading]:
+        normalized_start = self._to_utc_naive(start_time)
+        normalized_end = self._to_utc_naive(end_time)
+
+        # Start with cached reading if applicable
+        cached_readings = []
+        if device_id in self._latest_sensor_data_cache:
+            cached = self._latest_sensor_data_cache[device_id]
+            cached_ts = self._to_utc_naive(cached.timestamp)
+            # Check if it matches filters
+            match = True
+            if normalized_start and cached_ts and cached_ts < normalized_start:
+                match = False
+            if normalized_end and cached_ts and cached_ts > normalized_end:
+                match = False
+            
+            if match:
+                cached_readings.append(cached)
+
         if postgres_service.enabled:
             try:
                 rows = await asyncio.to_thread(
@@ -147,7 +201,16 @@ class SensorService:
                     skip,
                     limit,
                 )
-                return [SensorReading(**row) for row in rows]
+                db_readings = [SensorReading(**row) for row in rows]
+                # Merge and deduplicate (by ID)
+                seen_ids = {r.id for r in cached_readings}
+                for r in db_readings:
+                    if r.id not in seen_ids:
+                        cached_readings.append(r)
+                
+                # Sort by timestamp descending
+                cached_readings.sort(key=lambda x: self._to_utc_naive(x.timestamp) or datetime.min, reverse=True)
+                return cached_readings[skip : skip + limit]
             except Exception as e:
                 print(f"❌ [SensorService] PostgreSQL range read failed for {device_id}: {e}")
 
@@ -165,8 +228,17 @@ class SensorService:
         
         # Use to_thread for blocking offset/limit/get
         readings_docs = await asyncio.to_thread(lambda: query.offset(skip).limit(limit).get())
-        print(f"DEBUG: get_sensor_readings - Raw Firestore response for device {device_id} (skip={skip}, limit={limit}): {readings_docs}") # Added debug print
-        return [SensorReading(**doc.to_dict()) for doc in readings_docs]
+        db_readings = [SensorReading(**doc.to_dict()) for doc in readings_docs]
+        
+        # Merge cached into Firestore results
+        seen_ids = {r.id for r in db_readings}
+        for r in cached_readings:
+            if r.id not in seen_ids:
+                db_readings.append(r)
+        
+        # Sort and apply skip/limit again after merge
+        db_readings.sort(key=lambda x: self._to_utc_naive(x.timestamp) or datetime.min, reverse=True)
+        return db_readings[skip : skip + limit]
 
     async def get_hourly_average_readings(self, device_id: str) -> Dict[str, float]:
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
