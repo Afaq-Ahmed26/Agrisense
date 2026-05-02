@@ -74,6 +74,10 @@ class MockCollection:
             new_mock_collection.document(doc_ref.doc_id).set(doc_ref.get().to_dict())
         return new_mock_collection
 
+    def get(self):
+        # Emulate google-cloud-firestore Query.get() returning a list of snapshots
+        return [doc_ref.get() for doc_ref in self.documents.values()]
+
 
 class MockDocumentReference:
     """Mock Firestore document reference"""
@@ -286,30 +290,7 @@ class FirebaseService:
             'role': 'admin'
         }
         
-        # Seed Firestore user profile
-        self.db.collection('users').document(admin_uid).set({
-            'id': admin_uid,
-            'email': admin_email,
-            'username': "Afaq Ahmed",
-            'role': 'admin',
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
-            'is_deleted': False
-        })
-
-        # Seed the ESP32 device
-        device_id = "esp32-b47cb8"
-        self.db.collection('devices').document(device_id).set({
-            'id': device_id,
-            'name': "ESP32 AgriSense Node",
-            'location': "Main Field",
-            'owner_id': admin_uid,
-            'type': "irrigation_device",
-            'is_active': True,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
-        })
-        print(f"DEBUG: Mock Firebase seeded with user {admin_email} and device {device_id}")
+        print(f"DEBUG: Mock Firebase seeded with user {admin_email}")
 
     def get_firestore_client(self):
         return self.db
@@ -326,19 +307,15 @@ class FirebaseService:
             return None
 
     def create_firebase_user(self, email: str, password: str, display_name: str = None):
-        try:
-            if self.is_mock:
-                return self.auth.create_user(email, password, display_name)
-            else:
-                user = self.auth.create_user(
-                    email=email,
-                    password=password,
-                    display_name=display_name
-                )
-                return user
-        except Exception as e:
-            print(f"Error creating Firebase user: {e}")
-            return None
+        if self.is_mock:
+            return self.auth.create_user(email, password, display_name)
+        else:
+            user = self.auth.create_user(
+                email=email,
+                password=password,
+                display_name=display_name
+            )
+            return user
 
     def verify_token(self, token: str):
         try:

@@ -542,6 +542,42 @@ class ApiService {
             method: 'PATCH'
         });
     }
+
+    // Middleman management methods
+    async assignMiddlemanToFarmer(farmerId, middlemanId) {
+        return this.request(`/middleman/farmers/${farmerId}/middleman/${middlemanId}`, {
+            method: 'POST'
+        });
+    }
+
+    async revokeMiddlemanFromFarmer(farmerId, middlemanId) {
+        return this.request(`/middleman/farmers/${farmerId}/middleman/${middlemanId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async getMiddlemanForFarmer(farmerId) {
+        return this.request(`/middleman/farmer/${farmerId}/middlemen`);
+    }
+
+    async getFarmersForMiddleman(middlemanId) {
+        return this.request(`/middleman/middleman/${middlemanId}/farmers`);
+    }
+
+    async getFarmsForMiddleman(middlemanId) {
+        return this.request(`/middleman/middleman/${middlemanId}/farms`);
+    }
+
+    // User deletion and recovery methods
+    async getDeletedUsers() {
+        return this.request('/users/deleted/list');
+    }
+
+    async restoreDeletedUser(userId) {
+        return this.request(`/users/${userId}/undelete`, {
+            method: 'POST'
+        });
+    }
 }
 
 // Create a singleton instance

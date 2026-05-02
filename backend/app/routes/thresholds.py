@@ -2,7 +2,6 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from app.models.thresholds import AlertThresholds
 from app.dependencies import require_roles
-from app.services.firebase_service import firebase_service
 from app.services.activity_log_service import log_activity
 from app.models.user import User
 from app.repositories.threshold_repository import threshold_repository
@@ -15,18 +14,10 @@ AUTHORIZED_ROLES = ["admin", "officer"]
 @router.get("/", response_model=AlertThresholds)
 async def get_alert_thresholds(current_user: User = Depends(require_roles(AUTHORIZED_ROLES))):
     """
-    Retrieve the system-wide alert thresholds.
+    Retrieve the system-wide alert thresholds from PostgreSQL.
     """
-    if threshold_repository.is_enabled():
-        thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
-        return thresholds or AlertThresholds()
-
-    settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
-    doc = await asyncio.to_thread(settings_ref.get)
-    if doc.exists:
-        return AlertThresholds(**doc.to_dict())
-    # Return default thresholds if not set
-    return AlertThresholds()
+    thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
+    return thresholds or AlertThresholds()
 
 @router.put("/", response_model=AlertThresholds)
 async def update_alert_thresholds(
@@ -34,17 +25,12 @@ async def update_alert_thresholds(
     current_user: User = Depends(require_roles(AUTHORIZED_ROLES))
 ):
     """
-    Update the system-wide alert thresholds.
+    Update the system-wide alert thresholds in PostgreSQL.
     """
-    if threshold_repository.is_enabled():
-        old_thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
-        old_thresholds = old_thresholds or AlertThresholds()
-        await asyncio.to_thread(threshold_repository.upsert_alert_thresholds, thresholds)
-    else:
-        settings_ref = firebase_service.db.collection('system_settings').document('alert_thresholds')
-        old_thresholds_doc = await asyncio.to_thread(settings_ref.get)
-        old_thresholds = AlertThresholds(**old_thresholds_doc.to_dict()) if old_thresholds_doc.exists else AlertThresholds()
-        await asyncio.to_thread(settings_ref.set, thresholds.model_dump())
+    old_thresholds = await asyncio.to_thread(threshold_repository.get_alert_thresholds)
+    old_thresholds = old_thresholds or AlertThresholds()
+    
+    await asyncio.to_thread(threshold_repository.upsert_alert_thresholds, thresholds)
 
     # Log the activity
     changes = {k: {"old": getattr(old_thresholds, k), "new": getattr(thresholds, k)} for k in thresholds.model_dump().keys() if getattr(old_thresholds, k) != getattr(thresholds, k)}

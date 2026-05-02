@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     full_name: Optional[str] = None
     dashboard_preferences: Optional[List[Dict[str, Any]]] = None
     assigned_device_ids: List[str] = Field(default_factory=list)
+    managed_farmer_ids: List[str] = Field(default_factory=list)  # For middlemen/officers to track assigned farmers
 
     @field_validator('email')
     @classmethod
@@ -47,6 +48,9 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     dashboard_preferences: Optional[List[Dict[str, Any]]] = None
     assigned_device_ids: Optional[List[str]] = None
+    managed_farmer_ids: Optional[List[str]] = None
+    notification_preferences: Optional[Dict[str, Any]] = None
+    preferences: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
     @field_validator('email')
@@ -67,6 +71,23 @@ class User(UserBase):
     is_deleted: bool = False # Added for soft deletion
     deleted_at: Optional[datetime] = None # Added for soft deletion
     dashboard_preferences: Optional[List[Dict[str, Any]]] = None
+    notification_preferences: Optional[Dict[str, Any]] = None
+    preferences: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DeletedUserResponse(BaseModel):
+    id: str
+    email: Optional[str] = ""
+    username: Optional[str] = "Deleted User"
+    role: Optional[str] = "farmer"
+    deleted_at: datetime
+    recovery_deadline: datetime
+    days_remaining: int
+    days_until_expiry: int # Frontend compatibility
+    is_recoverable: bool
 
     class Config:
         from_attributes = True

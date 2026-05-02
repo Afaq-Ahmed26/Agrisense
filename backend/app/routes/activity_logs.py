@@ -3,7 +3,7 @@ from typing import List, Optional
 from app.middleware.auth import JWTBearer
 from app.models.activity_log import ActivityLog
 from app.services.activity_log_service import get_activity_logs
-from app.services.user_service import get_user_from_firestore # To check user role
+from app.services.user_service import get_user # To check user role
 
 
 router = APIRouter()
@@ -26,7 +26,7 @@ async def get_all_activity_logs(
     user_payload = request.state.user
     acting_user_uid = user_payload.get('user_id')
 
-    acting_user = await get_user_from_firestore(acting_user_uid)
+    acting_user = await get_user(acting_user_uid)
     if not acting_user or acting_user.role != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

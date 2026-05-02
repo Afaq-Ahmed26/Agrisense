@@ -1,0 +1,7 @@
+{
+  "venv,/lib/python3.12/site-packages/pip/_vendor/colorama/tests/ansi_test.py": true,
+  "venv,/lib/python3.12/site-packages/pip/_vendor/colorama/tests/ansitowin32_test.py": true,
+  "venv,/lib/python3.12/site-packages/pip/_vendor/colorama/tests/initialise_test.py": true,
+  "venv,/lib/python3.12/site-packages/pip/_vendor/colorama/tests/isatty_test.py": true,
+  "venv,/lib/python3.12/site-packages/pip/_vendor/colorama/tests/winterm_test.py": true
+}

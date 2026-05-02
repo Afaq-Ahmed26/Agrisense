@@ -3,7 +3,7 @@ from typing import List
 from app.middleware.auth import JWTBearer
 from app.services.alert_service import alert_service, Alert, AlertStatus
 from app.services.activity_log_service import log_activity
-from app.services.user_service import get_user_from_firestore
+from app.services.user_service import get_user
 from datetime import datetime
 
 

@@ -11,15 +11,32 @@
             <li class="nav-item">
               <router-link class="nav-link" to="/dashboard" :class="{ active: currentRouteName === 'Dashboard' }"><i class="fas fa-home me-1"></i>Dashboard</router-link>
             </li>
+            
+            <li class="nav-item">
+              <router-link class="nav-link" to="/reports" :class="{ active: currentRouteName === 'Reports' }"><i class="fas fa-chart-line me-1"></i>Reports</router-link>
+            </li>
+
+            <!-- Farmer-specific links -->
+            <li class="nav-item" v-if="userRole === 'farmer'">
+              <router-link class="nav-link" to="/middleman-access" :class="{ active: currentRouteName === 'FarmerMiddlemanAccess' }">
+                <i class="fas fa-users me-1"></i>My Farms & Support Staff
+              </router-link>
+            </li>
+
+            <!-- Officer/Middleman-specific links -->
+            <li class="nav-item" v-if="userRole === 'officer' || userRole === 'middleman'">
+              <router-link class="nav-link" to="/assigned-farms" :class="{ active: currentRouteName === 'MiddlemanFarms' }">
+                <i class="fas fa-user-friends me-1"></i>Assigned Farmers
+              </router-link>
+            </li>
+
             <li class="nav-item" v-if="userRole === 'admin'">
               <router-link class="nav-link" to="/user-management" :class="{ active: currentRouteName === 'UserManagement' }"><i class="fas fa-users-cog me-1"></i>User Management</router-link>
             </li>
             <li class="nav-item" v-if="userRole === 'admin'">
               <router-link class="nav-link" to="/activity-logs" :class="{ active: currentRouteName === 'ActivityLogs' }"><i class="fas fa-clipboard-list me-1"></i>Activity Log</router-link>
             </li>
-            <li class="nav-item">
-              <router-link class="nav-link" to="/reports" :class="{ active: currentRouteName === 'Reports' }"><i class="fas fa-chart-line me-1"></i>Reports</router-link>
-            </li>
+            
             <li class="nav-item">
               <router-link class="nav-link" to="/notifications" :class="{ active: currentRouteName === 'Notifications' }">
                 <i class="fas fa-bell me-1"></i>
@@ -28,7 +45,6 @@
                 </span>
               </router-link>
             </li>
-            <!-- Add other nav items here as needed for Analytics, Settings, etc. -->
           </ul>
           <ul class="navbar-nav">
             <li class="nav-item dropdown">

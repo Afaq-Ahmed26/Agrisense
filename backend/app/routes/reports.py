@@ -50,7 +50,7 @@ def _format_report_response(rows: List[dict], label_format: str) -> Dict[str, Li
     }
 
 
-def _aggregate_readings(readings, bucket_kind: str) -> Dict[str, List]:
+def _aggregate_readings(readings, bucket_kind: str) -> List[dict]:
     def _to_utc_naive(dt: datetime) -> datetime:
         if dt.tzinfo is None:
             return dt
@@ -58,7 +58,10 @@ def _aggregate_readings(readings, bucket_kind: str) -> Dict[str, List]:
 
     grouped = {}
     for reading in readings:
-        ts = _to_utc_naive(reading.timestamp)
+        # Handle both dict and object
+        ts = reading["timestamp"] if isinstance(reading, dict) else reading.timestamp
+        ts = _to_utc_naive(ts)
+        
         if bucket_kind == "hour":
             key = ts.replace(minute=0, second=0, microsecond=0)
         else:
@@ -68,14 +71,11 @@ def _aggregate_readings(readings, bucket_kind: str) -> Dict[str, List]:
             key,
             {"soil_moisture": [], "temperature": [], "humidity": [], "light_level": []},
         )
-        if reading.soil_moisture is not None:
-            grouped[key]["soil_moisture"].append(reading.soil_moisture)
-        if reading.temperature is not None:
-            grouped[key]["temperature"].append(reading.temperature)
-        if reading.humidity is not None:
-            grouped[key]["humidity"].append(reading.humidity)
-        if reading.light_level is not None:
-            grouped[key]["light_level"].append(reading.light_level)
+        
+        val_map = reading if isinstance(reading, dict) else reading.model_dump()
+        for field in ["soil_moisture", "temperature", "humidity", "light_level"]:
+            if val_map.get(field) is not None:
+                grouped[key][field].append(float(val_map[field]))
 
     rows = []
     for key in sorted(grouped.keys()):
@@ -100,41 +100,25 @@ async def get_report_devices(current_user: User = Depends(get_current_user)):
         assigned_ids = get_assigned_device_ids(current_user)
         devices = [device for device in devices if device.id in assigned_ids]
 
-    deduped = {}
-    for device in devices:
-        deduped[device.id] = device
-    devices = list(deduped.values())
+    # Filter to only include devices that actually have data in PostgreSQL
+    ids_with_data = set(await asyncio.to_thread(postgres_service.get_device_ids_with_sensor_data))
+    if ids_with_data:
+        # Combine devices from repository with any other device IDs that have data
+        devices_list = []
+        existing_ids = set()
+        
+        for d in devices:
+            if d.id in ids_with_data:
+                devices_list.append({"id": d.id, "name": d.name, "location": d.location})
+                existing_ids.add(d.id)
+        
+        for device_id in sorted(ids_with_data):
+            if device_id not in existing_ids:
+                devices_list.append({"id": device_id, "name": f"Device {device_id}", "location": "Unknown"})
+        
+        return devices_list
 
-    if postgres_service.enabled:
-        ids_with_data = set(await asyncio.to_thread(postgres_service.get_device_ids_with_sensor_data))
-        if ids_with_data:
-            devices = [d for d in devices if d.id in ids_with_data]
-
-            existing_ids = {d.id for d in devices}
-            for device_id in sorted(ids_with_data):
-                if device_id in existing_ids:
-                    continue
-                devices.append(
-                    {
-                        "id": device_id,
-                        "name": f"Device {device_id}",
-                        "location": "Unknown",
-                    }
-                )
-    else:
-        devices_with_data = []
-        for device in devices:
-            latest = await sensor_service.get_latest_sensor_reading(device.id)
-            if latest:
-                devices_with_data.append(device)
-        devices = devices_with_data
-
-    return [
-        {"id": device["id"], "name": device["name"], "location": device["location"]}
-        if isinstance(device, dict)
-        else {"id": device.id, "name": device.name, "location": device.location}
-        for device in devices
-    ]
+    return []
 
 
 @router.get("/daily")
@@ -143,14 +127,7 @@ async def get_daily_report(
     current_user: User = Depends(get_current_user),
 ):
     ensure_device_access(current_user, device_id)
-
-    if postgres_service.enabled:
-        rows = await asyncio.to_thread(postgres_service.get_daily_report_series, device_id)
-        return _format_report_response(rows, "%H:%M")
-
-    start = datetime.utcnow() - timedelta(hours=24)
-    readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start, limit=10000)
-    rows = _aggregate_readings(readings, "hour")
+    rows = await asyncio.to_thread(postgres_service.get_daily_report_series, device_id)
     return _format_report_response(rows, "%H:%M")
 
 
@@ -160,29 +137,17 @@ async def get_weekly_report(
     current_user: User = Depends(get_current_user),
 ):
     ensure_device_access(current_user, device_id)
-
-    if postgres_service.enabled:
-        rows = await asyncio.to_thread(postgres_service.get_weekly_report_series, device_id)
-        return _format_report_response(rows, "%d %b")
-
-    start = datetime.utcnow() - timedelta(days=7)
-    readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start, limit=10000)
-    rows = _aggregate_readings(readings, "day")
+    rows = await asyncio.to_thread(postgres_service.get_weekly_report_series, device_id)
     return _format_report_response(rows, "%d %b")
+
+
 @router.get("/monthly")
 async def get_monthly_report(
     device_id: str,
     current_user: User = Depends(get_current_user),
 ):
     ensure_device_access(current_user, device_id)
-
-    if postgres_service.enabled:
-        rows = await asyncio.to_thread(postgres_service.get_monthly_report_series, device_id)
-        return _format_report_response(rows, "%d %b")
-
-    start = datetime.utcnow() - timedelta(days=30)
-    readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start, limit=20000)
-    rows = _aggregate_readings(readings, "day")
+    rows = await asyncio.to_thread(postgres_service.get_monthly_report_series, device_id)
     return _format_report_response(rows, "%d %b")
 
 
@@ -195,20 +160,11 @@ async def get_custom_report(
 ):
     ensure_device_access(current_user, device_id)
 
-    # Use a bucket size based on the range
     diff = end_date - start_date
-    if diff.days <= 2:
-        bucket = "hour"
-        label_fmt = "%H:%M"
-    else:
-        bucket = "day"
-        label_fmt = "%d %b"
+    bucket = "hour" if diff.days <= 2 else "day"
+    label_fmt = "%H:%M" if diff.days <= 2 else "%d %b"
 
-    if postgres_service.enabled:
-        readings = await asyncio.to_thread(postgres_service.get_sensor_readings_for_range, device_id, start_date, end_date)
-    else:
-        readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start_date, end_time=end_date, limit=50000)
-    
+    readings = await asyncio.to_thread(postgres_service.get_sensor_readings_for_range, device_id, start_date, end_date)
     rows = _aggregate_readings(readings, bucket)
     return _format_report_response(rows, label_fmt)
 
@@ -222,27 +178,17 @@ async def export_report_csv(
 ):
     ensure_device_access(current_user, device_id)
 
-    if postgres_service.enabled:
-        readings = await asyncio.to_thread(postgres_service.get_sensor_readings_for_range, device_id, start_date, end_date)
-    else:
-        readings = await sensor_service.get_sensor_readings(device_id=device_id, start_time=start_date, end_time=end_date, limit=50000)
+    readings = await asyncio.to_thread(postgres_service.get_sensor_readings_for_range, device_id, start_date, end_date)
 
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Timestamp", "Soil Moisture (%)", "Temperature (C)", "Humidity (%)", "Light Level (lx)"])
 
     for r in readings:
-        # handle both dict (from postgres) and object (from sensor_service)
-        if isinstance(r, dict):
-            ts = r["timestamp"]
-            if isinstance(ts, datetime):
-                ts = ts.strftime("%Y-%m-%d %H:%M:%S")
-            writer.writerow([ts, r.get("soil_moisture"), r.get("temperature"), r.get("humidity"), r.get("light_level")])
-        else:
-            ts = r.timestamp
-            if isinstance(ts, datetime):
-                ts = ts.strftime("%Y-%m-%d %H:%M:%S")
-            writer.writerow([ts, r.soil_moisture, r.temperature, r.humidity, r.light_level])
+        ts = r["timestamp"]
+        if isinstance(ts, datetime):
+            ts = ts.strftime("%Y-%m-%d %H:%M:%S")
+        writer.writerow([ts, r.get("soil_moisture"), r.get("temperature"), r.get("humidity"), r.get("light_level")])
 
     output.seek(0)
     filename = f"report_{device_id}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.csv"

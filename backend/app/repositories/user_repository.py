@@ -18,8 +18,8 @@ class UserRepository:
 
         row = postgres_service.execute(
             f"""
-            SELECT id, email, username, role, full_name, assigned_device_ids,
-                   dashboard_preferences, created_at, updated_at, is_active, is_deleted, deleted_at
+            SELECT id, email, username, role, full_name, assigned_device_ids, managed_farmer_ids,
+                   dashboard_preferences, notification_preferences, preferences, created_at, updated_at, is_active, is_deleted, deleted_at
             FROM users
             WHERE {where}
             LIMIT 1;
@@ -35,11 +35,27 @@ class UserRepository:
         where = "" if include_deleted else "WHERE is_deleted = FALSE"
         rows = postgres_service.execute(
             f"""
-            SELECT id, email, username, role, full_name, assigned_device_ids,
-                   dashboard_preferences, created_at, updated_at, is_active, is_deleted, deleted_at
+            SELECT id, email, username, role, full_name, assigned_device_ids, managed_farmer_ids,
+                   dashboard_preferences, notification_preferences, preferences, created_at, updated_at, is_active, is_deleted, deleted_at
             FROM users
             {where}
             ORDER BY created_at ASC
+            OFFSET %s
+            LIMIT %s;
+            """,
+            (skip, limit),
+            fetchall=True,
+        ) or []
+        return [self._to_model(dict(row)) for row in rows]
+
+    def get_deleted(self, skip: int = 0, limit: int = 100) -> List[User]:
+        rows = postgres_service.execute(
+            """
+            SELECT id, email, username, role, full_name, assigned_device_ids, managed_farmer_ids,
+                   dashboard_preferences, notification_preferences, preferences, created_at, updated_at, is_active, is_deleted, deleted_at
+            FROM users
+            WHERE is_deleted = TRUE
+            ORDER BY deleted_at DESC
             OFFSET %s
             LIMIT %s;
             """,
@@ -52,17 +68,20 @@ class UserRepository:
         postgres_service.execute(
             """
             INSERT INTO users (
-                id, email, username, role, full_name, assigned_device_ids,
-                dashboard_preferences, created_at, updated_at, is_active, is_deleted, deleted_at
+                id, email, username, role, full_name, assigned_device_ids, managed_farmer_ids,
+                dashboard_preferences, notification_preferences, preferences, created_at, updated_at, is_active, is_deleted, deleted_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
                 email = EXCLUDED.email,
                 username = EXCLUDED.username,
                 role = EXCLUDED.role,
                 full_name = EXCLUDED.full_name,
                 assigned_device_ids = EXCLUDED.assigned_device_ids,
+                managed_farmer_ids = EXCLUDED.managed_farmer_ids,
                 dashboard_preferences = EXCLUDED.dashboard_preferences,
+                notification_preferences = EXCLUDED.notification_preferences,
+                preferences = EXCLUDED.preferences,
                 updated_at = EXCLUDED.updated_at,
                 is_active = EXCLUDED.is_active,
                 is_deleted = EXCLUDED.is_deleted,
@@ -75,7 +94,10 @@ class UserRepository:
                 user.role,
                 user.full_name,
                 json.dumps(user.assigned_device_ids or []),
+                json.dumps(user.managed_farmer_ids or []),
                 json.dumps(user.dashboard_preferences or []),
+                json.dumps(user.notification_preferences or {}),
+                json.dumps(user.preferences or {}),
                 user.created_at,
                 user.updated_at,
                 user.is_active,
@@ -95,7 +117,10 @@ class UserRepository:
             "role": "role",
             "full_name": "full_name",
             "assigned_device_ids": "assigned_device_ids",
+            "managed_farmer_ids": "managed_farmer_ids",
             "dashboard_preferences": "dashboard_preferences",
+            "notification_preferences": "notification_preferences",
+            "preferences": "preferences",
             "is_active": "is_active",
             "is_deleted": "is_deleted",
             "deleted_at": "deleted_at",
@@ -108,9 +133,9 @@ class UserRepository:
             column = field_map.get(key)
             if not column:
                 continue
-            if column in {"assigned_device_ids", "dashboard_preferences"}:
+            if column in {"assigned_device_ids", "managed_farmer_ids", "dashboard_preferences", "notification_preferences", "preferences"}:
                 clauses.append(f"{column} = %s::jsonb")
-                params.append(json.dumps(value or []))
+                params.append(json.dumps(value or {} if column in {"notification_preferences", "preferences"} else value or []))
             else:
                 clauses.append(f"{column} = %s")
                 params.append(value)
@@ -141,8 +166,8 @@ class UserRepository:
 
         row = postgres_service.execute(
             f"""
-            SELECT id, email, username, role, full_name, assigned_device_ids,
-                   dashboard_preferences, created_at, updated_at, is_active, is_deleted, deleted_at
+            SELECT id, email, username, role, full_name, assigned_device_ids, managed_farmer_ids,
+                   dashboard_preferences, notification_preferences, preferences, created_at, updated_at, is_active, is_deleted, deleted_at
             FROM users
             WHERE {where}
             LIMIT 1;
@@ -157,15 +182,29 @@ class UserRepository:
     @staticmethod
     def _to_model(row: dict) -> User:
         assigned = row.get("assigned_device_ids") or []
+        managed = row.get("managed_farmer_ids") or []
         dashboard_preferences = row.get("dashboard_preferences") or []
+        notification_preferences = row.get("notification_preferences") or {}
+        preferences = row.get("preferences") or {}
+        
         if isinstance(assigned, str):
             assigned = json.loads(assigned)
+        if isinstance(managed, str):
+            managed = json.loads(managed)
         if isinstance(dashboard_preferences, str):
             dashboard_preferences = json.loads(dashboard_preferences)
+        if isinstance(notification_preferences, str):
+            notification_preferences = json.loads(notification_preferences)
+        if isinstance(preferences, str):
+            preferences = json.loads(preferences)
+            
         row["assigned_device_ids"] = assigned
+        row["managed_farmer_ids"] = managed
         row["dashboard_preferences"] = dashboard_preferences
+        row["notification_preferences"] = notification_preferences
+        row["preferences"] = preferences
+        
         return User(**row)
 
 
 user_repository = UserRepository()
-

@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status, Request
 from typing import List, Set
-from app.services.user_service import get_user_from_firestore
+from app.services.user_service import get_user_from_postgres
 from app.middleware.auth import JWTBearer
 from app.models.user import User
 from app.config import settings
@@ -42,7 +42,7 @@ async def get_current_user(request: Request, token: str = Depends(security)) -> 
             detail="Could not validate credentials."
         )
 
-    user = await get_user_from_firestore(uid)
+    user = await get_user_from_postgres(uid)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

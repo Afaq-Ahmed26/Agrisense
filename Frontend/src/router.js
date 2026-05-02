@@ -5,6 +5,8 @@ import RegisterView from '@/views/RegisterView.vue';
 import ProfileView from '@/views/ProfileView.vue';
 import UpdateProfileView from '@/views/UpdateProfileView.vue';
 import UserManagementView from '@/views/UserManagementView.vue';
+import FarmerMiddlemanView from '@/views/FarmerMiddlemanView.vue';
+import MiddlemanFarmsView from '@/views/MiddlemanFarmsView.vue';
 import ReportsView from '@/views/ReportsView.vue';
 import NotificationsView from '@/views/NotificationsView.vue';
 import ActivityLogView from '@/views/ActivityLogView.vue';
@@ -53,6 +55,18 @@ const routes = [
     name: 'UserManagement',
     component: UserManagementView,
     meta: { requiresAuth: true, roles: ['admin'] },
+  },
+  {
+    path: '/middleman-access',
+    name: 'FarmerMiddlemanAccess',
+    component: FarmerMiddlemanView,
+    meta: { requiresAuth: true, roles: ['farmer'] },
+  },
+  {
+    path: '/assigned-farms',
+    name: 'MiddlemanFarms',
+    component: MiddlemanFarmsView,
+    meta: { requiresAuth: true, roles: ['officer', 'middleman'] },
   },
   {
     path: '/activity-logs',

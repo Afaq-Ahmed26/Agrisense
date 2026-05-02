@@ -34,6 +34,10 @@ class MockCollection:
         self.document(doc_id).set(data)
         return self.document(doc_id), doc_id
 
+    def get(self):
+        # Emulate google-cloud-firestore Query.get() returning a list of snapshots
+        return [doc_ref.get() for doc_ref in self.documents.values()]
+
 
 class MockDocumentReference:
     """Mock Firestore document reference"""

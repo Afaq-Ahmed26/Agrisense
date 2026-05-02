@@ -32,6 +32,88 @@
           </div>
         </div>
 
+        <!-- My Farms & Personnel Section for Farmers -->
+        <div class="card mb-4" v-if="user?.role === 'farmer'">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h4>My Farms & Support Staff</h4>
+            <router-link to="/middleman-access" class="btn btn-sm btn-outline-primary">Manage Personnel</router-link>
+          </div>
+          <div class="card-body">
+            <div v-if="isFarmsLoading" class="text-center">
+              <div class="spinner-border spinner-border-sm" role="status"></div>
+            </div>
+            <div v-else-if="farms.length === 0" class="text-muted">
+              You haven't registered any farms yet.
+            </div>
+            <div v-else>
+              <div v-for="farm in farms" :key="farm.id" class="mb-4 pb-3 border-bottom last-child-no-border">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h5 class="mb-0">{{ farm.name }}</h5>
+                  <span class="badge bg-info text-dark">{{ farm.device_ids?.length || 0 }} Device(s)</span>
+                </div>
+                
+                <div class="ms-3 mt-2">
+                  <h6 class="text-muted small mb-2">Primary Officer:</h6>
+                  <div v-if="getOfficerForFarm(farm)" class="d-flex justify-content-between align-items-center bg-light p-2 rounded">
+                    <div>
+                      <span class="fw-bold">{{ getOfficerForFarm(farm).username }}</span>
+                      <br>
+                      <small class="text-muted">{{ getOfficerForFarm(farm).email }}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" @click="revokeAccess(getOfficerForFarm(farm))" :disabled="isRevoking">
+                      Revoke Access
+                    </button>
+                  </div>
+                  <div v-else class="text-muted small italic">No officer assigned to this farm.</div>
+                </div>
+
+                <div class="ms-3 mt-3">
+                  <h6 class="text-muted small mb-2">Assigned Middlemen:</h6>
+                  <div v-if="getMiddlemenForFarm(farm).length > 0" class="list-group list-group-flush">
+                    <div v-for="m in getMiddlemenForFarm(farm)" :key="m.id" class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 py-2">
+                      <div>
+                        <span>{{ m.username }}</span>
+                        <small class="text-muted ms-2">({{ m.email }})</small>
+                      </div>
+                      <button class="btn btn-xs btn-link text-danger p-0" @click="revokeAccess(m)" :disabled="isRevoking">
+                        Revoke Access
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="text-muted small italic">No middlemen assigned to this farm.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assigned Farmers Section for Middlemen/Officers -->
+        <div class="card mb-4" v-if="user?.role === 'officer' || user?.role === 'middleman'">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h4>Assigned Farmers</h4>
+            <router-link to="/assigned-farms" class="btn btn-sm btn-outline-primary">View Assigned Farms</router-link>
+          </div>
+          <div class="card-body">
+            <div v-if="isFarmersLoading" class="text-center">
+              <div class="spinner-border spinner-border-sm" role="status"></div>
+            </div>
+            <div v-else-if="assignedFarmers.length === 0" class="text-muted">
+              No farmers assigned to you yet.
+            </div>
+            <div v-else class="list-group">
+              <div v-for="farmer in assignedFarmers" :key="farmer.id" class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-0">{{ farmer.username }}</h6>
+                  <small class="text-muted">{{ farmer.email }}</small>
+                </div>
+                <router-link :to="{ name: 'Dashboard', query: { farmerId: farmer.id } }" class="btn btn-sm btn-outline-primary">
+                  View Data
+                </router-link>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="card mb-4">
           <div class="card-header">
             <h4>Preferences</h4>
@@ -124,6 +206,13 @@ import { apiService } from '@/services/api';
 const user = ref(null);
 const userPreferences = ref(null);
 const notificationPreferences = ref(null);
+const assignedPersonnel = ref([]);
+const assignedFarmers = ref([]);
+const farms = ref([]);
+const isPersonnelLoading = ref(false);
+const isFarmersLoading = ref(false);
+const isFarmsLoading = ref(false);
+const isRevoking = ref(false);
 const emailVerificationMessage = ref('');
 const errorMessage = ref('');
 const successMessage = ref('');
@@ -137,12 +226,83 @@ onMounted(async () => {
     try {
       userPreferences.value = await apiService.getUserPreferences(user.value.id);
       notificationPreferences.value = await apiService.getUserNotificationPreferences(user.value.id);
+      
+      if (user.value.role === 'farmer') {
+        await loadPersonnel();
+        await loadFarms();
+      } else if (user.value.role === 'officer' || user.value.role === 'middleman') {
+        await loadFarmers();
+      }
     } catch (error) {
       console.error('Failed to load user settings:', error);
       errorMessage.value = 'Failed to load user settings.';
     }
   }
 });
+
+const loadPersonnel = async () => {
+  isPersonnelLoading.value = true;
+  try {
+    assignedPersonnel.value = await apiService.getMiddlemanForFarmer(user.value.id);
+  } catch (error) {
+    console.error('Failed to load personnel:', error);
+  } finally {
+    isPersonnelLoading.value = false;
+  }
+};
+
+const loadFarmers = async () => {
+  isFarmersLoading.value = true;
+  try {
+    assignedFarmers.value = await apiService.getFarmersForMiddleman(user.value.id);
+  } catch (error) {
+    console.error('Failed to load farmers:', error);
+  } finally {
+    isFarmersLoading.value = false;
+  }
+};
+
+const loadFarms = async () => {
+  isFarmsLoading.value = true;
+  try {
+    farms.value = await apiService.getFarms();
+  } catch (error) {
+    console.error('Failed to load farms:', error);
+  } finally {
+    isFarmsLoading.value = false;
+  }
+};
+
+const getOfficerForFarm = (farm) => {
+  if (!farm.assigned_officer_id) return null;
+  return assignedPersonnel.value.find(p => p.id === farm.assigned_officer_id);
+};
+
+const getMiddlemenForFarm = (farm) => {
+  if (!farm.assigned_middleman_ids) return [];
+  return assignedPersonnel.value.filter(p => 
+    farm.assigned_middleman_ids.includes(p.id) && p.id !== farm.assigned_officer_id
+  );
+};
+
+const revokeAccess = async (person) => {
+  if (!confirm(`Revoke access for ${person.username}?`)) return;
+  
+  isRevoking.value = true;
+  try {
+    await apiService.revokeMiddlemanFromFarmer(user.value.id, person.id);
+    // Refresh lists
+    await loadPersonnel();
+    await loadFarms();
+    successMessage.value = 'Access revoked successfully.';
+    setTimeout(() => successMessage.value = '', 3000);
+  } catch (error) {
+    console.error('Failed to revoke access:', error);
+    errorMessage.value = 'Failed to revoke access.';
+  } finally {
+    isRevoking.value = false;
+  }
+};
 
 const savePreferences = async () => {
   if (!user.value || !userPreferences.value) return;
@@ -200,5 +360,33 @@ const confirmDeleteAccount = async () => {
 <style scoped>
 .card {
   overflow: hidden; /* Ensures inner elements don't overflow rounded corners */
+}
+
+.list-group-item {
+  border-left: none;
+  border-right: none;
+}
+
+.list-group-item:first-child {
+  border-top: none;
+}
+
+.list-group-item:last-child {
+  border-bottom: none;
+}
+
+.last-child-no-border:last-child {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.btn-xs {
+  padding: 0.1rem 0.25rem;
+  font-size: 0.75rem;
+}
+
+.italic {
+  font-style: italic;
 }
 </style>

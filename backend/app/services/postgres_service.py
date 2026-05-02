@@ -59,11 +59,38 @@ class PostgresService:
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-                deleted_at TIMESTAMPTZ
+                deleted_at TIMESTAMPTZ,
+                managed_farmer_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+                notification_preferences JSONB NOT NULL DEFAULT '{"on_critical_alert": "email", "on_high_alert": "in_app", "on_medium_alert": "in_app", "on_low_alert": "none"}'::jsonb,
+                preferences JSONB NOT NULL DEFAULT '{"temperature_unit": "Celsius", "volume_unit": "liters", "time_zone": "UTC"}'::jsonb
             );
             """,
             "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);",
             "CREATE INDEX IF NOT EXISTS idx_users_is_deleted ON users (is_deleted);",
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'managed_farmer_ids') THEN
+                    ALTER TABLE users ADD COLUMN managed_farmer_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'notification_preferences') THEN
+                    ALTER TABLE users ADD COLUMN notification_preferences JSONB NOT NULL DEFAULT '{"on_critical_alert": "email", "on_high_alert": "in_app", "on_medium_alert": "in_app", "on_low_alert": "none"}'::jsonb;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'preferences') THEN
+                    ALTER TABLE users ADD COLUMN preferences JSONB NOT NULL DEFAULT '{"temperature_unit": "Celsius", "volume_unit": "liters", "time_zone": "UTC"}'::jsonb;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_deleted') THEN
+                    ALTER TABLE users ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'deleted_at') THEN
+                    ALTER TABLE users ADD COLUMN deleted_at TIMESTAMPTZ;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'full_name') THEN
+                    ALTER TABLE users ADD COLUMN full_name TEXT;
+                END IF;
+            END
+            $$;
+            """,
             """
             CREATE TABLE IF NOT EXISTS devices (
                 id TEXT PRIMARY KEY,
@@ -238,6 +265,20 @@ class PostgresService:
                 last_change_time TIMESTAMPTZ
             );
             """,
+            """
+            CREATE TABLE IF NOT EXISTS farms (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                owner_id TEXT NOT NULL,
+                assigned_officer_id TEXT,
+                assigned_middleman_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+                device_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_farms_owner ON farms (owner_id);",
+            "CREATE INDEX IF NOT EXISTS idx_farms_officer ON farms (assigned_officer_id);",
         ]
 
         for statement in ddl_statements:
@@ -255,15 +296,22 @@ class PostgresService:
             return None
 
         for conn in self._with_connection():
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, params)
-                result = None
-                if fetchone:
-                    result = cur.fetchone()
-                elif fetchall:
-                    result = cur.fetchall()
-                conn.commit()
-                return result
+            try:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(query, params)
+                    result = None
+                    if fetchone:
+                        result = cur.fetchone()
+                    elif fetchall:
+                        result = cur.fetchall()
+                    conn.commit()
+                    return result
+            except Exception as e:
+                conn.rollback()
+                print(f"❌ PostgreSQL Error: {e}")
+                print(f"Query: {query}")
+                print(f"Params: {params}")
+                raise e
 
     def save_sensor_reading(self, reading: Dict[str, Any]) -> None:
         self.execute(
@@ -464,6 +512,46 @@ class PostgresService:
             fetchone=True,
         )
         return dict(row) if row else control_state
+
+    def save_irrigation_schedule(self, schedule: Dict[str, Any]) -> None:
+        self.execute(
+            """
+            INSERT INTO irrigation_schedules (id, device_id, start_time, duration_minutes, is_recurring, recurrence_pattern, is_active, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+                start_time = EXCLUDED.start_time,
+                duration_minutes = EXCLUDED.duration_minutes,
+                is_recurring = EXCLUDED.is_recurring,
+                recurrence_pattern = EXCLUDED.recurrence_pattern,
+                is_active = EXCLUDED.is_active,
+                updated_at = EXCLUDED.updated_at;
+            """,
+            (
+                schedule["id"],
+                schedule["device_id"],
+                schedule["start_time"],
+                schedule["duration_minutes"],
+                schedule.get("is_recurring", False),
+                schedule.get("recurrence_pattern"),
+                schedule.get("is_active", True),
+                schedule.get("created_at"),
+                schedule.get("updated_at"),
+            ),
+        )
+
+    def get_irrigation_schedules(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        if device_id:
+            rows = self.execute(
+                "SELECT * FROM irrigation_schedules WHERE device_id = %s ORDER BY start_time ASC;",
+                (device_id,),
+                fetchall=True,
+            )
+        else:
+            rows = self.execute(
+                "SELECT * FROM irrigation_schedules ORDER BY start_time ASC;",
+                fetchall=True,
+            )
+        return [dict(row) for row in (rows or [])]
 
     def get_model_training_dataset(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
         query = """

@@ -28,3 +28,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# # Documentation
+# *.md   # Prevents Markdown (.md) files from being pushed to GitHub

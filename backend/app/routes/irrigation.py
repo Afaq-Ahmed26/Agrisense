@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from datetime import datetime, timedelta
+import asyncio
 from app.middleware.auth import JWTBearer
 from app.models.irrigation import IrrigationSchedule, IrrigationScheduleCreate, IrrigationScheduleUpdate, IrrigationEvent, IrrigationEventCreate, ControlState, ControlStateUpdate
 from app.services.firebase_service import firebase_service
@@ -48,25 +49,51 @@ async def get_irrigation_schedules(
 
 
 @router.get("/schedule/{schedule_id}", response_model=IrrigationSchedule)
-async def get_irrigation_schedule(schedule_id: str, token: str = Depends(security)):
-    # In a real implementation, this would fetch a specific schedule from Firestore
-    raise HTTPException(status_code=404, detail="Schedule not found")
+async def get_irrigation_schedule(schedule_id: str, current_user: User = Depends(get_current_user)):
+    schedules = await irrigation_service.get_irrigation_schedules()
+    schedule = next((s for s in schedules if s.id == schedule_id), None)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    ensure_device_access(current_user, schedule.device_id)
+    return schedule
 
 
 @router.put("/schedule/{schedule_id}", response_model=IrrigationSchedule)
 async def update_irrigation_schedule(
     schedule_id: str, 
     schedule_update: IrrigationScheduleUpdate, 
-    token: str = Depends(security)
+    current_user: User = Depends(get_current_user)
 ):
-    # In a real implementation, this would update a schedule in Firestore
-    raise HTTPException(status_code=404, detail="Schedule not found")
+    schedules = await irrigation_service.get_irrigation_schedules()
+    schedule = next((s for s in schedules if s.id == schedule_id), None)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    
+    ensure_device_access(current_user, schedule.device_id)
+    
+    # Apply updates
+    update_data = schedule_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(schedule, key, value)
+    
+    schedule.updated_at = datetime.utcnow()
+    from app.services.postgres_service import postgres_service
+    await asyncio.to_thread(postgres_service.save_irrigation_schedule, schedule.model_dump())
+    return schedule
 
 
 @router.delete("/schedule/{schedule_id}")
-async def delete_irrigation_schedule(schedule_id: str, token: str = Depends(security)):
-    # In a real implementation, this would delete a schedule from Firestore
-    raise HTTPException(status_code=404, detail="Schedule not found")
+async def delete_irrigation_schedule(schedule_id: str, current_user: User = Depends(get_current_user)):
+    schedules = await irrigation_service.get_irrigation_schedules()
+    schedule = next((s for s in schedules if s.id == schedule_id), None)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    
+    ensure_device_access(current_user, schedule.device_id)
+    
+    from app.services.postgres_service import postgres_service
+    await asyncio.to_thread(postgres_service.execute, "DELETE FROM irrigation_schedules WHERE id = %s", (schedule_id,))
+    return {"message": "Schedule deleted successfully"}
 
 
 @router.post("/events", response_model=IrrigationEvent)

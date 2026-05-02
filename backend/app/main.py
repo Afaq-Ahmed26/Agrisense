@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from app.routes import auth, users, sensors, irrigation, ml, alerts, notifications, activity_logs, thresholds, reports
+from app.routes import auth, users, sensors, irrigation, ml, alerts, notifications, activity_logs, thresholds, reports, middleman
 
 # Create FastAPI app instance
 app = FastAPI(
@@ -17,12 +17,15 @@ app = FastAPI(
 )
 
 # Add CORS middleware
-# For development: allow all origins
-# Note: In production, replace "*" with specific origins for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for development
-    allow_credentials=False,  # Must be False when using "*"
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://192.168.100.18:5173",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -30,6 +33,7 @@ app.add_middleware(
 # Include API routes
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(middleman.router, prefix="/middleman", tags=["middleman"])
 app.include_router(sensors.router, prefix="/sensors", tags=["sensors"])
 app.include_router(irrigation.router, prefix="/irrigation", tags=["irrigation"])
 app.include_router(ml.router, prefix="/ml", tags=["ml"])
