@@ -6,7 +6,7 @@ from app.repositories.farm_repository import farm_repository
 from app.services.user_service import get_user
 from app.services.activity_log_service import log_activity
 from app.models.user import User
-from app.dependencies import normalize_role
+from app.dependencies import normalize_role, get_current_user, ensure_device_access
 import uuid
 import asyncio
 from datetime import datetime
@@ -80,27 +80,32 @@ async def create_farm(farm_data: FarmCreate, request: Request, token: str = Depe
 @router.get("/", response_model=List[Farm])
 async def get_farms(
     request: Request,
-    token: str = Depends(security)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get farms from PostgreSQL.
     """
-    user_payload = request.state.user
-    acting_user_uid = user_payload.get('user_id') or user_payload.get('uid') or user_payload.get('sub')
-
-    if not acting_user_uid:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate user credentials.")
-
-    user = await get_user(acting_user_uid)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Acting user not found.")
-    
-    role = normalize_role(user.role)
+    acting_user_uid = current_user.id
+    role = normalize_role(current_user.role)
 
     if role == "admin":
-        return await asyncio.to_thread(farm_repository.get_farms_by_owner, None) # Need to add a generic list() to repo or use owner_id=None
+        return await asyncio.to_thread(farm_repository.get_farms_by_owner, None) 
     elif role == "farmer":
-        return await asyncio.to_thread(farm_repository.get_farms_by_owner, acting_user_uid)
+        farms = await asyncio.to_thread(farm_repository.get_farms_by_owner, acting_user_uid)
+        if not farms and current_user.assigned_device_ids:
+            # Synthesize a virtual farm if farmer has devices but no farms
+            virtual_farm = Farm(
+                id=f"virtual-farm-{acting_user_uid}",
+                name=f"{current_user.username}'s Farm",
+                owner_id=acting_user_uid,
+                assigned_officer_id=None,
+                assigned_middleman_ids=[],
+                device_ids=current_user.assigned_device_ids,
+                created_at=current_user.created_at,
+                updated_at=current_user.created_at
+            )
+            return [virtual_farm]
+        return farms
     elif role == "officer":
         return await asyncio.to_thread(farm_repository.get_farms_assigned_to_officer, acting_user_uid)
     elif role == "middleman":
@@ -109,33 +114,18 @@ async def get_farms(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unknown user role.")
 
 @router.get("/{farm_id}", response_model=Farm)
-async def get_farm(farm_id: str, request: Request, token: str = Depends(security)):
+async def get_farm(farm_id: str, current_user: User = Depends(get_current_user)):
     """
     Get a specific farm from PostgreSQL.
     """
-    user_payload = request.state.user
-    acting_user_uid = user_payload.get('user_id') or user_payload.get('uid') or user_payload.get('sub')
+    # Authorization check
+    ensure_device_access(current_user, farm_id)
     
     farm = await asyncio.to_thread(farm_repository.get_by_id, farm_id)
     if not farm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Farm not found.")
 
-    user = await get_user(acting_user_uid)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Acting user not found.")
-    
-    role = normalize_role(user.role)
-
-    if role == 'admin':
-        return farm
-    elif role == 'farmer' and farm.owner_id == acting_user_uid:
-        return farm
-    elif role == 'officer' and farm.assigned_officer_id == acting_user_uid:
-        return farm
-    elif role == 'middleman' and acting_user_uid in (farm.assigned_middleman_ids or []):
-        return farm
-    else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this farm.")
+    return farm
 
 
 @router.put("/{farm_id}/assign-officer", response_model=Farm)

@@ -145,4 +145,3 @@ class DeviceRepository:
 
 
 device_repository = DeviceRepository()
-

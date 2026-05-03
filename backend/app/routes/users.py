@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
 import asyncio
 from app.models.user import User, UserUpdate, DeletedUserResponse
-from app.services.user_service import get_user, update_user, get_all_users, get_deleted_users
+from app.services.user_service import get_user, update_user, create_user, get_all_users, get_deleted_users
 from app.services.activity_log_service import log_activity
 from app.middleware.auth import JWTBearer
 
@@ -108,8 +108,12 @@ async def get_current_user_profile(token: str = Depends(security)):
             await create_user(new_user)
             db_user = new_user
         except Exception as e:
-            print(f"ERROR: Failed to create JIT user profile in /me: {e}")
-            raise HTTPException(status_code=500, detail="Failed to initialize user profile.")
+            import traceback
+            print(f"❌ ERROR: Failed to create JIT user profile in /me for UID {uid}")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {str(e)}")
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Failed to initialize user profile: {str(e)}")
         
     if db_user.is_deleted:
         raise HTTPException(status_code=403, detail="User account is deleted.")

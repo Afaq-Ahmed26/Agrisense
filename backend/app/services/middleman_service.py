@@ -179,11 +179,57 @@ async def has_middleman_access_to_farm(farm_id: str, middleman_id: str) -> bool:
 
 async def get_farms_for_middleman(middleman_id: str) -> List[dict]:
     """
-    Get all farms that a middleman has access to from PostgreSQL.
+    Get all farms that a middleman or officer has access to from PostgreSQL.
+    Considers:
+    1. Farms where user is explicitly the assigned_officer_id.
+    2. Farms where user is in the assigned_middleman_ids list.
+    3. All farms owned by farmers in the user's managed_farmer_ids list.
     """
     try:
-        farms = await asyncio.to_thread(farm_repository.get_farms_assigned_to_middleman, middleman_id)
-        return [f.model_dump() for f in farms]
+        farm_ids = set()
+        
+        # 1 & 2: Direct farm assignments
+        farms_assigned_to_middleman = await asyncio.to_thread(farm_repository.get_farms_assigned_to_middleman, middleman_id)
+        for farm in farms_assigned_to_middleman:
+            farm_ids.add(farm.id)
+
+        farms_assigned_to_officer = await asyncio.to_thread(farm_repository.get_farms_assigned_to_officer, middleman_id)
+        for farm in farms_assigned_to_officer:
+            farm_ids.add(farm.id)
+
+        # 3. Indirect assignments (via managed farmers)
+        middleman = await get_user(middleman_id)
+        all_relevant_farms = []
+        if middleman and middleman.managed_farmer_ids:
+            for farmer_id in middleman.managed_farmer_ids:
+                farmer_farms = await asyncio.to_thread(farm_repository.get_farms_by_owner, farmer_id)
+                
+                if not farmer_farms:
+                    # If farmer has no farms but HAS devices, synthesize a virtual one
+                    farmer_user = await get_user(farmer_id)
+                    if farmer_user and farmer_user.assigned_device_ids:
+                        virtual_farm = Farm(
+                            id=f"virtual-farm-{farmer_id}",
+                            name=f"{farmer_user.username}'s Farm",
+                            owner_id=farmer_id,
+                            assigned_officer_id=None,
+                            assigned_middleman_ids=[],
+                            device_ids=farmer_user.assigned_device_ids,
+                            created_at=farmer_user.created_at,
+                            updated_at=farmer_user.created_at
+                        )
+                        all_relevant_farms.append(virtual_farm)
+                
+                for farm in farmer_farms:
+                    farm_ids.add(farm.id)
+
+        # Fetch full farm details for unique IDs from direct assignments
+        for f_id in farm_ids:
+            farm_details = await asyncio.to_thread(farm_repository.get_by_id, f_id)
+            if farm_details:
+                all_relevant_farms.append(farm_details)
+        
+        return [f.model_dump() for f in all_relevant_farms]
     except Exception as e:
-        print(f"ERROR: Failed to get farms for middleman: {e}")
+        print(f"ERROR: Failed to get farms for middleman/officer {middleman_id}: {e}")
         return []

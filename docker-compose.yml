@@ -35,11 +35,11 @@ services:
       # This DATABASE_URL tells the backend how to connect to the 'db' service.
       DATABASE_URL: postgresql://${POSTGRES_USER:-agrisense_user}:${POSTGRES_PASSWORD:-agrisense_password}@db:5432/${POSTGRES_DB:-agrisense}
       # Mount Firebase credentials securely as a read-only volume
-      FIREBASE_CONFIG_PATH: /app/firebase-credentials.json
+      FIREBASE_CONFIG_PATH: /app/firebase_credentials.json
       # Add other necessary environment variables here (e.g., JWT secrets)
       # Ensure these are also defined in your .env file.
     volumes:
-      - ./backend/firebase-credentials.json:/app/firebase-credentials.json:ro # Mount credentials securely (read-only)
+      - ./backend/firebase_credentials.json:/app/firebase_credentials.json:ro # Mount credentials securely (read-only)
       - ./model:/app/model:ro # Mount ML models (read-only)
       # Removed log file volume mounts as requested
     networks:

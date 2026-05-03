@@ -29,15 +29,8 @@ async def assign_middleman(
     token: str = Depends(security)
 ):
     """
-    Assign a middleman to manage a farmer's farms.
+    Assign a middleman to manage a farmer's devices.
     Only admin can perform this operation.
-    
-    Args:
-        farmer_id: ID of the farmer
-        middleman_id: ID of the middleman/officer to assign
-    
-    Returns:
-        Success message with assigned middleman details
     """
     user_payload = request.state.user
     acting_user_id = user_payload.get('uid') or user_payload.get('sub') or user_payload.get('user_id')
@@ -83,15 +76,8 @@ async def revoke_middleman(
     token: str = Depends(security)
 ):
     """
-    Revoke a middleman's access to a farmer's farms.
+    Revoke a middleman's access to a farmer's devices.
     Either the farmer or admin can perform this operation.
-    
-    Args:
-        farmer_id: ID of the farmer
-        middleman_id: ID of the middleman/officer to revoke
-    
-    Returns:
-        Success message
     """
     user_payload = request.state.user
     acting_user_id = user_payload.get('uid') or user_payload.get('sub') or user_payload.get('user_id')
@@ -137,12 +123,6 @@ async def get_farmers_for_middleman_route(
     """
     Get all farmers assigned to a middleman.
     Middleman can only view their own farmers, admins can view any middleman's farmers.
-    
-    Args:
-        middleman_id: ID of the middleman
-    
-    Returns:
-        List of User objects (farmers)
     """
     user_payload = request.state.user
     acting_user_id = user_payload.get('uid') or user_payload.get('sub') or user_payload.get('user_id')
@@ -170,14 +150,8 @@ async def get_middlemen_for_farmer_route(
     token: str = Depends(security)
 ):
     """
-    Get all middlemen assigned to a farmer's farms.
+    Get all middlemen assigned to a farmer's devices.
     Farmer can view their own middlemen, admins can view any farmer's middlemen.
-    
-    Args:
-        farmer_id: ID of the farmer
-    
-    Returns:
-        List of User objects (middlemen)
     """
     user_payload = request.state.user
     acting_user_id = user_payload.get('uid') or user_payload.get('sub') or user_payload.get('user_id')
@@ -205,14 +179,8 @@ async def get_farms_for_middleman_route(
     token: str = Depends(security)
 ):
     """
-    Get all farms that a middleman has access to.
-    Middleman can only view their own farms, admins can view any middleman's farms.
-    
-    Args:
-        middleman_id: ID of the middleman
-    
-    Returns:
-        List of farms with farm details
+    Get all devices (farms) that a middleman has access to.
+    Middleman can only view their own assignments, admins can view any middleman's.
     """
     user_payload = request.state.user
     acting_user_id = user_payload.get('uid') or user_payload.get('sub') or user_payload.get('user_id')
@@ -226,8 +194,9 @@ async def get_farms_for_middleman_route(
     if not can_view:
         raise HTTPException(
             status_code=403,
-            detail="Cannot view farms for other middlemen"
+            detail="Cannot view assignments for other middlemen"
         )
     
+    # Each device is now its own farm
     farms = await get_farms_for_middleman(middleman_id)
     return farms

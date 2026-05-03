@@ -1,48 +1,68 @@
 <template>
   <div class="container mt-5">
     <div class="row">
-      <div class="col-md-8 offset-md-2">
+      <div class="col-md-10 offset-md-1">
         <div class="card">
-          <div class="card-header">
-            <h4>Middlemen Access Management</h4>
-            <p class="small text-muted mb-0">Manage which middlemen/officers have access to your farms</p>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h4>My Farms & Support Staff</h4>
+            <p class="small text-muted mb-0">Manage your farms and the personnel who help you</p>
           </div>
           <div class="card-body">
-            <div v-if="isLoading" class="text-center">
+            <div v-if="isLoading" class="text-center py-5">
               <div class="spinner-border" role="status">
                 <span class="visually-hidden">Loading...</span>
               </div>
+              <p class="mt-2">Loading your operations...</p>
             </div>
 
-            <div v-else-if="middlemen.length === 0" class="alert alert-info">
-              <strong>No middlemen assigned</strong>
-              <p class="mb-0">Your admin can assign middlemen to help you manage your farms.</p>
+            <div v-else-if="farms.length === 0" class="alert alert-info">
+              <strong>No farms registered yet</strong>
+              <p class="mb-0">Once you add a farm and assign a device, your support staff will appear here.</p>
+              <router-link to="/dashboard" class="btn btn-primary mt-3">Go to Dashboard to Add Devices</router-link>
             </div>
 
             <div v-else>
-              <p class="text-muted">These middlemen have access to your farms and can monitor irrigation, sensors, and help you manage your operations:</p>
-              
-              <div class="list-group">
-                <div v-for="middleman in middlemen" :key="middleman.id" class="list-group-item">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                      <h5 class="mb-1">{{ middleman.username }}</h5>
-                      <p class="mb-1 text-muted">{{ middleman.email }}</p>
-                      <small class="text-muted">Role: {{ middleman.role }}</small>
+              <div v-for="farm in farms" :key="farm.id" class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">{{ farm.name }}</h5>
+                  <span class="badge bg-primary">{{ farm.device_ids?.length || 0 }} Device(s)</span>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <!-- Primary Officer -->
+                    <div class="col-md-6 mb-3 mb-md-0 border-end">
+                      <h6 class="text-muted small text-uppercase">Primary Officer</h6>
+                      <div v-if="getOfficerForFarm(farm)" class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                        <div>
+                          <strong>{{ getOfficerForFarm(farm).username }}</strong><br>
+                          <small class="text-muted">{{ getOfficerForFarm(farm).email }}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" @click="confirmRevoke(getOfficerForFarm(farm))">Revoke Access</button>
+                      </div>
+                      <div v-else class="text-muted italic small p-2">No primary officer assigned.</div>
                     </div>
-                    <button 
-                      class="btn btn-outline-danger btn-sm"
-                      @click="confirmRevoke(middleman)"
-                      :disabled="isRevoking">
-                      <span v-if="isRevoking && revokingMiddlemanId === middleman.id" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                      Revoke Access
-                    </button>
+                    
+                    <!-- Middlemen -->
+                    <div class="col-md-6">
+                      <h6 class="text-muted small text-uppercase">Assigned Middlemen</h6>
+                      <div v-if="getMiddlemenForFarm(farm).length > 0" class="list-group list-group-flush">
+                        <div v-for="m in getMiddlemenForFarm(farm)" :key="m.id" class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 py-1">
+                          <div>
+                            <span>{{ m.username }}</span><br>
+                            <small class="text-muted">{{ m.email }}</small>
+                          </div>
+                          <button class="btn btn-xs text-danger p-0" @click="confirmRevoke(m)">Revoke Access</button>
+                        </div>
+                      </div>
+                      <div v-else class="text-muted italic small p-2">No middlemen assigned.</div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div class="alert alert-warning mt-4 small">
-                <strong>Note:</strong> Revoking access will immediately prevent this middleman from viewing or managing your farms.
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Note:</strong> Revoking access will immediately prevent the officer or middleman from monitoring your sensors and irrigation systems.
               </div>
             </div>
           </div>
@@ -60,10 +80,10 @@
           </div>
           <div class="modal-body">
             <p>
-              Are you sure you want to revoke <strong>{{ selectedMiddleman?.username }}</strong>'s access to your farms?
+              Are you sure you want to revoke <strong>{{ selectedPerson?.username }}</strong>'s access?
             </p>
             <p class="text-muted small">
-              They will no longer be able to see your sensors, irrigation status, or any other farm data.
+              They will no longer be able to see your sensors, irrigation status, or any other data for your farms.
             </p>
           </div>
           <div class="modal-footer">
@@ -88,64 +108,72 @@ import { ref, onMounted } from 'vue';
 import { apiService } from '@/services/api';
 import { authStore } from '@/store/auth';
 
-const middlemen = ref([]);
+const farms = ref([]);
+const personnel = ref([]);
 const isLoading = ref(true);
 const isRevoking = ref(false);
-const revokingMiddlemanId = ref(null);
 const showConfirmRevoke = ref(false);
-const selectedMiddleman = ref(null);
+const selectedPerson = ref(null);
 
 onMounted(async () => {
-  await loadMiddlemen();
+  await loadData();
 });
 
-const loadMiddlemen = async () => {
+const loadData = async () => {
   isLoading.value = true;
   try {
     if (!authStore.user?.id) {
       throw new Error('User not authenticated');
     }
     
-    middlemen.value = await apiService.getMiddlemanForFarmer(authStore.user.id);
+    // 1. Load Farmer's farms
+    farms.value = await apiService.getFarms();
+    
+    // 2. Load all personnel assigned to this farmer
+    personnel.value = await apiService.getMiddlemanForFarmer(authStore.user.id);
+    
   } catch (error) {
-    console.error('Failed to load middlemen:', error);
-    middlemen.value = [];
-    alert('Failed to load middlemen. Please try again.');
+    console.error('Failed to load data:', error);
+    farms.value = [];
+    personnel.value = [];
   } finally {
     isLoading.value = false;
   }
 };
 
-const confirmRevoke = (middleman) => {
-  selectedMiddleman.value = middleman;
+const getOfficerForFarm = (farm) => {
+  if (!farm.assigned_officer_id) return null;
+  return personnel.value.find(p => p.id === farm.assigned_officer_id);
+};
+
+const getMiddlemenForFarm = (farm) => {
+  if (!farm.assigned_middleman_ids) return [];
+  return personnel.value.filter(p => 
+    farm.assigned_middleman_ids.includes(p.id) && p.id !== farm.assigned_officer_id
+  );
+};
+
+const confirmRevoke = (person) => {
+  selectedPerson.value = person;
   showConfirmRevoke.value = true;
 };
 
 const confirmRevokeAction = async () => {
-  if (!selectedMiddleman.value || !authStore.user?.id) {
-    return;
-  }
+  if (!selectedPerson.value || !authStore.user?.id) return;
 
   isRevoking.value = true;
-  revokingMiddlemanId.value = selectedMiddleman.value.id;
-
   try {
-    await apiService.revokeMiddlemanFromFarmer(authStore.user.id, selectedMiddleman.value.id);
-    
-    // Remove from list
-    middlemen.value = middlemen.value.filter(m => m.id !== selectedMiddleman.value.id);
-    
-    // Close modal
+    await apiService.revokeMiddlemanFromFarmer(authStore.user.id, selectedPerson.value.id);
+    // Refresh both lists
+    await loadData();
     showConfirmRevoke.value = false;
-    selectedMiddleman.value = null;
-    
-    alert(`${selectedMiddleman.value.username}'s access has been revoked`);
+    selectedPerson.value = null;
+    alert('Access revoked successfully');
   } catch (error) {
-    console.error('Failed to revoke middleman:', error);
+    console.error('Failed to revoke access:', error);
     alert('Failed to revoke access. Please try again.');
   } finally {
     isRevoking.value = false;
-    revokingMiddlemanId.value = null;
   }
 };
 </script>
@@ -163,14 +191,12 @@ const confirmRevokeAction = async () => {
   z-index: 1000;
 }
 
-.list-group-item {
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-  margin-bottom: 0.5rem;
-  border-radius: 0.25rem;
+.btn-xs {
+  padding: 0.1rem 0.25rem;
+  font-size: 0.75rem;
 }
 
-.list-group-item:last-child {
-  margin-bottom: 0;
+.italic {
+  font-style: italic;
 }
 </style>

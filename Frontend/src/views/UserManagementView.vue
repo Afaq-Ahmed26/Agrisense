@@ -46,7 +46,6 @@
                   <th>Email</th>
                   <th>Role</th>
                   <th>Assigned Device IDs</th>
-                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -89,21 +88,23 @@
                     </div>
                   </td>
                   <td>
-                    <span :class="['badge', user.is_active ? 'bg-success' : 'bg-danger']">
-                      {{ user.is_active ? 'Active' : 'Inactive' }}
-                    </span>
-                  </td>
-                  <td>
-                    <button class="btn btn-sm btn-primary me-2" 
-                            @click="toggleUserStatus(user)"
-                            :disabled="user.id === authStore.user?.id">
-                      {{ user.is_active ? 'Deactivate' : 'Activate' }}
-                    </button>
-                    <button class="btn btn-sm btn-danger" 
-                            @click="deleteUserPrompt(user)"
-                            :disabled="user.id === authStore.user?.id">
-                      Delete
-                    </button>
+                    <div class="d-flex align-items-center gap-3">
+                      <span :class="['badge', user.is_active ? 'bg-success' : 'bg-danger']" style="min-width: 70px;">
+                        {{ user.is_active ? 'Active' : 'Inactive' }}
+                      </span>
+                      <div class="btn-group">
+                        <button class="btn btn-sm btn-primary" 
+                                @click="toggleUserStatus(user)"
+                                :disabled="user.id === authStore.user?.id">
+                          {{ user.is_active ? 'Deactivate' : 'Activate' }}
+                        </button>
+                        <button class="btn btn-sm btn-danger" 
+                                @click="deleteUserPrompt(user)"
+                                :disabled="user.id === authStore.user?.id">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </tbody>
