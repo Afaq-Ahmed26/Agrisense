@@ -30,7 +30,7 @@
                 </div>
                 <div class="card-body">
                   <div v-if="getFarmsForFarmer(farmer.id).length === 0" class="text-muted italic">
-                    This farmer has no farms registered yet.
+                     This farmer has no devices connected yet.
                   </div>
                   <div v-else class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -54,8 +54,9 @@
                             <span v-else class="text-muted small">None</span>
                           </td>
                           <td>
-                            <span v-if="farm.assigned_officer_id === authStore.user.id" class="badge bg-success">Primary Officer</span>
-                            <span v-else class="badge bg-secondary">Middleman</span>
+                            <span class="badge bg-success">Assigned</span>
+                          
+                            
                           </td>
                           <td>
                             <router-link 
@@ -84,7 +85,7 @@ import { apiService } from '@/services/api';
 import { authStore } from '@/store/auth';
 
 const farmers = ref([]);
-const farms = ref([]);
+const farmerDevices = ref({}); // keyed by farmer.id
 const isLoading = ref(true);
 
 onMounted(async () => {
@@ -98,22 +99,42 @@ const loadData = async () => {
       throw new Error('User not authenticated');
     }
 
-    // 1. Load Farmers assigned to this officer
+    // 1. Load farmers assigned to this officer
     farmers.value = await apiService.getFarmersForMiddleman(authStore.user.id);
-    
-    // 2. Load all Farms this officer has access to
-    farms.value = await apiService.getFarmsForMiddleman(authStore.user.id);
-    
+
+    // 2. For each farmer, load their devices and treat each as a farm
+    const deviceMap = {};
+    for (const farmer of farmers.value) {
+      try {
+        // Temporarily switch to farmer context isn't possible,
+        // so use getFarmsForMiddleman which returns virtual farms per farmer
+        const farmsData = await apiService.getFarmsForMiddleman(authStore.user.id);
+        deviceMap[farmer.id] = farmsData
+          .filter(f => f.owner_id === farmer.id)
+          .map(f => ({
+            id: f.id,
+            name: f.name || f.id,
+            location: f.location || null,
+            device_ids: f.device_ids || [f.id],
+            assigned_officer_id: f.assigned_officer_id,
+            assigned_middleman_ids: f.assigned_middleman_ids || [],
+            owner_id: f.owner_id,
+          }));
+      } catch (e) {
+        deviceMap[farmer.id] = [];
+      }
+    }
+    farmerDevices.value = deviceMap;
+
   } catch (error) {
     console.error('Failed to load assignment data:', error);
-    alert('Failed to load assignments. Please try again.');
   } finally {
     isLoading.value = false;
   }
 };
 
 const getFarmsForFarmer = (farmerId) => {
-  return farms.value.filter(f => f.owner_id === farmerId);
+  return farmerDevices.value[farmerId] || [];
 };
 </script>
 

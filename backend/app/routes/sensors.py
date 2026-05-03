@@ -188,7 +188,11 @@ async def get_devices(
 
     if normalize_role(current_user.role) in ASSIGNED_DEVICE_ROLES:
         assigned_device_ids = get_assigned_device_ids(current_user)
-        devices = [device for device in devices if device.id in assigned_device_ids]
+        # Also include devices where owner_id matches this user
+        devices = [
+            device for device in devices
+            if device.id in assigned_device_ids or device.owner_id == current_user.id
+        ]
 
     return devices[skip : skip + limit]
 

@@ -16,9 +16,9 @@
             </div>
 
             <div v-else-if="farms.length === 0" class="alert alert-info">
-              <strong>No farms registered yet</strong>
-              <p class="mb-0">Once you add a farm and assign a device, your support staff will appear here.</p>
-              <router-link to="/dashboard" class="btn btn-primary mt-3">Go to Dashboard to Add Devices</router-link>
+              <strong>No devices connected yet</strong>
+              <p class="mb-0">Connect a device via OTP from the Dashboard first.</p>
+              <router-link to="/dashboard" class="btn btn-primary mt-3">Go to Dashboard</router-link>
             </div>
 
             <div v-else>
@@ -125,13 +125,21 @@ const loadData = async () => {
     if (!authStore.user?.id) {
       throw new Error('User not authenticated');
     }
-    
-    // 1. Load Farmer's farms
-    farms.value = await apiService.getFarms();
-    
-    // 2. Load all personnel assigned to this farmer
+
+    // Treat each device as a farm
+    const devices = await apiService.getDevices();
+    farms.value = devices.map(d => ({
+      id: d.id,
+      name: d.name || d.id,
+      location: d.location || null,
+      device_ids: [d.id],
+      assigned_officer_id: null,
+      assigned_middleman_ids: [],
+    }));
+
+    // Load all personnel assigned to this farmer
     personnel.value = await apiService.getMiddlemanForFarmer(authStore.user.id);
-    
+
   } catch (error) {
     console.error('Failed to load data:', error);
     farms.value = [];
@@ -141,16 +149,14 @@ const loadData = async () => {
   }
 };
 
+// Since assignments are per-farmer not per-device,
+// show all officers across all farms
 const getOfficerForFarm = (farm) => {
-  if (!farm.assigned_officer_id) return null;
-  return personnel.value.find(p => p.id === farm.assigned_officer_id);
+  return personnel.value.find(p => p.role === 'officer') || null;
 };
 
 const getMiddlemenForFarm = (farm) => {
-  if (!farm.assigned_middleman_ids) return [];
-  return personnel.value.filter(p => 
-    farm.assigned_middleman_ids.includes(p.id) && p.id !== farm.assigned_officer_id
-  );
+  return personnel.value.filter(p => p.role === 'middleman');
 };
 
 const confirmRevoke = (person) => {
@@ -164,7 +170,6 @@ const confirmRevokeAction = async () => {
   isRevoking.value = true;
   try {
     await apiService.revokeMiddlemanFromFarmer(authStore.user.id, selectedPerson.value.id);
-    // Refresh both lists
     await loadData();
     showConfirmRevoke.value = false;
     selectedPerson.value = null;

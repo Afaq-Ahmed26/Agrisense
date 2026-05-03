@@ -103,7 +103,7 @@ class DeviceRepository:
                 """,
                 fetchall=True,
             ) or []
-        return [Device(**dict(row)) for row in rows]
+        return [Device(**{k: v for k, v in dict(row).items()}) for row in rows]
 
     def assign_owner(self, device_id: str, owner_id: str) -> None:
         postgres_service.execute(

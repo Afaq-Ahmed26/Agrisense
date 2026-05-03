@@ -25,7 +25,7 @@ class SensorReading(SensorReadingBase):
 
 class DeviceBase(BaseModel):
     name: str
-    location: str
+    location: Optional[str] = None
     owner_id: str
     type: str = "irrigation_device"
     zone_id: Optional[str] = None # Added for grouping
