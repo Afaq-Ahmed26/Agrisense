@@ -257,6 +257,18 @@ class PostgresService:
             ON irrigation_events (status);
             """,
             """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'irrigation_events' AND column_name = 'mode') THEN
+                    ALTER TABLE irrigation_events ADD COLUMN mode TEXT DEFAULT 'auto';
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'irrigation_events' AND column_name = 'water_used_liters') THEN
+                    ALTER TABLE irrigation_events ADD COLUMN water_used_liters DOUBLE PRECISION;
+                END IF;
+            END
+            $$;
+            """,
+            """
             CREATE TABLE IF NOT EXISTS irrigation_control_states (
                 device_id TEXT PRIMARY KEY,
                 mode TEXT NOT NULL DEFAULT 'AUTO',
@@ -404,8 +416,8 @@ class PostgresService:
             """
             INSERT INTO irrigation_events
                 (id, device_id, start_time, end_time, duration_actual_seconds, status,
-                 temperature, humidity, soil_moisture, light_level, user_triggered, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 temperature, humidity, soil_moisture, light_level, user_triggered, mode, water_used_liters, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
                 end_time = EXCLUDED.end_time,
                 duration_actual_seconds = EXCLUDED.duration_actual_seconds,
@@ -414,7 +426,9 @@ class PostgresService:
                 humidity = EXCLUDED.humidity,
                 soil_moisture = EXCLUDED.soil_moisture,
                 light_level = EXCLUDED.light_level,
-                user_triggered = EXCLUDED.user_triggered;
+                user_triggered = EXCLUDED.user_triggered,
+                mode = EXCLUDED.mode,
+                water_used_liters = EXCLUDED.water_used_liters;
             """,
             (
                 event["id"],
@@ -428,6 +442,8 @@ class PostgresService:
                 event.get("soil_moisture"),
                 event.get("light_level"),
                 bool(event.get("user_triggered", False)),
+                event.get("mode", "auto"),
+                event.get("water_used_liters"),
                 event.get("created_at"),
             ),
         )
@@ -462,7 +478,11 @@ class PostgresService:
         row = self.execute(
             """
             UPDATE irrigation_events
-            SET status = 'stopped', end_time = %s
+            SET 
+                status = 'stopped', 
+                end_time = %s,
+                duration_actual_seconds = EXTRACT(EPOCH FROM (%s - start_time))::INTEGER,
+                water_used_liters = EXTRACT(EPOCH FROM (%s - start_time)) * 0.05
             WHERE id = (
                 SELECT id
                 FROM irrigation_events
@@ -473,7 +493,7 @@ class PostgresService:
             )
             RETURNING *;
             """,
-            (end_time, device_id),
+            (end_time, end_time, end_time, device_id),
             fetchone=True,
         )
         return dict(row) if row else None

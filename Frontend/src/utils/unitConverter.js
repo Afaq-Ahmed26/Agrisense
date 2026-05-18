@@ -68,6 +68,11 @@ export const formatWithUserPreferences = (value, valueType, userPreferences) => 
             convertedValue = convertTemperature(value, 'Celsius', preferences.temperature_unit);
             unitSymbol = preferences.temperature_unit === 'Celsius' ? '°C' : 
                         preferences.temperature_unit === 'Fahrenheit' ? '°F' : 'K';
+            // Ensure default is Celsius, not Kelvin
+            if (!['Celsius', 'Fahrenheit', 'Kelvin'].includes(preferences.temperature_unit)) {
+                unitSymbol = '°C';
+                convertedValue = value;
+            }
             break;
         case 'volume':
             convertedValue = convertVolume(value, 'liters', preferences.volume_unit);

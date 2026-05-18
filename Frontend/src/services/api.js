@@ -298,11 +298,12 @@ class ApiService {
         return { device_id: deviceId, status: 'active', last_updated: new Date().toISOString() };
     }
 
-    async startIrrigation(deviceId, durationSeconds) {
+    async startIrrigation(deviceId, durationSeconds, userTriggered = false) {
         const normalizedDurationSeconds = Math.max(1, Math.round(Number(durationSeconds)));
         const params = new URLSearchParams({
             device_id: deviceId,
-            duration_seconds: normalizedDurationSeconds.toString()
+            duration_seconds: normalizedDurationSeconds.toString(),
+            user_triggered: userTriggered.toString()
         });
         return this.request(`/irrigation/trigger?${params}`, {
             method: 'POST'

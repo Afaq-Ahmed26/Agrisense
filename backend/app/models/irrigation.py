@@ -44,6 +44,8 @@ class IrrigationEventBase(BaseModel):
     soil_moisture: Optional[float] = None
     light_level: Optional[float] = None
     user_triggered: Optional[bool] = False
+    mode: Optional[str] = None  # "manual" or "auto"
+    water_used_liters: Optional[float] = None  # Water consumption in liters
 
 
 class IrrigationEventCreate(IrrigationEventBase):

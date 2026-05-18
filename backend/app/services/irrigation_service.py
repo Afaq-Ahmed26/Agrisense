@@ -43,6 +43,8 @@ class IrrigationService:
             soil_moisture=event_create.soil_moisture,
             light_level=event_create.light_level,
             user_triggered=event_create.user_triggered,
+            mode=event_create.mode,
+            water_used_liters=event_create.water_used_liters,
             created_at=datetime.utcnow()
         )
         await asyncio.to_thread(postgres_service.save_irrigation_event, new_event.model_dump())

@@ -317,7 +317,7 @@ const startIrrigationAPI = async () => {
     await updateControlState({ mode: 'MANUAL' });
 
     mode.value = 'manual';
-    await apiService.startIrrigation(props.deviceId, durationSeconds);
+    await apiService.startIrrigation(props.deviceId, durationSeconds, true);
 
     notificationModal.value.show(`Irrigation started for ${durationSeconds} seconds!`, 'Success', 'success');
 

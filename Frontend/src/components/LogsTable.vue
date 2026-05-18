@@ -91,15 +91,12 @@ const fetchIrrigationLogs = async () => {
     logs.value = (Array.isArray(events) ? events : []).map((event) => {
       const durationActualSeconds = Number(event.duration_actual_seconds ?? 0);
       const durationActualMinutes = Number((durationActualSeconds / 60).toFixed(2));
-      const inferredMode = event.mode
-        ? String(event.mode).toLowerCase()
-        : (event.user_triggered ? 'manual' : 'auto');
       const startTime = event.start_time || event.created_at || null;
 
       return {
         ...event,
         start_time: startTime,
-        mode: inferredMode,
+        mode: event.mode ? String(event.mode).toLowerCase() : 'auto',
         status: event.status || 'unknown',
         duration_actual_seconds: durationActualSeconds,
         duration_actual_minutes: durationActualMinutes,
@@ -145,10 +142,23 @@ const userPrefs = computed(() => authStore.user?.preferences || {
 const volumeUnit = computed(() => formatWithUserPreferences(0, 'volume', userPrefs.value).unit);
 const temperatureUnit = computed(() => formatWithUserPreferences(0, 'temperature', userPrefs.value).unit);
 
-const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString() : 'N/A';
-const formatTime = (dateString) => dateString
-  ? new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  : 'N/A';
+const normalizeTimestamp = (dateString) => {
+  if (!dateString) return null;
+  const s = dateString.trim().replace(' ', 'T');
+  return /([zZ]|[+\-]\d{2}:\d{2})$/.test(s) ? s : s + 'Z';
+};
+
+const formatDate = (dateString) => {
+  const normalized = normalizeTimestamp(dateString);
+  return normalized ? new Date(normalized).toLocaleDateString() : 'N/A';
+};
+
+const formatTime = (dateString) => {
+  const normalized = normalizeTimestamp(dateString);
+  return normalized
+    ? new Date(normalized).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : 'N/A';
+};
 
 const formatVolumeWithUserPreferences = (liters) => {
   const result = formatWithUserPreferences(liters, 'volume', userPrefs.value);

@@ -128,7 +128,7 @@ async def get_irrigation_events(
 async def trigger_irrigation(
     device_id: str,
     duration_seconds: Optional[int] = None, # Allow explicit duration in seconds or use ML prediction
-    user_triggered: Optional[bool] = None,
+    user_triggered: Optional[str] = None,  # Changed to string to handle URL params
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -138,6 +138,11 @@ async def trigger_irrigation(
     """
     ensure_device_access(current_user, device_id)
     current_control = await irrigation_service.get_control_state(device_id)
+    
+    # Convert user_triggered string to boolean
+    user_triggered_bool = None
+    if user_triggered is not None:
+        user_triggered_bool = user_triggered.lower() in ('true', '1', 'yes')
 
     start_time = datetime.utcnow()
     
@@ -174,6 +179,10 @@ async def trigger_irrigation(
     # Fetch latest sensor data for recording in the event
     latest_reading = await sensor_service.get_latest_sensor_reading(device_id)
     sensor_data_to_record = latest_reading.dict() if latest_reading else {}
+    
+    # Calculate water used: flow rate is 0.05 L/s
+    FLOW_RATE_LPS = 0.05
+    water_used_liters = duration_seconds * FLOW_RATE_LPS
 
     event_create = IrrigationEventCreate(
         device_id=device_id,
@@ -182,14 +191,19 @@ async def trigger_irrigation(
         duration_actual_seconds=duration_seconds, # Changed to seconds
         status="active", # Set to active so it can be stopped later
         user_triggered=(
-            bool(user_triggered)
-            if user_triggered is not None
+            user_triggered_bool
+            if user_triggered_bool is not None
             else str(current_control.mode).upper() != "AUTO"
         ),
         temperature=sensor_data_to_record.get('temperature'),
         humidity=sensor_data_to_record.get('humidity'),
         soil_moisture=sensor_data_to_record.get('soil_moisture'),
         light_level=sensor_data_to_record.get('light_level'),
+        mode="manual" if (
+            user_triggered_bool if user_triggered_bool is not None 
+            else str(current_control.mode).upper() != "AUTO"
+        ) else "auto",
+        water_used_liters=water_used_liters,
     )
 
     new_event = await irrigation_service.create_irrigation_event(event_create)
